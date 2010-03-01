@@ -1,0 +1,80 @@
+highlighting-kate is a Haskell source code highlighting library, based
+on Kate's syntax description files (http://kate-editor.org/).
+
+Currently, the following languages are supported:
+
+Ada, Asp, Awk, Bash, Bibtex, C, Cmake, Coldfusion, Commonlisp, Cpp, Css,
+D, Djangotemplate, Doxygen, Dtd, Eiffel, Erlang, Fortran, Haskell,
+Html, Java, Javadoc, Javascript, Json, Latex, Lex, LiterateHaskell, Lua,
+Makefile, Matlab, Mediawiki, Modula3, Nasm, Objectivec, Ocaml, Pascal,
+Perl, Php, Postscript, Prolog, Python, RelaxNG compact, Rhtml, Ruby,
+Scala, Scheme, Sgml, Sql, SqlMysql, SqlPostgresql, Tcl, Texinfo, Xml,
+Xslt, Yacc
+
+To install:
+
+    runghc Setup.lhs configure
+    runghc Setup.lhs build 
+    runghc Setup.lhs haddock    # optional, if you want library documentation
+    runghc Setup.lhs install    # as root, or specify --user 
+
+For an example of the use of the library, see Highlight.hs.
+To compile this program along with the library, specify the 'executable'
+flag in the configure step above:
+
+    runghc Setup.lhs configure -fexecutable
+
+To run Highlight, specify the language name using -s:
+
+    Highlight -s haskell Highlight.hs > example.html
+
+If you don't specify a language name, Highlight will try to guess it
+from the file extension.  Highlight can also be used as a pipe, reading
+input from STDIN.  For other options,
+
+    Highlight --help
+
+Styling is done using span tags.  The Highlight program will include
+default styles in the generated HTML, unless a link to a CSS file is
+provided using the '--css' option. Some sample CSS files can be found
+in the css directory. These use generic class names (Normal, Keyword,
+DataType, DecVal, BaseN, Float, Char, String, Comment, Function, Others,
+Alert, Error). For more fine-grained highlighting, users may wish to
+create their own CSS files that use language-specific classes.
+
+The parsers in Text/Highlighting/Kate/Syntax were automatically generated
+from the Kate syntax definitions in the xml directory. You may modify
+the xml files in this directory, or add new ones, and then regenerate
+the parsers by doing:
+
+    runghc ParseSyntaxFiles.hs xml
+
+Note that ParseSyntaxFiles.hs requires the HXT package.
+
+You can browse the available Kate syntax highlighting files at
+
+    http://kate-editor.org/downloads/syntax_highlighting
+
+or retrieve them all using Subversion:
+
+    svn co svn://anonsvn.kde.org/home/kde/trunk/KDE/kdelibs/kate/syntax/data kate-data 
+
+There is information on the syntax highlighting definitions at
+
+    http://kate-editor.org/article/writing_a_kate_highlighting_xml_file
+
+Thanks are due to all the authors of these syntax definitions.
+
+Changes have been made to the following xml files (the originals have
+been left in the directory, with .bkp extensions):
+
+- javascript.xml:  Fixed regex \s* (which matches empty string) by changes to DetectSpaces
+- perl.xml:  Fixed regexes - needed backslash-escapes before ] and ^
+- haskell.xml:  Added support for module names
+- bash.xml: Changed "\\" to "\" in two Detect2Char rules in FindString
+- literate-haskell.xml:  Fixed single line comments and growing context stack
+
+NOTE:  This software is largely untested.  Known bugs are recorded in the file
+BUGS. Please send bug reports (or better, patches) to the author (jgm at
+berkeley dot edu).
+
