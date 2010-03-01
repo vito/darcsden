@@ -28,7 +28,7 @@ var key val = JSObject $ toJSObject [(key, toJSON val)]
 -- URL handling
 handler :: Application
 handler env = pageFor path env
-    where path = map unpack (split '/' (pack (tail (pathInfo env))))
+    where path = map unpack . split '/' . pack . tail . pathInfo $ env
 
 pageFor :: [String] -> Application
 pageFor [] = index
