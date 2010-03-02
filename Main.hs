@@ -9,6 +9,7 @@ import System.Environment (withProgName)
 import DarcsDen.Handler
 import DarcsDen.State
 
+
 main :: IO ()
 main = withProgName "darcsden" $ do
          state <- startSystemState (Proxy :: Proxy State)

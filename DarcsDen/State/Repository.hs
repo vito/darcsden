@@ -19,8 +19,8 @@ data Repository = Repository { rName :: String
                              }
                 deriving (Eq, Show, Typeable, Data)
 
-data Repositories = Repositories (M.Map (String, String) Repository)
-                  deriving (Show, Typeable)
+newtype Repositories = Repositories (M.Map (String, String) Repository)
+    deriving (Show, Typeable)
 
 instance Version Repository
 instance Version Repositories
@@ -33,19 +33,15 @@ instance Component Repositories where
     initialValue = Repositories M.empty
 
 getRepository :: (String, String) -> Query Repositories (Maybe Repository)
-getRepository key = do Repositories rs <- ask
-                       return (M.lookup key rs)
+getRepository key = asks (\(Repositories rs) -> M.lookup key rs)
 
 addRepository :: Repository -> Update Repositories ()
-addRepository r = do Repositories rs <- get
-                     put (Repositories (M.insert (rName r, rOwner r) r rs))
+addRepository r = modify (\(Repositories rs) -> Repositories (M.insert (rName r, rOwner r) r rs))
 
 updateRepository :: Repository -> Update Repositories ()
-updateRepository r = do deleteRepository (rName r, rOwner r)
-                        addRepository r
+updateRepository = addRepository
 
 deleteRepository :: (String, String) -> Update Repositories ()
-deleteRepository key = do Repositories rs <- get
-                          put (Repositories (M.delete key rs))
+deleteRepository key = modify (\(Repositories rs) -> Repositories (M.delete key rs))
 
 $(mkMethods ''Repositories ['getRepository, 'addRepository, 'updateRepository, 'deleteRepository])

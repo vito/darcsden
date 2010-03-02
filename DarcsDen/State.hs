@@ -9,7 +9,7 @@ import DarcsDen.State.Repository
 
 
 data State = State
-           deriving (Typeable, Show)
+             deriving (Typeable, Show)
 
 instance Version State
 

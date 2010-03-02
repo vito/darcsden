@@ -17,10 +17,10 @@ data User = User { uName :: String
                  , uPubkeys :: [String]
                  , uJoined :: ClockTime
                  }
-          deriving (Eq, Show, Typeable, Data)
+            deriving (Eq, Show, Typeable, Data)
 
-data Users = Users (M.Map String User)
-             deriving (Show, Typeable)
+newtype Users = Users (M.Map String User)
+    deriving (Show, Typeable)
 
 instance Version User
 instance Version Users
@@ -33,19 +33,15 @@ instance Component Users where
     initialValue = Users M.empty
 
 getUser :: String -> Query Users (Maybe User)
-getUser name = do Users us <- ask
-                  return (M.lookup name us)
+getUser name = asks (\(Users us) -> M.lookup name us)
 
 addUser :: User -> Update Users ()
-addUser u = do Users us <- get
-               put (Users (M.insert (uName u) u us))
+addUser u = modify (\(Users us) -> Users (M.insert (uName u) u us))
 
 updateUser :: User -> Update Users ()
-updateUser u = do deleteUser (uName u)
-                  addUser u
+updateUser = addUser -- Data.Map replaces if key exists
 
 deleteUser :: String -> Update Users ()
-deleteUser name = do Users us <- get
-                     put (Users (M.delete name us))
+deleteUser name = modify (\(Users us) -> Users (M.delete name us))
 
 $(mkMethods ''Users ['getUser, 'addUser, 'updateUser, 'deleteUser])
