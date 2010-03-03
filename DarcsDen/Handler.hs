@@ -37,7 +37,7 @@ register env = case requestMethod env of
                                   , when (nonEmpty "password1" `And` nonEmpty "password2") (const $ equal "password1" "password2")
                                   , predicate "email" (const True) "be a valid email"
                                   ]
-                     (\ (OK r) -> do
+                     (\(OK r) -> do
                         now <- getClockTime
                         salt <- salt 32
                         update $ AddUser (User { uName = r ! "name"
@@ -51,7 +51,7 @@ register env = case requestMethod env of
                                                })
                         user <- query $ GetUser (r ! "name")
                         doPage "register" [var "passed" (toList r), var "user" user] env)
-                     (\ (Invalid failed) ->
+                     (\(Invalid failed) ->
                         doPage "register" [ var "failed" (map explain failed)
                                           , assocVar "in" (getInputs env)
                                           ] env)
