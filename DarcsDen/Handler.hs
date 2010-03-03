@@ -27,11 +27,16 @@ register :: Application
 register env = case requestMethod env of
                  GET -> doPage "register" [] env
                  POST ->
-                     validate env [ nonEmpty "name"
+                     validate env [ when
+                                      (nonEmpty "name")
+                                      (\(OK r) -> io (do check <- query (GetUser (r ! "name"))
+                                                         return (check == Nothing))
+                                                     "name is already in use")
                                   , predicate "name" (and . map isAlphaNum) "be alphanumeric"
                                   , nonEmpty "email"
-                                  , when (nonEmpty "password1" `And` nonEmpty "password2") (equal "password1" "password2")
-                                  , predicate "email" (const True) "be a valid email" ]
+                                  , when (nonEmpty "password1" `And` nonEmpty "password2") (const $ equal "password1" "password2")
+                                  , predicate "email" (const True) "be a valid email"
+                                  ]
                      (\ (OK r) -> do
                         now <- getClockTime
                         salt <- salt 32
@@ -47,9 +52,9 @@ register env = case requestMethod env of
                         user <- query $ GetUser (r ! "name")
                         doPage "register" [var "passed" (toList r), var "user" user] env)
                      (\ (Invalid failed) ->
-                          doPage "register" [ var "failed" (map explain failed)
-                                            , JSObject $ toJSObject [("in", JSObject . toJSObject . map (\(k, v) -> (k, toJSON v)) $ getInputs env)]
-                                            ] env)
+                        doPage "register" [ var "failed" (map explain failed)
+                                          , assocVar "in" (getInputs env)
+                                          ] env)
 
 notFound :: Application
 notFound = doPage "404" []
@@ -62,6 +67,8 @@ doPage page context env = renderToResponse env ("html/" ++ page ++ ".html") cont
 var :: Data a => String -> a -> JSValue
 var key val = JSObject $ toJSObject [(key, toJSON val)]
 
+assocVar :: Data a => String -> [(String, a)] -> JSValue
+assocVar key val = JSObject $ toJSObject [(key, JSObject . toJSObject . map (\(k, v) -> (k, toJSON v)) $ val)]
 
 -- URL handling
 handler :: Application
@@ -74,3 +81,4 @@ pageFor ["index"] = index
 pageFor ["user", name] = user name
 pageFor ["register"] = register
 pageFor _ = notFound
+
