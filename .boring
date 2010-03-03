@@ -114,3 +114,6 @@
 
 # happstack state
 ^_local$
+
+# compiled app
+Main
