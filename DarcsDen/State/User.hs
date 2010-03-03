@@ -2,7 +2,7 @@
   TemplateHaskell, TypeFamilies, UndecidableInstances #-}
 module DarcsDen.State.User where
 
-import Codec.Utils (Octet, listToOctets)
+import Codec.Utils (Octet)
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.Char (ord)
@@ -67,8 +67,14 @@ deleteUser name = modify (\(Users us) -> Users (M.delete name us))
 $(mkMethods ''Users ['getUser, 'addUser, 'updateUser, 'deleteUser])
 
 salt :: Int -> IO [Octet]
-salt num = do r <- replicateM num (randomRIO (0 :: Int, 255 :: Int))
-              return (listToOctets r)
+salt num = do r <- replicateM num (randomRIO (0 :: Int, 255))
+              return (map (\x -> fromIntegral x :: Octet) r)
 
 hashPassword :: String -> [Octet] -> [Octet]
-hashPassword pass salt = hash (listToOctets (map ord pass) ++ salt)
+hashPassword pass salt = hash (merge (map (fromIntegral . ord) pass) salt)
+
+merge :: [a] -> [a] -> [a]
+merge a b = concat (zipWith (\ x y -> [x, y]) a b) ++ leftover
+            where leftover = if length a < length b
+                               then drop (length a) b
+                               else drop (length b) a

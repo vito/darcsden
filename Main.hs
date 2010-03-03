@@ -1,7 +1,6 @@
 module Main where
 
 import Control.Concurrent (forkIO)
-import Hack
 import Hack.Handler.Happstack (run)
 import Happstack.State
 import System.Environment (withProgName)
