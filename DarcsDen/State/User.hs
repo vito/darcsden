@@ -39,7 +39,7 @@ addUser :: User -> Update Users ()
 addUser u = modify (\(Users us) -> Users (M.insert (uName u) u us))
 
 updateUser :: User -> Update Users ()
-updateUser = addUser -- Data.Map replaces if key exists
+updateUser = addUser
 
 deleteUser :: String -> Update Users ()
 deleteUser name = modify (\(Users us) -> Users (M.delete name us))
