@@ -74,3 +74,6 @@ validate e ts p f = case check e ts of
 
 predicate :: String -> (String -> Bool) -> String -> Valid
 predicate = Predicate
+
+when :: Valid -> Valid -> Valid
+when = If

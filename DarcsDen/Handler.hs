@@ -30,7 +30,7 @@ register env = case requestMethod env of
                      validate env [ nonEmpty "name"
                                   , predicate "name" (and . map isAlphaNum) "be alphanumeric"
                                   , nonEmpty "email"
-                                  , If (nonEmpty "password1" `And` nonEmpty "password2") $ equal "password1" "password2"
+                                  , when (nonEmpty "password1" `And` nonEmpty "password2") (equal "password1" "password2")
                                   , predicate "email" (const True) "be a valid email" ]
                      (\ (OK r) -> do
                         now <- getClockTime
