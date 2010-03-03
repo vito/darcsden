@@ -34,7 +34,10 @@ register env = case requestMethod env of
                                   , predicate "email" (const True) "be a valid email" ]
                      (\ (OK r) -> do
                         now <- getClockTime
+                        salt <- salt 32
                         update $ AddUser (User { uName = r ! "name"
+                                               , uPassword = hashPassword (r ! "password1") salt
+                                               , uSalt = salt
                                                , uFullName = ""
                                                , uWebsite = ""
                                                , uEmail = r ! "email"
