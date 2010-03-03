@@ -18,9 +18,10 @@ data Result = Invalid [Valid]
             | OK (M.Map String String)
 
 
+-- Explain a validation
 explain :: Valid -> String
-explain (Predicate a _ e) = show a ++ " must " ++ e
-explain (PredicateOp a b _ e) = show a ++ " and " ++ show b ++ " must " ++ e
+explain (Predicate a _ e) = a ++ " must " ++ e
+explain (PredicateOp a b _ e) = a ++ " and " ++ b ++ " must " ++ e
 explain (Not v) = "not: " ++ explain v
 explain (Or v x) = explain v ++ " or " ++ explain x
 explain (And v x) = explain v ++ " and " ++ explain x
