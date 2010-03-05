@@ -13,7 +13,7 @@ data Valid = Predicate String (String -> Bool) String
            | Or Valid Valid
            | And Valid Valid
            | If Valid (OK -> Valid)
-           | IOPred (IO Bool) String
+           | IOPred String (IO Bool)
 
 data Invalid = Invalid [Valid]
 data OK = OK (M.Map String String)
@@ -27,10 +27,10 @@ explain (PredicateOp a b _ e) = a ++ " and " ++ b ++ " must " ++ e
 explain (Not v) = "not: " ++ explain v
 explain (Or v x) = explain v ++ " or " ++ explain x
 explain (And v x) = explain v ++ " and " ++ explain x
-explain (If v _) = "if (" ++ explain v ++ ")"
-explain (IOPred _ e) = e
+explain (If v _) = "if (" ++ explain v ++ ") (...)"
+explain (IOPred e _) = e
 
--- Helper
+-- Helpers
 ok :: [(String, String)] -> Result
 ok = Right . OK . M.fromList
 
@@ -62,7 +62,7 @@ verify e (If a b) = do x <- verify e a
                        case x of
                          Right o -> verify e (b o)
                          _ -> return x
-verify _ v@(IOPred p _) = do r <- p
+verify _ v@(IOPred _ p) = do r <- p
                              if r
                                then return $ ok []
                                else return $ invalid [v]
@@ -99,6 +99,6 @@ predicate = Predicate
 when :: Valid -> (OK -> Valid) -> Valid
 when = If
 
-io :: IO Bool -> String -> Valid
+io :: String -> IO Bool -> Valid
 io = IOPred
 
