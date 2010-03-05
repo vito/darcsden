@@ -1,0 +1,16 @@
+{% if failed %}
+Failed:
+<ul>
+  {% for fail in failed %}
+  <li>{{ fail }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+
+<form method="post">
+  <label for="name">Name</label>
+  <input name="name" value="{{in.name}}"><br />
+  <label for="password">Password</label>
+  <input name="password"><br />
+</form>
