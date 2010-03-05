@@ -16,9 +16,14 @@ data Valid = Predicate String (String -> Bool) String
            | IOPred String (IO Bool)
 
 data Invalid = Invalid [Valid]
+               deriving Show
 data OK = OK (M.Map String String)
+          deriving Show
 
 type Result = Either Invalid OK
+
+instance Show Valid where
+    show = explain
 
 -- Explain a validation
 explain :: Valid -> String
