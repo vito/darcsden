@@ -65,7 +65,10 @@ verify e (And a b) = do x <- verify e a
                               return $ invalid (concat . map (\(Invalid i) -> i) $ lefts other)
 verify e (If a b) = do x <- verify e a
                        case x of
-                         Right o -> verify e (b o)
+                         Right o@(OK r) -> do t <- verify e (b o)
+                                              case t of
+                                                Left _ -> return t
+                                                Right (OK ts) -> return $ Right $ OK (r `M.union` ts)
                          _ -> return x
 verify _ v@(IOPred _ p) = do r <- p
                              if r
