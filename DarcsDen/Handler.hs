@@ -98,7 +98,7 @@ initialize (Session { sUser = Just n }) e
                                               , rUsers = []
                                               , rCreated = now
                                               }
-                   doPage "index" [] e)
+                   redirectTo "/")
     (\(Invalid f) -> doPage "init" [var "failed" (map explain f), assocObj "in" (getInputs e)] e)
 
 repository :: String -> String -> Page
