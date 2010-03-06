@@ -2,6 +2,7 @@
   TemplateHaskell, TypeFamilies, UndecidableInstances #-}
 module DarcsDen.State.Repository where
 
+import Control.Exception (onException)
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.Data (Data)
@@ -66,6 +67,6 @@ withDirectory :: FilePath -> IO a -> IO a
 withDirectory p d = do createDirectoryIfMissing True p
                        o <- getCurrentDirectory
                        setCurrentDirectory p
-                       r <- d
-                       setCurrentDirectory o
-                       return r
+                       (do r <- d
+                           setCurrentDirectory o
+                           return r) `onException` (setCurrentDirectory o)

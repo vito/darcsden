@@ -1,0 +1,10 @@
+<h1>{{user}}'s {{reponame}}</h1>
+<p>{{repo.rDescription}}</p>
+<ul>
+  {% if path %}
+  <li><a href="/{{user}}/{{reponame}}/browse{% if up %}/{{up}}{% endif %}">..</a></li>
+  {% endif %}
+  {% for file in files %}
+  <li><a href="/{{user}}/{{reponame}}/browse/{% if path %}{{path}}/{% endif %}{{file.iName}}">{{file.iIsDirectory}}: {{file.iName}}</a></li>
+  {% endfor %}
+</ul>

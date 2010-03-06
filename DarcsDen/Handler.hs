@@ -1,21 +1,20 @@
 module DarcsDen.Handler where
 
 import Hack
-import Hack.Contrib.Press
 import Happstack.State
+import System.Directory (doesFileExist)
 import System.Time (getClockTime)
-import Text.JSON.Generic
-import Data.ByteString.Lazy.Char8 (empty, unpack, split, pack)
+import Data.ByteString.Lazy.Char8 (unpack, split, pack)
 import Data.Char (isAlphaNum)
+import Data.List (intercalate)
 import Data.Map ((!))
 
 import DarcsDen.HackUtils
+import DarcsDen.Handler.Repository
 import DarcsDen.State.User
 import DarcsDen.State.Session
 import DarcsDen.State.Repository
 import DarcsDen.Validate
-
-type Page = Session -> Application
 
 -- Pages
 index :: Page
@@ -82,52 +81,11 @@ login s e = validate e
 logout :: Page
 logout s _ = update (UpdateSession (s { sUser = Nothing })) >> redirectTo "/"
 
-initialize :: Page
-initialize (Session { sUser = Nothing }) _ = redirectTo "/"
-initialize _ e@(Env { requestMethod = GET }) = doPage "init" [] e
-initialize (Session { sUser = Just n }) e
-  = validate e
-    [ nonEmpty "name"
-    , io "user is not valid" (query (GetUser n) >>= (return . (/= Nothing)))
-    ]
-    (\(OK r) -> do now <- getClockTime
-                   newRepository $ Repository { rName = r ! "name"
-                                              , rDescription = input "description" "" e
-                                              , rWebsite = input "website" "" e
-                                              , rOwner = n
-                                              , rUsers = []
-                                              , rCreated = now
-                                              }
-                   redirectTo "/")
-    (\(Invalid f) -> doPage "init" [var "failed" (map explain f), assocObj "in" (getInputs e)] e)
-
-repository :: String -> String -> Page
-repository un rn s e = do mr <- query (GetRepository (un, rn))
-                          case mr of
-                            Nothing -> notFound s e
-                            Just r -> doPage "repo" [var "repo" r] e
-
-notFound :: Page
-notFound _ = doPage "404" []
-
-
--- Page helpers
-doPage :: String -> [JSValue] -> Application
-doPage page context env = renderToResponse env ("html/" ++ page ++ ".html") context
-
-var :: Data a => String -> a -> JSValue
-var key val = JSObject $ toJSObject [(key, toJSON val)]
-
-assocObj :: Data a => String -> [(String, a)] -> JSValue
-assocObj key val = JSObject $ toJSObject [(key, JSObject . toJSObject . map (\(k, v) -> (k, toJSON v)) $ val)]
 
 -- URL handling
 handler :: Application
 handler e = withSession e (\s -> pageFor path s e)
     where path = map unpack . split '/' . pack . tail . pathInfo $ e
-
-redirectTo :: String -> IO Response
-redirectTo dest = return $ Response 302 [("Location", dest)] empty
 
 pageFor :: [String] -> Page
 pageFor [] = index
@@ -136,7 +94,19 @@ pageFor ["register"] = register
 pageFor ["login"] = login
 pageFor ["logout"] = logout
 pageFor ["init"] = initialize
+pageFor ("public":p) = \s e -> do exists <- doesFileExist ("public/" ++ intercalate "/" p)
+                                  if exists
+                                    then do file <- readFile ("public/" ++ intercalate "/" p)
+                                            return (Response 200 [] (pack file))
+                                    else notFound s e
 pageFor [name] = user name
 pageFor [name, repo] = repository name repo
-pageFor _ = notFound
+pageFor (name:repo:"browse":file) = browseRepository name repo file
+pageFor p = \s e -> do exists <- doesFileExist ("public/" ++ intercalate "/" p)
+                       print exists
+                       print ("public/" ++ intercalate "/" p)
+                       if exists
+                         then do file <- readFile ("publuc/" ++ intercalate "/" p)
+                                 return (Response 200 [] (pack file))
+                         else notFound s e
 
