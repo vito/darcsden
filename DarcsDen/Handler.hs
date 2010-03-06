@@ -54,7 +54,7 @@ register _ e = validate e [ when (nonEmpty "name")
                                          , uPubkeys = []
                                          , uJoined = now
                                          })
-                  doPage "register" [var "success" True] e)
+                  redirectTo "/")
                (\(Invalid failed) ->
                     doPage "register" [ var "failed" (map explain failed)
                                       , assocObj "in" (getInputs e)
