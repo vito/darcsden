@@ -44,7 +44,7 @@ getUserRepositories :: String -> Query Repositories [Repository]
 getUserRepositories n = onRepositories (map snd . M.toList . M.filter (\r -> rOwner r == n || n `elem` rUsers r))
 
 addRepository :: Repository -> Update Repositories ()
-addRepository r = modify (\(Repositories rs) -> Repositories (M.insert (rName r, rOwner r) r rs))
+addRepository r = modify (\(Repositories rs) -> Repositories (M.insert (rOwner r, rName r) r rs))
 
 updateRepository :: Repository -> Update Repositories ()
 updateRepository = addRepository

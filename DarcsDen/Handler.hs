@@ -101,6 +101,11 @@ initialize (Session { sUser = Just n }) e
                    doPage "index" [] e)
     (\(Invalid f) -> doPage "init" [var "failed" (map explain f), assocObj "in" (getInputs e)] e)
 
+repository :: String -> String -> Page
+repository un rn s e = do mr <- query (GetRepository (un, rn))
+                          case mr of
+                            Nothing -> notFound s e
+                            Just r -> doPage "repo" [var "repo" r] e
 
 notFound :: Page
 notFound _ = doPage "404" []
@@ -132,6 +137,6 @@ pageFor ["login"] = login
 pageFor ["logout"] = logout
 pageFor ["init"] = initialize
 pageFor [name] = user name
-pageFor [name, repo] = undefined
+pageFor [name, repo] = repository name repo
 pageFor _ = notFound
 
