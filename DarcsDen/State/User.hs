@@ -26,13 +26,13 @@ data User = User { uName :: String
                  , uPubkeys :: [String]
                  , uJoined :: ClockTime
                  }
-            deriving (Eq, Show, Typeable, Data)
+          deriving (Eq, Show, Typeable, Data)
 
 newtype Users = Users (M.Map String User)
-    deriving (Show, Typeable)
+              deriving (Show, Typeable)
 
 instance Version User where
-    mode = extension 1 (Proxy :: Proxy Old.User)
+  mode = extension 1 (Proxy :: Proxy Old.User)
 
 instance Version Users
 
@@ -71,7 +71,7 @@ salt num = do r <- replicateM num (randomRIO (0 :: Int, 255))
               return (map (\x -> fromIntegral x :: Octet) r)
 
 hashPassword :: String -> [Octet] -> [Octet]
-hashPassword pass salt = hash (merge (map (fromIntegral . ord) pass) salt)
+hashPassword p s = hash (merge (map (fromIntegral . ord) p) s)
 
 merge :: [a] -> [a] -> [a]
 merge a b = concat (zipWith (\ x y -> [x, y]) a b) ++ leftover

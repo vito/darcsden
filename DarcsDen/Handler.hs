@@ -5,35 +5,43 @@ import Hack.Contrib.Press
 import Happstack.State
 import System.Time (getClockTime)
 import Text.JSON.Generic
-import Data.ByteString.Lazy.Char8 (unpack, split, pack)
+import Data.ByteString.Lazy.Char8 (empty, unpack, split, pack)
 import Data.Char (isAlphaNum)
 import Data.Map ((!))
 
 import DarcsDen.HackUtils
 import DarcsDen.State.User
+import DarcsDen.State.Session
+import DarcsDen.State.Repository
 import DarcsDen.Validate
 
+type Page = Session -> Application
 
 -- Pages
-index :: Application
-index = doPage "index" []
+index :: Page
+index (Session { sUser = Nothing }) e = doPage "index" [] e
+index (Session { sUser = Just n }) e
+  = do repos <- query $ GetUserRepositories n
+       doPage "index" [var "repos" repos] e
 
-user :: String -> Application
-user name env = do u <- query $ GetUser name
-                   doPage "user" [var "user" u] env
+user :: String -> Page
+user name s e = do m <- query $ GetUser name
+                   case m of
+                     Nothing -> notFound s e
+                     Just u -> doPage "user" [var "user" u] e
 
-register :: Application
-register env@(Env { requestMethod = GET }) = doPage "register" [] env
-register env = validate env [ when (nonEmpty "name")
-                                   (\(OK r) -> io "name is already in use" $ do
-                                                 u <- query (GetUser (r ! "name"))
-                                                 return (u == Nothing))
-                            , predicate "name" (and . map isAlphaNum) "be alphanumeric"
-                            , nonEmpty "email"
-                            , when (nonEmpty "password1" `And` nonEmpty "password2")
-                                   (const $ equal "password1" "password2")
-                            , predicate "email" (const True) "be a valid email"
-                            ]
+register :: Page
+register _ e@(Env { requestMethod = GET }) = doPage "register" [] e
+register _ e = validate e [ when (nonEmpty "name")
+                                 (\(OK r) -> io "name is already in use" $ do
+                                     u <- query (GetUser (r ! "name"))
+                                     return (u == Nothing))
+                          , predicate "name" (and . map isAlphaNum) "be alphanumeric"
+                          , nonEmpty "email"
+                          , when (nonEmpty "password1" `And` nonEmpty "password2")
+                                 (const $ equal "password1" "password2")
+                          , predicate "email" (const True) "be a valid email"
+                          ]
                (\(OK r) -> do
                   now <- getClockTime
                   s <- salt 32
@@ -46,15 +54,15 @@ register env = validate env [ when (nonEmpty "name")
                                          , uPubkeys = []
                                          , uJoined = now
                                          })
-                  doPage "register" [var "success" True] env)
+                  doPage "register" [var "success" True] e)
                (\(Invalid failed) ->
                     doPage "register" [ var "failed" (map explain failed)
-                                      , assocObj "in" (getInputs env)
-                                      ] env)
+                                      , assocObj "in" (getInputs e)
+                                      ] e)
 
-login :: Application
-login env@(Env { requestMethod = GET }) = doPage "login" [] env
-login env = validate env
+login :: Page
+login _ e@(Env { requestMethod = GET }) = doPage "login" [] e
+login s e = validate e
             [ when
                 (nonEmpty "name" `And` nonEmpty "password")
                 (\(OK r) ->
@@ -65,16 +73,37 @@ login env = validate env
                          Just u -> let hashed = hashPassword (r ! "password") (uSalt u)
                                    in return $ uPassword u == hashed)
             ]
-            (\(OK r) -> do
-               setCookies [("user", r ! "name")] $
-                          doPage "index" [] env)
+            (\(OK r) -> update (UpdateSession (s { sUser = Just (r ! "name") })) >> redirectTo "/")
             (\(Invalid failed) ->
                  doPage "login" [ var "failed" (map explain failed)
-                                , assocObj "in" (getInputs env)
-                                ] env)
+                                , assocObj "in" (getInputs e)
+                                ] e)
 
-notFound :: Application
-notFound = doPage "404" []
+logout :: Page
+logout s _ = update (UpdateSession (s { sUser = Nothing })) >> redirectTo "/"
+
+initialize :: Page
+initialize (Session { sUser = Nothing }) _ = redirectTo "/"
+initialize _ e@(Env { requestMethod = GET }) = doPage "init" [] e
+initialize (Session { sUser = Just n }) e
+  = validate e
+    [ nonEmpty "name"
+    , io "user is not valid" (query (GetUser n) >>= (return . (/= Nothing)))
+    ]
+    (\(OK r) -> do now <- getClockTime
+                   newRepository $ Repository { rName = r ! "name"
+                                              , rDescription = input "description" "" e
+                                              , rWebsite = input "website" "" e
+                                              , rOwner = n
+                                              , rUsers = []
+                                              , rCreated = now
+                                              }
+                   doPage "index" [] e)
+    (\(Invalid f) -> doPage "init" [var "failed" (map explain f), assocObj "in" (getInputs e)] e)
+
+
+notFound :: Page
+notFound _ = doPage "404" []
 
 
 -- Page helpers
@@ -89,14 +118,20 @@ assocObj key val = JSObject $ toJSObject [(key, JSObject . toJSObject . map (\(k
 
 -- URL handling
 handler :: Application
-handler env = pageFor path env
-    where path = map unpack . split '/' . pack . tail . pathInfo $ env
+handler e = withSession e (\s -> pageFor path s e)
+    where path = map unpack . split '/' . pack . tail . pathInfo $ e
 
-pageFor :: [String] -> Application
+redirectTo :: String -> IO Response
+redirectTo dest = return $ Response 302 [("Location", dest)] empty
+
+pageFor :: [String] -> Page
 pageFor [] = index
 pageFor ["index"] = index
-pageFor ["user", name] = user name
 pageFor ["register"] = register
 pageFor ["login"] = login
+pageFor ["logout"] = logout
+pageFor ["init"] = initialize
+pageFor [name] = user name
+pageFor [name, repo] = undefined
 pageFor _ = notFound
 

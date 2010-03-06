@@ -6,6 +6,7 @@ import Happstack.State
 
 import DarcsDen.State.User
 import DarcsDen.State.Repository
+import DarcsDen.State.Session
 
 
 data State = State
@@ -16,7 +17,7 @@ instance Version State
 $(deriveSerialize ''State)
 
 instance Component State where
-    type Dependencies State = Users :+: Repositories :+: End
+    type Dependencies State = Users :+: Repositories :+: Sessions :+: End
     initialValue = State
 
 $(mkMethods ''State [])

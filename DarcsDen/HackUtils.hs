@@ -16,6 +16,9 @@ getInputs :: Env -> [(String, String)]
 getInputs = map (\[k,v] -> (sanitize k, sanitize v)) . map (split '=') . split '&' . hackInput
             where sanitize = unEscapeString . unpack . intercalate (pack " ") . split '+'
 
+input :: String -> String -> Env -> String
+input k d e = maybe k id (getInput k e)
+
 setCookies :: [(String, String)] -> IO Response -> IO Response
 setCookies cs r = do o <- r
                      now <- getClockTime

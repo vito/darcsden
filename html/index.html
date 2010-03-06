@@ -1,1 +1,8 @@
 Hi!
+
+<h1>Your Repositories</h1>
+<ul>
+  {% for repo in repos %}
+  <li><a href="{{repo.rOwner}}/{{repo.rName}}">{{repo.rName}}</a> &mdash; {{repo.rDescription}} (<a href="{{repo.rWebsite}}">{{repo.rWebsite}}</a>)</li>
+  {% endfor %}
+</ul>
