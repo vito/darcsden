@@ -1,10 +1,36 @@
-<h1>{{user}}'s {{reponame}}</h1>
-<p>{{repo.rDescription}}</p>
-<ul>
-  {% if path %}
-  <li><a href="/{{user}}/{{reponame}}/browse{% if up %}/{{up}}{% endif %}">..</a></li>
-  {% endif %}
-  {% for file in files %}
-  <li><a href="/{{user}}/{{reponame}}/browse/{% if path %}{{path}}/{% endif %}{{file.iName}}">{{file.iIsDirectory}}: {{file.iName}}</a></li>
-  {% endfor %}
-</ul>
+<!DOCTYPE html>
+<html>
+  <head>
+	<title>{{user.uName}}'s {{repo.rName}} :: DarcsDen</title>
+	<link rel="stylesheet" href="/public/css/main.css" type="text/css" media="screen" />
+	<link rel="stylesheet" href="/public/css/hk-kate.css" />
+  </head>
+  <body>
+	<h1>
+	  <a href="/">darcsden</a>
+	  :: <a href="/{{user.uName}}">{{user.uName}}</a>
+	  -&gt; <a href="/{{user.uName}}/{{repo.rName}}">{{repo.rName}}</a>
+	  {% for d in path %}
+	  -&gt; <a href="{{d.iURL}}">{{d.iName}}</a>
+	  {% endfor %}
+	</h1>
+	<p class="repo-desc">{{repo.rDescription}} &mdash; <a href="{{repo.rWebsite}}">{{repo.rWebsite}}</a></p>
+
+	<h1>files</h1>
+	<ul class="repo-files">
+	  {% if up %}
+	  <li class="up"><a href="{{up}}">..</a></li>
+	  {% endif %}
+	  {% for file in files %}
+	  <li class="directory-{{file.iIsDirectory}}"><a href="{{file.iURL}}">{{file.iName}}</a></li>
+	  {% endfor %}
+	</ul>
+
+	{% if readme %}
+	<h1>readme</h1>
+	<div class="readme">
+	  {{readme}}
+	</div>
+	{% endif %}
+  </body>
+</html>

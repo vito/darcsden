@@ -1,0 +1,100 @@
+body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,code,form,fieldset,legend,input,textarea,p,blockquote,th,td { margin: 0; padding: 0; }
+table { border-collapse: collapse; border-spacing: 0; }
+fieldset,img { border: 0; }
+address,caption,cite,code,dfn,em,strong,th,var { font-style: normal; font-weight: normal; }
+li { list-style: none; }
+caption,th { text-align: left; }
+h1,h2,h3,h4,h5,h6 { font-size: 100%; font-weight: normal; }
+abbr,acronym { border: 0; font-variant: normal; }
+input,textarea,select { font-family: inherit; font-size: inherit; font-weight: inherit; }
+a { text-decoration: none; color: inherit; }
+
+html {
+	font-size: 62.5%;
+	height: 100%;
+	background-color: #fff;
+	color: #000;
+}
+
+body {
+	font: normal 1.2em/1.4em Helvetica, Arial, Verdana, sans-serif;
+	width: 60em;
+	margin: 0 auto;
+	padding: 5em 0;
+}
+
+h1, h2, h3, h4, h5, h6 {
+	font-family: monospace;
+	font-weight: bold;
+	line-height: 3em;
+}
+h1 {
+	font-size: 2em;
+	line-height: 1em;
+	margin-bottom: .5em;
+}
+
+.repo-desc {
+	color: #777;
+	font-size: 1.4em;
+	margin-bottom: 2.5em;
+}
+
+.repo-files {
+	margin-bottom: 3em;
+}
+.repo-files li {
+	font-size: 1.2em;
+}
+.repo-files li a {
+	display: block;
+	padding: .5em 0 .5em 24px;
+}
+.repo-files li.up {
+	padding: 0;
+}
+.repo-files li.up a {
+	background: url('/public/images/up.gif') no-repeat left 8px;
+	border-bottom: .1em dotted;
+}
+.repo-files li.up a:hover {
+	background-color: #f9f9f9;
+}
+.repo-files li.directory-true a {
+	background: url('/public/images/folder.gif') no-repeat left 8px;
+}
+.repo-files li.directory-false a {
+	background: url('/public/images/file.gif') no-repeat left 7px;
+}
+
+a {
+	text-decoration: underline;
+}
+
+table.sourceCode {
+	font-size: 1.1em;
+	/* width: 100%; */
+}
+
+div.code,
+div.readme {
+	overflow: auto;
+	-webkit-box-shadow: #ddd 0 0 1em;
+	-moz-box-shadow: #ddd 0 0 1em;
+}
+
+div.readme {
+	padding: 1em 1em 0;
+}
+div.readme p {
+	padding-bottom: 1em;
+}
+div.readme h1 {
+	font-size: 3em;
+}
+div.readme h2 {
+	font-size: 2em;
+}
+div.readme h3 {
+	font-size: 1.4em;
+}

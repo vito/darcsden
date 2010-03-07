@@ -11,6 +11,7 @@ import DarcsDen.State.Session
 import DarcsDen.Validate
 import Data.Map ((!))
 
+
 user :: String -> Page
 user name s e = do m <- query $ GetUser name
                    case m of
