@@ -45,11 +45,13 @@ a {
 }
 
 .repo-files,
-.patch-summary {
+.patch-summary,
+.user-repos {
 	margin-bottom: 3em;
 }
 .repo-files li,
-.patch-summary li {
+.patch-summary li,
+.user-repos li {
 	font-size: 1.2em;
 }
 .repo-files li a,
@@ -67,10 +69,10 @@ a {
 .repo-files li.up a:hover {
 	background-color: #f9f9f9;
 }
-.repo-files li.directory-true a {
+.repo-files li.directory a {
 	background: url('/public/images/folder.gif') no-repeat left 8px;
 }
-.repo-files li.directory-false a {
+.repo-files li.file a {
 	background: url('/public/images/file.gif') no-repeat left 7px;
 }
 
@@ -107,7 +109,7 @@ div.readme {
 }
 
 div.readme {
-	padding: 1em 1em 0;
+	padding: 1em;
 }
 div.readme p {
 	padding-bottom: 1em;
@@ -136,7 +138,7 @@ div.readme h3 {
 }
 
 .removed, .added {
-	margin-left: -3em;
+	margin-left: -2em;
 	margin-bottom: 1em;
 	padding-left: 1em;
 	border-left: 2em solid;
