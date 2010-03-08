@@ -103,3 +103,9 @@ newUser u = do update $ AddUser u
                            else update (DeleteUser (uName u)) >> return False
                  else update (DeleteUser (uName u)) >> return False
   where name = filter isAlphaNum (uName u)
+
+getPubkeys :: String -> IO String
+getPubkeys un = readFile ("/keys/" ++ filter isAlphaNum un)
+
+updatePubkeys :: String -> String -> IO ()
+updatePubkeys un ps = writeFile ("/keys/" ++ filter isAlphaNum un) ps

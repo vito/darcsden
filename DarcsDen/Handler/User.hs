@@ -1,6 +1,7 @@
 module DarcsDen.Handler.User where
 
 import Data.Char (isAlphaNum)
+import Data.Maybe (fromMaybe)
 import Hack
 import Happstack.State
 import System.Time (getClockTime)
@@ -73,3 +74,34 @@ login s e = validate e
 
 logout :: Page
 logout s _ = setUser Nothing s >>= success "Logged out." >> redirectTo "/"
+
+settings :: Page
+settings s@(Session { sUser = Nothing }) _ = warn "You must be logged in to change your settings." s >> redirectTo "/login"
+settings s@(Session { sUser = Just n }) e@(Env { requestMethod = GET })
+  = validate e
+    [ io "you do not exist" $ query (GetUser n) >>= return . (/= Nothing) ]
+    (\(OK _) -> do
+       Just user <- query (GetUser n)
+       keys <- getPubkeys n
+       doPage "settings" [ var "user" user
+                         , var "pubkeys" keys
+                         ] s e)
+    (\(Invalid f) -> notify Warning s f >> redirectTo "/")
+settings s@(Session { sUser = Just n }) e
+  = validate e
+    [ io "you do not exist" $ query (GetUser n) >>= return . (/= Nothing) ]
+    (\(OK _) -> do
+        Just user <- query (GetUser n)
+
+        case getInput "pubkeys" e of
+          Nothing -> return ()
+          Just keys -> updatePubkeys n keys
+
+        update (UpdateUser (user { uFullName = fromMaybe (uFullName user) (getInput "name" e)
+                                 , uWebsite = fromMaybe (uWebsite user) (getInput "website" e)
+                                 }))
+
+        success "Settings updated." s
+
+        redirectTo "/settings")
+    (\(Invalid f) -> notify Warning s f >> redirectTo "/")

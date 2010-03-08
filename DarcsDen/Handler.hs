@@ -34,6 +34,7 @@ pageFor ["index"] = index
 pageFor ["register"] = register
 pageFor ["login"] = login
 pageFor ["logout"] = logout
+pageFor ["settings"] = settings
 pageFor ["init"] = initialize
 pageFor ("public":unsafe) = \s e ->
   do safe <- canonicalizePath ("public/" ++ intercalate "/" unsafe) >>= makeRelativeToCurrentDirectory

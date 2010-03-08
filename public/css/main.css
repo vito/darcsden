@@ -60,16 +60,30 @@ form label {
 	font-size: 1.2em;
 }
 form input[type="text"],
-form input[type="password"] {
+form input[type="password"],
+form textarea {
 	background: #000;
 	color: #fff;
 	font-family: monospace;
 	border: 0;
 	padding: .5em;
 	float: right;
+	width: 12em;
+}
+form textarea {
+	width: 20em;
 }
 form .buttons input[type="submit"] {
 	float: right;
+}
+form .note {
+	display: block;
+	clear: both;
+	text-align: right;
+	font-family: monospace;
+}
+form.settings input[type="text"] {
+	margin-right: 8em;
 }
 
 .head {
