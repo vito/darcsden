@@ -148,7 +148,7 @@ browseRepository un rn f s e
                              , var "blob" (highlight (last f) source [OptNumberLines])
                              , var "path" (init path)
                              ] s e)
-    (\(Invalid _) -> notFound s e)
+    (\(Invalid failed) -> notify Warning s failed >> redirectTo ("/" ++ un))
 
 
 repositoryChanges :: String -> String -> Page
