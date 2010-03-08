@@ -2,17 +2,18 @@ module DarcsDen.HackUtils where
 
 import Control.Monad.Reader
 import Control.Monad.State
+import Data.ByteString.Class (toLazyByteString)
 import Data.ByteString.Lazy.Char8 (unpack, split, pack, intercalate, empty)
 import Data.Char (chr, isSpace)
 import Data.Maybe (fromMaybe)
 import Hack
-import Hack.Contrib.Press
 import Happstack.State
 import Network.URI (unEscapeString)
 import System.Random (randomRIO)
 import System.Time
 import System.Locale (defaultTimeLocale)
 import Text.JSON.Generic
+import Text.Press.Run
 import qualified Data.Map as M
 
 import DarcsDen.State.Session
@@ -92,3 +93,34 @@ var key val = JSObject $ toJSObject [(key, toJSON val)]
 assocObj :: Data a => String -> [(String, a)] -> JSValue
 assocObj key val = JSObject $ toJSObject [(key, JSObject . toJSObject . map (\(k, v) -> (k, toJSON v)) $ val)]
 
+renderToResponse :: Hack.Env -> String -> [JSValue] -> IO Response
+renderToResponse env filename context = runJSValuesWithPath sl filename >>= resultToResponse
+    where sl = context ++ (defaultContext env)
+
+envToJS :: Hack.Env -> JSValue
+envToJS env = env'
+    where
+        env' = JSObject $ toJSObject [
+            ("requestMethod", toJSON . show $ requestMethod env),
+            ("scriptName", toJSON $ scriptName env),
+            ("queryString", toJSON $ queryString env),
+            ("serverName", toJSON $ serverName env),
+            ("serverPort", toJSON $ serverPort env),
+            ("http", toJSON $ http env),
+            ("hackVersion", toJSON $ hackVersion env),
+            ("hackHeaders", toJSON $ hackHeaders env),
+            ("hackUrlScheme", toJSON . show $ hackUrlScheme env)
+            ]
+
+defaultContext :: Hack.Env -> [JSValue]
+defaultContext env = [JSObject $ toJSObject [("env", envToJS env)]]
+
+resultToResponse result = do
+    case result of
+        Left err -> error $ show err
+        Right succ -> do
+            return $ Hack.Response {
+                status = 200,
+                headers = [("Content-Type", "text/html")],
+                body = toLazyByteString $ foldl (++) "" succ
+            }
