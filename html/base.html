@@ -11,6 +11,7 @@
   <body>
 	<ul class="links nav">
 	  {% if session.sUser.Just %}
+	  <li class="settings"><a href="/settings">settings</a></li>
 	  <li class="logout"><a href="/logout">log out</a></li>
 	  {% else %}
 	  <li class="login"><a href="/login">log in</a></li>
