@@ -38,10 +38,66 @@ a {
 	text-decoration: underline;
 }
 
+form {
+	padding: 1em;
+	border: .1em dotted;
+	float: left;
+}
+form .field {
+	clear: both;
+	margin-bottom: 1em;
+}
+form div br {
+	clear: both;
+}
+form label {
+	float: right;
+	display: inline-block;
+	text-align: right;
+	margin-right: 1em;
+	font-family: monospace;
+	padding: .5em;
+	font-size: 1.2em;
+}
+form input[type="text"],
+form input[type="password"] {
+	background: #000;
+	color: #fff;
+	font-family: monospace;
+	border: 0;
+	padding: .5em;
+	float: right;
+}
+form .buttons input[type="submit"] {
+	float: right;
+}
+
+.head {
+	margin-bottom: 1.4em;
+}
+
+.notification {
+	padding: .5em;
+	font-size: 1.2em;
+	margin-bottom: 1em;
+}
+.notification.warning {
+	background: #c22;
+	color: #fff;
+}
+.notification.success {
+	background: #61c423;
+	color: #fff;
+}
+.notification.message {
+	background: #2272cc;
+	color: #fff;
+}
+
 .repo-desc {
 	color: #777;
 	font-size: 1.4em;
-	margin-bottom: 2.5em;
+	margin-bottom: 2em;
 }
 
 .repo-files,

@@ -1,36 +1,33 @@
-<!DOCTYPE html>
-<html>
-  <head>
-	<title>{{user.uName}}'s {{repo.rName}} :: DarcsDen</title>
-	<link rel="stylesheet" href="/public/css/main.css" type="text/css" media="screen" />
-	<link rel="stylesheet" href="/public/css/hk-kate.css" />
-  </head>
-  <body>
-	<h1>
-	  <a href="/">darcsden</a>
-	  :: <a href="/{{user.uName}}">{{user.uName}}</a>
-	  -&gt; <a href="/{{user.uName}}/{{repo.rName}}">{{repo.rName}}</a>
-	  {% for d in path %}
-	  -&gt; <a href="{{d.iURL}}">{{d.iName}}</a>
-	  {% endfor %}
-	</h1>
-	<p class="repo-desc">{{repo.rDescription}} &mdash; <a href="{{repo.rWebsite}}">{{repo.rWebsite}}</a></p>
+{% extends "html/base.html" %}
 
-	<h1>changelog</h1>
-	<ul class="repo-log">
-	  {% for log in patches %}
-	  <li>
-		<h2>
-		  {% if log.pAuthor.Right %}
-		  <a href="/{{log.pAuthor.Right.uName}}">{{log.pAuthor.Right.uName}}</a>
-		  {% else %}
-		  {{log.pAuthor.Left}}
-		  {% endif %}
-		  :: <span class="date">{{log.pDate.ctWDay}}, {{log.pDate.ctMonth}} {{log.pDate.ctDay}} @ {{log.pDate.ctHour}}:{{log.pDate.ctMin}} {{log.pDate.ctTZName}}</span>
-		</h2>
-		<p><a href="/{{user.uName}}/{{repo.rName}}/patch/{{log.pID}}">{{log.pName}}</a></p>
-	  </li>
-	  {% endfor %}
-	</ul>
-  </body>
-</html>
+{% block title %}{{user.uName}}'s {{repo.rName}} :: darcsden{% endblock %}
+
+{% block crumb %}
+<a href="/{{user.uName}}">{{user.uName}}</a>
+-&gt; <a href="/{{user.uName}}/{{repo.rName}}">{{repo.rName}}</a>
+{% for d in path %}
+-&gt; <a href="{{d.iURL}}">{{d.iName}}</a>
+{% endfor %}
+{% endblock %}
+
+{% block content %}
+<p class="repo-desc">{{repo.rDescription}}{% if repo.rWebsite %} &mdash; <a href="{{repo.rWebsite}}">{{repo.rWebsite}}</a>{% endif %}</p>
+
+<h1>changelog</h1>
+<ul class="repo-log">
+  {% for log in patches %}
+  <li>
+	<h2>
+	  {% if log.pAuthor.Right %}
+	  <a href="/{{log.pAuthor.Right.uName}}">{{log.pAuthor.Right.uName}}</a>
+	  {% else %}
+	  {{log.pAuthor.Left}}
+	  {% endif %}
+	  :: <span class="date">{{log.pDate.ctWDay}}, {{log.pDate.ctMonth}} {{log.pDate.ctDay}} @ {{log.pDate.ctHour}}:{{log.pDate.ctMin}} {{log.pDate.ctTZName}}</span>
+	</h2>
+	<p><a href="/{{user.uName}}/{{repo.rName}}/patch/{{log.pID}}">{{log.pName}}</a></p>
+  </li>
+  {% endfor %}
+</ul>
+{% endblock %}
+

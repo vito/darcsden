@@ -4,6 +4,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Data.ByteString.Lazy.Char8 (unpack, split, pack, intercalate, empty)
 import Data.Char (chr, isSpace)
+import Data.Maybe (fromMaybe)
 import Hack
 import Hack.Contrib.Press
 import Happstack.State
@@ -20,7 +21,7 @@ import DarcsDen.State.Session
 type Page = Session -> Application
 
 notFound :: Page
-notFound _ = doPage "404" []
+notFound = doPage "404" []
 
 redirectTo :: String -> IO Response
 redirectTo dest = return $ Response 302 [("Location", dest)] empty
@@ -79,8 +80,11 @@ newSession r = do id <- sessID
                                , sNotifications = []
                                }
 -- Page helpers
-doPage :: String -> [JSValue] -> Application
-doPage page context env = renderToResponse env ("html/" ++ page ++ ".html") context
+doPage :: String -> [JSValue] -> Page
+doPage p c s e = do sess <- query $ GetSession (sID s) -- Session must be re-grabbed for any new notifications to be shown
+                    res <- renderToResponse e ("html/" ++ p ++ ".html") (var "notifications" (sNotifications $ fromMaybe s sess):c)
+                    update $ UpdateSession ((fromMaybe s sess) { sNotifications = [] })
+                    return res
 
 var :: Data a => String -> a -> JSValue
 var key val = JSObject $ toJSObject [(key, toJSON val)]

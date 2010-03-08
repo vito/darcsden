@@ -1,23 +1,18 @@
-<!DOCTYPE html>
-<html>
-  <head>
-	<link rel="stylesheet" href="/public/css/main.css" type="text/css" media="screen" />
-	<link rel="stylesheet" href="/public/css/hk-kate.css" />
-  </head>
-  <body>
-	<h1>
-	  <a href="/">darcsden</a>
-	  :: <a href="/{{user.uName}}">{{user.uName}}</a>
-	  -&gt; <a href="/{{user.uName}}/{{repo.rName}}">{{repo.rName}}</a>
-	  {% for d in path %}
-	  -&gt; <a href="{{d.iURL}}">{{d.iName}}</a>
-	  {% endfor %}
-	</h1>
-	<p class="repo-desc">{{repo.rDescription}} &mdash; <a href="{{repo.rWebsite}}">{{repo.rWebsite}}</a></p>
+{% extends "html/base.html" %}
 
-	<h1><a href="{{file.iURL}}">{{file.iName}}</a></h1>
-	<div class="code">
-	  {{blob}}
-	</div>
-  </body>
-</html>
+{% block crumb %}
+<a href="/{{user.uName}}">{{user.uName}}</a>
+-&gt; <a href="/{{user.uName}}/{{repo.rName}}">{{repo.rName}}</a>
+{% for d in path %}
+-&gt; <a href="{{d.iURL}}">{{d.iName}}</a>
+{% endfor %}
+{% endblock %}
+
+{% block content %}
+<p class="repo-desc">{{repo.rDescription}}{% if repo.rWebsite %} &mdash; <a href="{{repo.rWebsite}}">{{repo.rWebsite}}</a>{% endif %}</p>
+
+<h1><a href="{{file.iURL}}">{{file.iName}}</a></h1>
+<div class="code">
+  {{{blob}}}
+</div>
+{% endblock %}

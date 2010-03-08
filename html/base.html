@@ -6,11 +6,22 @@
 	<link rel="stylesheet" href="/public/css/hk-kate.css" />
   </head>
   <body>
-	<h1>
+	<h1 class="head">
 	  <a href="/">darcsden</a>
 	  ::
 	  {% block crumb %}index{% endblock %}
 	</h1>
+	{% block notifications %}
+	{% for n in notifications %}
+	{% if n.Warning %}
+	<div class="notification warning">{{n.Warning}}</div>
+	{% elif n.Success %}
+	<div class="notification success">{{n.Success}}</div>
+	{% else %}
+	<div class="notification message">{{n.Message}}</div>
+	{% endif %}
+	{% endfor %}
+	{% endblock %}
 	{% block content %}{% endblock %}
   </body>
 </html>

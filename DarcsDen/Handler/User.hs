@@ -18,11 +18,11 @@ user name s e = do m <- query $ GetUser name
                    rs <- query $ GetUserRepositories name
                    case m of
                      Nothing -> notFound s e
-                     Just u -> doPage "user" [var "user" u, var "repositories" rs] e
+                     Just u -> doPage "user" [var "user" u, var "repositories" rs] s e
 
 register :: Page
-register _ e@(Env { requestMethod = GET }) = doPage "register" [] e
-register _ e = validate e [ when (nonEmpty "name")
+register s e@(Env { requestMethod = GET }) = doPage "register" [] s e
+register s e = validate e [ when (nonEmpty "name")
                                  (\(OK r) -> io "name is already in use" $ do
                                      u <- query (GetUser (r ! "name"))
                                      return (u == Nothing))
@@ -45,13 +45,14 @@ register _ e = validate e [ when (nonEmpty "name")
                                          , uJoined = now
                                          })
                   redirectTo "/")
-               (\(Invalid failed) ->
-                    doPage "register" [ var "failed" (map explain failed)
-                                      , assocObj "in" (getInputs e)
-                                      ] e)
+               (\(Invalid failed) -> do
+                   notify Warning s failed
+                   doPage "register" [ var "failed" (map explain failed)
+                                     , assocObj "in" (getInputs e)
+                                     ] s e)
 
 login :: Page
-login _ e@(Env { requestMethod = GET }) = doPage "login" [] e
+login s e@(Env { requestMethod = GET }) = doPage "login" [] s e
 login s e = validate e
             [ when
                 (nonEmpty "name" `And` nonEmpty "password")
@@ -63,11 +64,12 @@ login s e = validate e
                          Just u -> let hashed = hashPassword (r ! "password") (uSalt u)
                                    in return $ uPassword u == hashed)
             ]
-            (\(OK r) -> update (UpdateSession (s { sUser = Just (r ! "name") })) >> redirectTo "/")
-            (\(Invalid failed) ->
-                 doPage "login" [ var "failed" (map explain failed)
-                                , assocObj "in" (getInputs e)
-                                ] e)
+            (\(OK r) -> do
+                setUser (Just $ r ! "name") s >>= success "Logged in!"
+                redirectTo "/")
+            (\(Invalid failed) -> do
+                notify Warning s failed
+                doPage "login" [assocObj "in" (getInputs e)] s e)
 
 logout :: Page
-logout s _ = update (UpdateSession (s { sUser = Nothing })) >> redirectTo "/"
+logout s _ = setUser Nothing s >>= success "Logged out." >> redirectTo "/"

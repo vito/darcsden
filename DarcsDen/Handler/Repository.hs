@@ -84,9 +84,9 @@ instance Ord RepoItem where
   compare (RepoItem a _ _) (RepoItem b _ _) = compare a b
 
 initialize :: Page
-initialize (Session { sUser = Nothing }) _ = redirectTo "/"
-initialize _ e@(Env { requestMethod = GET }) = doPage "init" [] e
-initialize (Session { sUser = Just n }) e
+initialize s@(Session { sUser = Nothing }) _ = warn "You must be logged in to create a repository." s >> redirectTo "/"
+initialize s e@(Env { requestMethod = GET }) = doPage "init" [] s e
+initialize s@(Session { sUser = Just n }) e
   = validate e
     [ nonEmpty "name"
     , io "user is not valid" (query (GetUser n) >>= (return . (/= Nothing)))
@@ -100,7 +100,7 @@ initialize (Session { sUser = Just n }) e
                                               , rCreated = now
                                               }
                    redirectTo "/")
-    (\(Invalid f) -> doPage "init" [var "failed" (map explain f), assocObj "in" (getInputs e)] e)
+    (\(Invalid f) -> doPage "init" [var "failed" (map explain f), assocObj "in" (getInputs e)] s e)
 
 repository :: String -> String -> Page
 repository un rn s e = browseRepository un rn [] s e
@@ -140,14 +140,14 @@ browseRepository un rn f s e
                                       else urlTo un rn (init f))
                         , var "path" path
                         , var "readme" (maybe "" id readme)
-                        ] e
+                        ] s e
         (_, Just source) ->
           doPage "repo-blob" [ var "user" u
                              , var "repo" r
                              , var "file" (last path)
                              , var "blob" (highlight (last f) source [OptNumberLines])
                              , var "path" (init path)
-                             ] e)
+                             ] s e)
     (\(Invalid _) -> notFound s e)
 
 
@@ -172,7 +172,7 @@ repositoryLog un rn s e
       doPage "repo-log" [ var "user" u
                         , var "repo" r
                         , var "patches" patches
-                        ] e)
+                        ] s e)
     (\(Invalid _) -> notFound s e)
 
 repositoryPatch :: String -> String -> String -> Page
@@ -202,7 +202,7 @@ repositoryPatch un rn p s e
                           , var "log" (pPatch patch)
                           , JSObject $ toJSObject [("summary", JSArray (summarize [] (pChanges patch)))]
                           , var "changes" (filter modification (pChanges patch))
-                          ] e)
+                          ] s e)
     (\(Invalid f) -> print f >> notFound s e)
     where summarize :: [[(String, JSValue)]] -> [PatchChange] -> [JSValue]
           summarize a [] = map (JSObject . toJSObject) (nub a)

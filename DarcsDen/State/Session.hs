@@ -49,3 +49,20 @@ deleteSession id = modify (\(Sessions ss) -> Sessions (M.delete id ss))
 
 $(mkMethods ''Sessions ['getSession, 'addSession, 'updateSession, 'deleteSession])
 
+
+setUser :: Maybe String -> Session -> IO Session
+setUser n s = let new = s { sUser = n }
+              in update (UpdateSession new) >> return new
+
+notice :: (String -> Notification) -> String -> Session -> IO Session
+notice n m s = let new = s { sNotifications = sNotifications s ++ [n m] }
+               in update (UpdateSession new) >> return new
+
+warn :: String -> Session -> IO Session
+warn = notice Warning
+
+success :: String -> Session -> IO Session
+success = notice Success
+
+message :: String -> Session -> IO Session
+message = notice Message
