@@ -84,7 +84,7 @@ instance Ord RepoItem where
   compare (RepoItem a _ _) (RepoItem b _ _) = compare a b
 
 initialize :: Page
-initialize s@(Session { sUser = Nothing }) _ = warn "You must be logged in to create a repository." s >> redirectTo "/"
+initialize s@(Session { sUser = Nothing }) _ = warn "You must be logged in to create a repository." s >> redirectTo "/login"
 initialize s e@(Env { requestMethod = GET }) = doPage "init" [] s e
 initialize s@(Session { sUser = Just n }) e
   = validate e
