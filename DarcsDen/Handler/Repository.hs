@@ -281,7 +281,6 @@ toAnchored = A.AnchoredPath . map A.makeName
 fromAnchored :: A.AnchoredPath -> String
 fromAnchored = fromBS . A.flatten
 
--- toChanges :: Named p -> PatchChanges
 toLog :: PatchInfo -> IO PatchLog
 toLog p = do u <- query $ GetUserByEmail (emailFrom (pi_author p))
 
