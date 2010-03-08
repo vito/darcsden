@@ -81,10 +81,12 @@ a {
 	padding: 1em 1em 2em;
 	border-bottom: .1em dotted;
 }
-.repo-log li h2 {
+.repo-log li h2,
+.patch-changes li h2 {
 	font-size: 1.5em;
 }
-.repo-log li h2 .date {
+.repo-log li h2 .date,
+.patch-changes li h2 .line {
 	font-size: .9em;
 	color: #777;
 }
@@ -95,7 +97,6 @@ a {
 
 table.sourceCode {
 	font-size: 1.1em;
-	/* width: 100%; */
 }
 
 div.code,
@@ -126,7 +127,7 @@ div.readme h3 {
 	margin-top: 1em;
 }
 .patch-changes li {
-	padding-bottom: 3em;
+	padding-bottom: 1.5em;
 	margin-bottom: 1em;
 	border-bottom: .1em dotted;
 }
@@ -136,9 +137,9 @@ div.readme h3 {
 
 .removed, .added {
 	margin-left: -3em;
+	margin-bottom: 1em;
 	padding-left: 1em;
 	border-left: 2em solid;
-	border-bottom: .1em dotted;
 }
 .removed {
 	border-color: #c22;

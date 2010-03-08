@@ -44,7 +44,7 @@ data RepoItem = RepoItem { iName :: String
 data PatchLog = PatchLog { pID :: String
                          , pDate :: CalendarTime
                          , pName :: String
-                         , pAuthor :: String
+                         , pAuthor :: Either String User
                          , pLog :: [String]
                          }
                 deriving (Eq, Show, Data, Typeable)
@@ -167,7 +167,7 @@ repositoryLog un rn s e
 
       patches <- R.withRepositoryDirectory [] ("repos/" ++ un ++ "/" ++ rn) $ \dr -> do
         ps <- R.read_repo dr
-        return $ WO.mapRL (\p -> toLog (P.patch2patchinfo p)) $ WO.reverseFL $ R.patchSetToPatches ps
+        sequence $ WO.mapRL (\p -> toLog (P.patch2patchinfo p)) $ WO.reverseFL $ R.patchSetToPatches ps
 
       doPage "repo-log" [ var "user" u
                         , var "repo" r
@@ -195,7 +195,7 @@ repositoryPatch un rn p s e
         let ps' = R.patchSetToPatches ps
             patch = head $ filter (\p' -> p `isPrefixOf` P.patchname p') (WO.unsafeUnFL ps')
 
-        return (toChanges patch))
+        toChanges patch)
 
       doPage "repo-patch" [ var "user" u
                           , var "repo" r
@@ -282,11 +282,19 @@ fromAnchored :: A.AnchoredPath -> String
 fromAnchored = fromBS . A.flatten
 
 -- toChanges :: Named p -> PatchChanges
-toLog :: PatchInfo -> PatchLog
-toLog p = PatchLog (make_filename p) (pi_date p) (pi_name p) (pi_author p) (pi_log p)
+toLog :: PatchInfo -> IO PatchLog
+toLog p = do u <- query $ GetUserByEmail (emailFrom (pi_author p))
 
-toChanges :: P.Effect p => P.Named p -> PatchChanges
-toChanges p = PatchChanges (toLog (P.patch2patchinfo p)) (simplify [] $ map primToChange $ WO.unsafeUnFL (P.effect p))
+             let author = case u of
+                   Nothing -> Left (pi_author p)
+                   Just u -> Right u
+
+             return $ PatchLog (make_filename p) (pi_date p) (pi_name p) author (pi_log p)
+  where emailFrom = reverse . takeWhile (/= '<') . tail . reverse
+
+toChanges :: P.Effect p => P.Named p -> IO PatchChanges
+toChanges p = do log <- toLog (P.patch2patchinfo p)
+                 return $ PatchChanges log (simplify [] $ map primToChange $ WO.unsafeUnFL (P.effect p))
   where simplify a [] = reverse a
         simplify a (c@(FileChange n t):cs) | t `elem` [FileAdded, FileRemoved, FileBinary]
           = simplify (c:filter (notFile n) a) (filter (notFile n) cs)

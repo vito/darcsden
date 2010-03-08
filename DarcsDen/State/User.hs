@@ -55,6 +55,11 @@ instance Component Users where
 getUser :: String -> Query Users (Maybe User)
 getUser name = asks (\(Users us) -> M.lookup name us)
 
+getUserByEmail :: String -> Query Users (Maybe User)
+getUserByEmail email = asks (\(Users us) -> case M.elems $ M.filter ((== email) . uEmail) us of
+                                              [] -> Nothing
+                                              (u:_) -> Just u)
+
 addUser :: User -> Update Users ()
 addUser u = modify (\(Users us) -> Users (M.insert (uName u) u us))
 
@@ -64,7 +69,7 @@ updateUser = addUser
 deleteUser :: String -> Update Users ()
 deleteUser name = modify (\(Users us) -> Users (M.delete name us))
 
-$(mkMethods ''Users ['getUser, 'addUser, 'updateUser, 'deleteUser])
+$(mkMethods ''Users ['getUser, 'getUserByEmail, 'addUser, 'updateUser, 'deleteUser])
 
 salt :: Int -> IO [Octet]
 salt num = do r <- replicateM num (randomRIO (0 :: Int, 255))
