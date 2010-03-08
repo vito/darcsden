@@ -1,19 +1,13 @@
-<!DOCTYPE html>
-<html>
-  <head>
-	<title>{{user.uName}}'s {{repo.rName}} :: DarcsDen</title>
-	<link rel="stylesheet" href="/public/css/main.css" type="text/css" media="screen" />
-	<link rel="stylesheet" href="/public/css/hk-kate.css" />
-  </head>
-  <body>
-	<h1>
-	  <a href="/">darcsden</a>
-	  :: <a href="/{{user.uName}}">{{user.uName}}</a>
-	  -&gt; <a href="/{{user.uName}}/{{repo.rName}}">{{repo.rName}}</a>
-	  {% for d in path %}
-	  -&gt; <a href="{{d.iURL}}">{{d.iName}}</a>
-	  {% endfor %}
-	</h1>
+{% extends "html/base.html" %}
+
+{% block crumb %}
+<a href="/{{user.uName}}">{{user.uName}}</a>
+-&gt; <a href="/{{user.uName}}/{{repo.rName}}">{{repo.rName}}</a>
+{% for d in path %}
+-&gt; <a href="{{d.iURL}}">{{d.iName}}</a>
+{% endfor %}
+
+{% block content %}
 	<p class="repo-desc">{{repo.rDescription}} &mdash; <a href="{{repo.rWebsite}}">{{repo.rWebsite}}</a></p>
 
 	<h1>patch</h1>
@@ -50,5 +44,4 @@
 	  {% endfor %}
 	</ul>
 	{% endif %}
-  </body>
-</html>
+{% endblock %}

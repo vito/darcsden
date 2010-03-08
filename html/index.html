@@ -1,10 +1,21 @@
-Hi!
+{% extends "html/base.html" %}
 
-{% if repos %}
-<h1>Your Repositories</h1>
-<ul>
-  {% for repo in repos %}
-  <li><a href="{{repo.rOwner}}/{{repo.rName}}">{{repo.rName}}</a> &mdash; {{repo.rDescription}} (<a href="{{repo.rWebsite}}">{{repo.rWebsite}}</a>)</li>
+{% block content %}
+<br />
+<h1><a href="/init">create a repository -></a></h1>
+<br />
+{% if repositories %}
+<h1>your repositories</h1>
+<ul class="user-repos">
+  {% for repo in repositories %}
+  <li>
+	<a href="{{repo.rOwner}}/{{repo.rName}}">{{repo.rName}}</a>
+	&mdash; {{repo.rDescription}}
+	{% if repo.rWebsite %}
+	(<a href="{{repo.rWebsite}}">{{repo.rWebsite}}</a>)
+	{% endif %}
+  </li>
   {% endfor %}
 </ul>
 {% endif %}
+{% endblock %}

@@ -21,7 +21,7 @@ index :: Page
 index (Session { sUser = Nothing }) e = doPage "index" [] e
 index (Session { sUser = Just n }) e
   = do repos <- query $ GetUserRepositories n
-       doPage "index" [var "repos" repos] e
+       doPage "index" [var "repositories" repos] e
 
 -- URL handling
 handler :: Application

@@ -141,7 +141,7 @@ div.readme h3 {
 	margin-left: -2em;
 	margin-bottom: 1em;
 	padding-left: 1em;
-	border-left: 2em solid;
+	border-left: 1em solid;
 }
 .removed {
 	border-color: #c22;
@@ -158,4 +158,8 @@ div.readme h3 {
 }
 .patch-summary li.summary-modified {
 	background: url('/public/images/modified.gif') no-repeat left 8px;
+}
+
+.user-repos li {
+	padding: .5em 0;
 }

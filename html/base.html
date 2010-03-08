@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+  <head>
+	<title>{% block title %}darcsden{% endblock %}</title>
+	<link rel="stylesheet" href="/public/css/main.css" type="text/css" media="screen" />
+	<link rel="stylesheet" href="/public/css/hk-kate.css" />
+  </head>
+  <body>
+	<h1>
+	  <a href="/">darcsden</a>
+	  ::
+	  {% block crumb %}index{% endblock %}
+	</h1>
+	{% block content %}{% endblock %}
+  </body>
+</html>

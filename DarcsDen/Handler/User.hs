@@ -6,17 +6,19 @@ import Happstack.State
 import System.Time (getClockTime)
 
 import DarcsDen.HackUtils
-import DarcsDen.State.User
+import DarcsDen.State.Repository
 import DarcsDen.State.Session
+import DarcsDen.State.User
 import DarcsDen.Validate
 import Data.Map ((!))
 
 
 user :: String -> Page
 user name s e = do m <- query $ GetUser name
+                   rs <- query $ GetUserRepositories name
                    case m of
                      Nothing -> notFound s e
-                     Just u -> doPage "user" [var "user" u] e
+                     Just u -> doPage "user" [var "user" u, var "repositories" rs] e
 
 register :: Page
 register _ e@(Env { requestMethod = GET }) = doPage "register" [] e
