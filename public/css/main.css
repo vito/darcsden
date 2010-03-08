@@ -186,8 +186,10 @@ form.settings input[type="text"] {
 	line-height: 1.4em;
 }
 
-table.sourceCode {
-	font-size: 1.1em;
+table.sourceCode,
+.patch-changes pre.sourceCode {
+	font-size: 1.2em;
+	line-height: 1.4em;
 }
 
 div.code,
