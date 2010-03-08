@@ -36,23 +36,26 @@ pageFor ["login"] = login
 pageFor ["logout"] = logout
 pageFor ["settings"] = settings
 pageFor ["init"] = initialize
-pageFor ("public":unsafe) = \s e ->
-  do safe <- canonicalizePath ("public/" ++ intercalate "/" unsafe) >>= makeRelativeToCurrentDirectory
-     exists <- doesFileExist safe
-
-     -- Make sure there's no trickery going on here.
-     if not ("public/" `isPrefixOf` safe && exists)
-        then notFound s e
-        else do
-
-     let mime = maybe "text/plain" id $ lookup_mime_type (takeExtension safe)
-
-     file <- LS.readFile safe
-     return (Response 200 [("Content-Type", mime)] file)
+pageFor ("public":unsafe) = serveDirectory "public/" unsafe
 pageFor [name] = user name
 pageFor [name, repo] = repository name repo
+pageFor (name:repo:"_darcs":unsafe) = serveDirectory (repoDir name repo ++ "/_darcs/") unsafe
 pageFor (name:repo:"browse":file) = browseRepository name repo file
 pageFor [name, repo, "changes"] = repositoryChanges name repo
 pageFor [name, repo, "patch", p] = repositoryPatch name repo p
 pageFor _ = notFound
 
+serveDirectory :: String -> [String] -> Page
+serveDirectory prefix unsafe s e
+  = do safe <- canonicalizePath (prefix ++ intercalate "/" unsafe) >>= makeRelativeToCurrentDirectory
+       exists <- doesFileExist safe
+
+       -- Make sure there's no trickery going on here.
+       if not (prefix `isPrefixOf` safe && exists)
+         then notFound s e
+         else do
+
+       let mime = maybe "text/plain" id $ lookup_mime_type (takeExtension safe)
+
+       file <- LS.readFile safe
+       return (Response 200 [("Content-Type", mime)] file)
