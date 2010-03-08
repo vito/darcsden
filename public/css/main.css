@@ -127,10 +127,15 @@ form.settings input[type="text"] {
 	background: url('/public/images/log.gif') no-repeat left 8px;
 }
 
-.repo-desc {
+.repo-desc,
+.repo-empty {
 	color: #777;
 	font-size: 1.4em;
 	margin-bottom: 2em;
+}
+.repo-empty code {
+	color: #000;
+	font-size: 1.2em;
 }
 
 .repo-files,
