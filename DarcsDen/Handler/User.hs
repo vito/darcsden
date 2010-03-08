@@ -34,22 +34,22 @@ register s e = validate e [ when (nonEmpty "name")
                           ]
                (\(OK r) -> do
                   now <- getClockTime
-                  s <- salt 32
-                  update $ AddUser (User { uName = r ! "name"
-                                         , uPassword = hashPassword (r ! "password1") s
-                                         , uSalt = s
-                                         , uFullName = ""
-                                         , uWebsite = ""
-                                         , uEmail = r ! "email"
-                                         , uPubkeys = []
-                                         , uJoined = now
-                                         })
-                  redirectTo "/")
+                  slt <- salt 32
+                  n <- newUser (User { uName = r ! "name"
+                                     , uPassword = hashPassword (r ! "password1") slt
+                                     , uSalt = slt
+                                     , uFullName = ""
+                                     , uWebsite = ""
+                                     , uEmail = r ! "email"
+                                     , uPubkeys = []
+                                     , uJoined = now
+                                     })
+                  if n
+                    then redirectTo "/"
+                    else warn "User creation failed." s >> doPage "register" [] s e)
                (\(Invalid failed) -> do
                    notify Warning s failed
-                   doPage "register" [ var "failed" (map explain failed)
-                                     , assocObj "in" (getInputs e)
-                                     ] s e)
+                   doPage "register" [assocObj "in" (getInputs e)] s e)
 
 login :: Page
 login s e@(Env { requestMethod = GET }) = doPage "login" [] s e

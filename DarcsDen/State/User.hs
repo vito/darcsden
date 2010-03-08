@@ -5,12 +5,15 @@ module DarcsDen.State.User where
 import Codec.Utils (Octet)
 import Control.Monad.Reader
 import Control.Monad.State
-import Data.Char (ord)
+import Data.Char (ord, isAlphaNum)
 import Data.Data (Data)
 import Data.Digest.SHA512
 import Data.Typeable (Typeable)
 import Happstack.State
 import Happstack.State.ClockTime
+import System.Cmd (system)
+import System.Exit
+import System.Directory (createDirectoryIfMissing)
 import System.Random
 import qualified Data.Map as M
 
@@ -71,6 +74,9 @@ deleteUser name = modify (\(Users us) -> Users (M.delete name us))
 
 $(mkMethods ''Users ['getUser, 'getUserByEmail, 'addUser, 'updateUser, 'deleteUser])
 
+userDir :: String -> String
+userDir un = "/jail/home/" ++ filter isAlphaNum un
+
 salt :: Int -> IO [Octet]
 salt num = do r <- replicateM num (randomRIO (0 :: Int, 255))
               return (map (\x -> fromIntegral x :: Octet) r)
@@ -83,3 +89,17 @@ merge a b = concat (zipWith (\ x y -> [x, y]) a b) ++ leftover
             where leftover = if length a < length b
                                then drop (length a) b
                                else drop (length b) a
+
+newUser :: User -> IO Bool
+newUser u = do update $ AddUser u
+               res <- system $ "useradd -G darcsden " ++ name
+
+               if res == ExitSuccess
+                 then do createDirectoryIfMissing True $ userDir name
+                         res <- system $ "chown " ++ name ++ ":" ++ name ++ " " ++ userDir name
+
+                         if res == ExitSuccess
+                           then return True
+                           else update (DeleteUser (uName u)) >> return False
+                 else update (DeleteUser (uName u)) >> return False
+  where name = filter isAlphaNum (uName u)

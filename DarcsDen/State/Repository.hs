@@ -14,6 +14,9 @@ import System.Directory
 import qualified Darcs.Repository as R
 import qualified Data.Map as M
 
+import DarcsDen.State.User
+
+
 data Repository = Repository { rName :: String
                              , rDescription :: String
                              , rWebsite :: String
@@ -57,11 +60,11 @@ deleteRepository key = modify (\(Repositories rs) -> Repositories (M.delete key 
 $(mkMethods ''Repositories ['getRepository, 'getUserRepositories, 'addRepository, 'updateRepository, 'deleteRepository])
 
 repoDir :: String -> String -> FilePath
-repoDir un rn = "/jail/home/" ++ sanitize un ++ "/" ++ sanitize rn
-  where sanitize = filter isAlphaNum
+repoDir un rn = userDir un ++ "/" ++ filter isAlphaNum rn
 
 newRepository :: Repository -> IO ()
 newRepository r = do update $ AddRepository r
+                     createDirectoryIfMissing True (repoDir (rOwner r) (rName r))
                      withCurrentDirectory (repoDir (rOwner r) (rName r)) (R.createRepository [])
 
 destroyRepository :: (String, String) -> IO ()
