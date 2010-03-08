@@ -13,7 +13,7 @@ import Happstack.State
 import Happstack.State.ClockTime
 import System.Cmd (system)
 import System.Exit
-import System.Directory (createDirectoryIfMissing)
+import System.Directory (createDirectoryIfMissing, doesFileExist)
 import System.Random
 import qualified Data.Map as M
 
@@ -105,7 +105,11 @@ newUser u = do update $ AddUser u
   where name = filter isAlphaNum (uName u)
 
 getPubkeys :: String -> IO String
-getPubkeys un = readFile ("/keys/" ++ filter isAlphaNum un)
+getPubkeys un = do check <- doesFileExist key
+                   if check
+                     then readFile key
+                     else return ""
+  where key = "/keys/" ++ filter isAlphaNum un
 
 updatePubkeys :: String -> String -> IO ()
 updatePubkeys un ps = writeFile ("/keys/" ++ filter isAlphaNum un) ps
