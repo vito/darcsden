@@ -69,14 +69,13 @@ data FileChange = FileRemoved
                            , fchRemove :: String
                            , fchAdd :: String
                            }
+                | FileBinary
                 deriving (Eq, Show, Data, Typeable)
 
 data PatchChanges = PatchChanges { pPatch :: PatchLog
                                  , pChanges :: [PatchChange]
                                  }
                     deriving (Eq, Show, Data, Typeable)
-
--- data Patch
 
 
 instance Ord RepoItem where
@@ -289,7 +288,7 @@ toLog p = PatchLog (make_filename p) (pi_date p) (pi_name p) (pi_author p) (pi_l
 toChanges :: P.Effect p => P.Named p -> PatchChanges
 toChanges p = PatchChanges (toLog (P.patch2patchinfo p)) (simplify [] $ map primToChange $ WO.unsafeUnFL (P.effect p))
   where simplify a [] = reverse a
-        simplify a (c@(FileChange n t):cs) | t `elem` [FileAdded, FileRemoved]
+        simplify a (c@(FileChange n t):cs) | t `elem` [FileAdded, FileRemoved, FileBinary]
           = simplify (c:filter (notFile n) a) (filter (notFile n) cs)
         simplify a ((FileChange n (FileHunk l f t)):cs)
           = simplify ((FileChange n (FileHunk l (if null f then f else highlight n f []) (if null t then t else highlight n t []))):a) cs
@@ -312,4 +311,5 @@ fromFP :: FilePatchType -> FileChange
 fromFP RmFile = FileRemoved
 fromFP AddFile = FileAdded
 fromFP (Hunk l rs as) = FileHunk l (unlines $ map fromBS rs) (unlines $ map fromBS as)
+fromFP (Binary _ _) = FileBinary
 fromFP a = error ("fromFP not supported for " ++ show a)
