@@ -34,19 +34,26 @@ h1 {
 	margin-bottom: .5em;
 }
 
+a {
+	text-decoration: underline;
+}
+
 .repo-desc {
 	color: #777;
 	font-size: 1.4em;
 	margin-bottom: 2.5em;
 }
 
-.repo-files {
+.repo-files,
+.patch-summary {
 	margin-bottom: 3em;
 }
-.repo-files li {
+.repo-files li,
+.patch-summary li {
 	font-size: 1.2em;
 }
-.repo-files li a {
+.repo-files li a,
+.patch-summary li a {
 	display: block;
 	padding: .5em 0 .5em 24px;
 }
@@ -67,8 +74,23 @@ h1 {
 	background: url('/public/images/file.gif') no-repeat left 7px;
 }
 
-a {
-	text-decoration: underline;
+.repo-log {
+	margin-bottom: 3em;
+}
+.repo-log li {
+	padding: 1em 1em 2em;
+	border-bottom: .1em dotted;
+}
+.repo-log li h2 {
+	font-size: 1.5em;
+}
+.repo-log li h2 .date {
+	font-size: .9em;
+	color: #777;
+}
+.repo-log li p {
+	font-size: 1.2em;
+	line-height: 1.4em;
 }
 
 table.sourceCode {
@@ -97,4 +119,40 @@ div.readme h2 {
 }
 div.readme h3 {
 	font-size: 1.4em;
+}
+
+
+.patch-changes {
+	margin-top: 1em;
+}
+.patch-changes li {
+	padding-bottom: 3em;
+	margin-bottom: 1em;
+	border-bottom: .1em dotted;
+}
+.patch-changes li h2 {
+	font-size: 1.4em;
+}
+
+.removed, .added {
+	margin-left: -3em;
+	padding-left: 1em;
+	border-left: 2em solid;
+	border-bottom: .1em dotted;
+}
+.removed {
+	border-color: #c22;
+}
+.added {
+	border-color: #61c423;
+}
+
+.patch-summary li.summary-added {
+	background: url('/public/images/added.gif') no-repeat left 8px;
+}
+.patch-summary li.summary-removed {
+	background: url('/public/images/removed.gif') no-repeat left 8px;
+}
+.patch-summary li.summary-modified {
+	background: url('/public/images/modified.gif') no-repeat left 8px;
 }

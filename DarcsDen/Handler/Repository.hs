@@ -1,37 +1,38 @@
 {-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
 module DarcsDen.Handler.Repository where
 
+import Darcs.Patch.FileName (fn2fp)
+import Darcs.Patch.Info (PatchInfo, pi_date, pi_name, pi_author, pi_log, make_filename)
+import Darcs.Patch.Prim (Prim(..), DirPatchType(..), FilePatchType(..))
+import Darcs.Utils (withCurrentDirectory)
 import Data.Char (chr)
 import Data.Data (Data)
 import Data.Typeable (Typeable)
-import Data.List (inits, intercalate, isPrefixOf, isSuffixOf, sort)
+import Data.List (inits, intercalate, isPrefixOf, isSuffixOf, nub, sort)
 import Data.Map ((!))
 import Hack
 import Happstack.State
-import System.Directory (doesFileExist)
 import System.FilePath (takeExtension)
 import System.Time (getClockTime, CalendarTime)
+import Text.JSON.Generic
 import Text.Highlighting.Kate
 import Text.XHtml.Strict (renderHtmlFragment)
 import Text.Pandoc
 import qualified Darcs.Patch as P
-import Darcs.Patch.Info (PatchInfo, pi_date, pi_name, pi_author, pi_log)
-import qualified Darcs.Hopefully as H
 import qualified Darcs.Repository as R
 import qualified Darcs.Repository.InternalTypes as RI
-import qualified Darcs.Witnesses.Ordered as RL
+import qualified Darcs.Witnesses.Ordered as WO
 import qualified Storage.Hashed.AnchoredPath as A
 import qualified Storage.Hashed.Tree as T
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LS
 
-import DarcsDen.Data
+import DarcsDen.Data ()
 import DarcsDen.HackUtils
 import DarcsDen.State.Repository
 import DarcsDen.State.Session
 import DarcsDen.State.User
 import DarcsDen.Validate
-import DarcsDen.DarcsChanges
 
 
 data RepoItem = RepoItem { iName :: String
@@ -40,12 +41,42 @@ data RepoItem = RepoItem { iName :: String
                          }
                 deriving (Eq, Show, Data, Typeable)
 
-data PatchLog = PatchLog { pDate :: CalendarTime
+data PatchLog = PatchLog { pID :: String
+                         , pDate :: CalendarTime
                          , pName :: String
                          , pAuthor :: String
                          , pLog :: [String]
                          }
-                deriving (Show, Data, Typeable)
+                deriving (Eq, Show, Data, Typeable)
+
+data PatchChange = Moved { cmFrom :: FilePath
+                         , cmTo :: FilePath
+                         }
+                 | DirChange { cdName :: FilePath
+                             , cdType :: DirChange
+                             }
+                 | FileChange { cfName :: FilePath
+                              , cfType :: FileChange
+                              }
+                 deriving (Eq, Show, Data, Typeable)
+
+data DirChange = DirRemoved | DirAdded
+               deriving (Eq, Show, Data, Typeable)
+
+data FileChange = FileRemoved
+                | FileAdded
+                | FileHunk { fchLine :: Int
+                           , fchRemove :: String
+                           , fchAdd :: String
+                           }
+                deriving (Eq, Show, Data, Typeable)
+
+data PatchChanges = PatchChanges { pPatch :: PatchLog
+                                 , pChanges :: [PatchChange]
+                                 }
+                    deriving (Eq, Show, Data, Typeable)
+
+-- data Patch
 
 
 instance Ord RepoItem where
@@ -134,15 +165,55 @@ repositoryLog un rn s e
     (\(OK _) -> do
       Just u <- query (GetUser un)
       Just r <- query (GetRepository (un, rn))
-      Right dr <- getRepo ("repos/" ++ un ++ "/" ++ rn)
 
-      read <- R.read_repo dr
-      let (ps, _, _) = getChangesInfo [] [] read
-          patches = map (\(i, _) -> toLog . H.info $ i) ps
+      patches <- R.withRepositoryDirectory [] ("repos/" ++ un ++ "/" ++ rn) $ \dr -> do
+        ps <- R.read_repo dr
+        return $ WO.mapRL (\p -> toLog (P.patch2patchinfo p)) $ WO.reverseFL $ R.patchSetToPatches ps
 
-      doPage "repo-log" [var "patches" patches] e)
+      doPage "repo-log" [ var "user" u
+                        , var "repo" r
+                        , var "patches" patches
+                        ] e)
     (\(Invalid _) -> notFound s e)
-    where toLog p = PatchLog (pi_date p) (pi_name p) (pi_author p) (pi_log p)
+
+repositoryPatch :: String -> String -> String -> Page
+repositoryPatch un rn p s e
+  = validate e [ io "user does not exist" $ query (GetUser un) >>= return . (/= Nothing)
+               , io "repository does not exist" $ query (GetRepository (un, rn)) >>= return . (/= Nothing)
+               , io "repository invalid" $ do
+                   mr <- R.maybeIdentifyRepository [] ("repos/" ++ un ++ "/" ++ rn)
+                   case mr of
+                     Left _ -> return False
+                     Right _ -> return True
+               ]
+    (\(OK _) -> do
+      Just u <- query (GetUser un)
+      Just r <- query (GetRepository (un, rn))
+
+      patch <- R.withRepositoryDirectory [] ("repos/" ++ un ++ "/" ++ rn) (\dr -> do
+        ps <- R.read_repo dr
+
+        let ps' = R.patchSetToPatches ps
+            patch = head $ filter (\p' -> p `isPrefixOf` P.patchname p') (WO.unsafeUnFL ps')
+
+        return (toChanges patch))
+
+      doPage "repo-patch" [ var "user" u
+                          , var "repo" r
+                          , var "log" (pPatch patch)
+                          , JSObject $ toJSObject [("summary", JSArray (summarize [] (pChanges patch)))]
+                          , var "changes" (filter modification (pChanges patch))
+                          ] e)
+    (\(Invalid f) -> print f >> notFound s e)
+    where summarize :: [[(String, JSValue)]] -> [PatchChange] -> [JSValue]
+          summarize a [] = map (JSObject . toJSObject) (nub a)
+          summarize a ((FileChange n FileRemoved):cs) = summarize (a ++ [[("file", toJSON n), ("type", toJSON "removed")]]) cs
+          summarize a ((FileChange n FileAdded):cs) = summarize (a ++ [[("file", toJSON n), ("type", toJSON "added")]]) cs
+          summarize a ((FileChange n _):cs) = summarize (a ++ [[("file", toJSON n), ("type", toJSON "modified")]]) cs
+          summarize a (_:cs) = summarize a cs
+
+          modification (FileChange _ (FileHunk _ _ _)) = True
+          modification _ = False
 
 files :: R.Repository P.Patch -> [String] -> IO (Maybe [RepoItem])
 files r f = do tree <- repoTree r f
@@ -158,32 +229,20 @@ getRepo = R.maybeIdentifyRepository []
 
 repoTree :: R.Repository P.Patch -> [String] -> IO (Maybe (T.Tree IO))
 repoTree r@(RI.Repo p _ _ _) f
-  = do root <- withDirectory p (R.readRecorded r >>= T.expand)
+  = do root <- withCurrentDirectory p (R.readRecorded r >>= T.expand)
        if null f
          then return $ Just root
          else return $ T.findTree root (toAnchored f)
 
 blob :: R.Repository P.Patch -> [String] -> IO (Maybe String)
-blob (RI.Repo p _ _ _) f
-  = let filename = fromAnchored $ A.AnchoredPath (map A.makeName f)
-    in withDirectory p $ do
-      c <- doesFileExist filename
-      if c
-        then readFile filename >>= return . Just
-        else return Nothing
--- FIXME: This would be better but readBlob it ends up with a Zlib error from reading the blob.
--- blob dr f
-  -- = do tree <- repoTree dr []
-  --      case tree of
-  --        Nothing -> return Nothing
-  --        Just t -> case T.findFile t (toAnchored f) of
-  --          Nothing -> return Nothing
-  --          Just b@(T.Blob _ h) -> do putStrLn "grabbing blob..."
-  --                                    print h
-  --                                    b' <- T.readBlob b
-  --                                    putStrLn "grabbed."
-  --                                    print (LS.length b')
-  --                                    return . Just . fromLS $ b'
+blob dr@(RI.Repo p _ _ _) f
+  = withCurrentDirectory p $ do
+       tree <- repoTree dr []
+       case tree of
+         Nothing -> return Nothing
+         Just t -> case T.findFile t (toAnchored f) of
+           Nothing -> return Nothing
+           Just b -> T.readBlob b >>= return . Just . fromLS
 
 highlight :: String -> String -> [FormatOption] -> String
 highlight f s os = case hl of
@@ -222,3 +281,35 @@ toAnchored = A.AnchoredPath . map A.makeName
 
 fromAnchored :: A.AnchoredPath -> String
 fromAnchored = fromBS . A.flatten
+
+-- toChanges :: Named p -> PatchChanges
+toLog :: PatchInfo -> PatchLog
+toLog p = PatchLog (make_filename p) (pi_date p) (pi_name p) (pi_author p) (pi_log p)
+
+toChanges :: P.Effect p => P.Named p -> PatchChanges
+toChanges p = PatchChanges (toLog (P.patch2patchinfo p)) (simplify [] $ map primToChange $ WO.unsafeUnFL (P.effect p))
+  where simplify a [] = reverse a
+        simplify a (c@(FileChange n t):cs) | t `elem` [FileAdded, FileRemoved]
+          = simplify (c:filter (notFile n) a) (filter (notFile n) cs)
+        simplify a ((FileChange n (FileHunk l f t)):cs)
+          = simplify ((FileChange n (FileHunk l (if null f then f else highlight n f []) (if null t then t else highlight n t []))):a) cs
+        simplify a (_:cs) = simplify a cs
+
+        notFile n (FileChange { cfName = n' }) | n == n' = False
+        notFile _ _ = True
+
+primToChange :: Prim -> PatchChange
+primToChange (Move f t) = Moved (fn2fp f) (fn2fp t)
+primToChange (DP f t) = DirChange (fn2fp f) (fromDP t)
+primToChange (FP f t) = FileChange (fn2fp f) (fromFP t)
+primToChange a = error ("primToChange not supported for " ++ show a)
+
+fromDP :: DirPatchType -> DirChange
+fromDP RmDir = DirRemoved
+fromDP AddDir = DirAdded
+
+fromFP :: FilePatchType -> FileChange
+fromFP RmFile = FileRemoved
+fromFP AddFile = FileAdded
+fromFP (Hunk l rs as) = FileHunk l (unlines $ map fromBS rs) (unlines $ map fromBS as)
+fromFP a = error ("fromFP not supported for " ++ show a)

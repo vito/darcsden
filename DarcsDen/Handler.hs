@@ -45,6 +45,7 @@ pageFor [name] = user name
 pageFor [name, repo] = repository name repo
 pageFor (name:repo:"browse":file) = browseRepository name repo file
 pageFor [name, repo, "log"] = repositoryLog name repo
+pageFor [name, repo, "patch", id] = repositoryPatch name repo id
 pageFor p = \s e -> do exists <- doesFileExist ("public/" ++ intercalate "/" p)
                        print exists
                        print ("public/" ++ intercalate "/" p)

@@ -16,14 +16,32 @@
 	</h1>
 	<p class="repo-desc">{{repo.rDescription}} &mdash; <a href="{{repo.rWebsite}}">{{repo.rWebsite}}</a></p>
 
-	<h1>changelog</h1>
+	<h1>patch</h1>
 	<ul class="repo-log">
-	  {% for log in patches %}
 	  <li>
 		<h2>{{log.pAuthor}}:: <span class="date">{{log.pDate.ctWDay}}, {{log.pDate.ctMonth}} {{log.pDate.ctDay}} @ {{log.pDate.ctHour}}:{{log.pDate.ctMin}} {{log.pDate.ctTZName}}</span></h2>
 		<p><a href="/{{user.uName}}/{{repo.rName}}/patch/{{log.pID}}">{{log.pName}}</a></p>
 	  </li>
+	</ul>
+
+	<h1>summary</h1>
+	<ul class="patch-summary">
+	  {% for change in summary %}
+	  <li class="summary-{{change.type}}"><a href="#{{change.file}}">{{change.file}}</a></li>
 	  {% endfor %}
 	</ul>
+
+	{% if changes %}
+	<h1>changes</h1>
+	<ul class="patch-changes">
+	  {% for change in changes %}
+	  <li>
+		<h2>{{change.FileChange.cfName}} {{change.FileChange.cfType.FileHunk.fchLine}}</h2>
+		<div class="removed">{{change.FileChange.cfType.FileHunk.fchRemove}}</div>
+		<div class="added">{{change.FileChange.cfType.FileHunk.fchAdd}}</div>
+	  </li>
+	  {% endfor %}
+	</ul>
+	{% endif %}
   </body>
 </html>
