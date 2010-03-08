@@ -110,7 +110,7 @@ browseRepository un rn f s e
   = validate e [ io "user does not exist" $ query (GetUser un) >>= return . (/= Nothing)
                , io "repository does not exist" $ query (GetRepository (un, rn)) >>= return . (/= Nothing)
                , io "repository invalid" $ do
-                   mr <- R.maybeIdentifyRepository [] ("repos/" ++ un ++ "/" ++ rn)
+                   mr <- R.maybeIdentifyRepository [] (repoDir un rn)
                    case mr of
                      Left _ -> return False
                      Right _ -> return True
@@ -118,7 +118,7 @@ browseRepository un rn f s e
     (\(OK _) -> do
       Just u <- query (GetUser un)
       Just r <- query (GetRepository (un, rn))
-      Right dr <- R.maybeIdentifyRepository [] ("repos/" ++ un ++ "/" ++ rn)
+      Right dr <- R.maybeIdentifyRepository [] (repoDir un rn)
 
       fs <- files dr f
       bl <- blob dr f
@@ -156,7 +156,7 @@ repositoryChanges un rn s e
   = validate e [ io "user does not exist" $ query (GetUser un) >>= return . (/= Nothing)
                , io "repository does not exist" $ query (GetRepository (un, rn)) >>= return . (/= Nothing)
                , io "repository invalid" $ do
-                   mr <- R.maybeIdentifyRepository [] ("repos/" ++ un ++ "/" ++ rn)
+                   mr <- R.maybeIdentifyRepository [] (repoDir un rn)
                    case mr of
                      Left _ -> return False
                      Right _ -> return True
@@ -165,7 +165,7 @@ repositoryChanges un rn s e
       Just u <- query (GetUser un)
       Just r <- query (GetRepository (un, rn))
 
-      patches <- R.withRepositoryDirectory [] ("repos/" ++ un ++ "/" ++ rn) $ \dr -> do
+      patches <- R.withRepositoryDirectory [] (repoDir un rn) $ \dr -> do
         ps <- R.read_repo dr
         sequence $ WO.mapRL (\p -> toLog (P.patch2patchinfo p)) $ WO.reverseFL $ R.patchSetToPatches ps
 
@@ -180,7 +180,7 @@ repositoryPatch un rn p s e
   = validate e [ io "user does not exist" $ query (GetUser un) >>= return . (/= Nothing)
                , io "repository does not exist" $ query (GetRepository (un, rn)) >>= return . (/= Nothing)
                , io "repository invalid" $ do
-                   mr <- R.maybeIdentifyRepository [] ("repos/" ++ un ++ "/" ++ rn)
+                   mr <- R.maybeIdentifyRepository [] (repoDir un rn)
                    case mr of
                      Left _ -> return False
                      Right _ -> return True
@@ -189,7 +189,7 @@ repositoryPatch un rn p s e
       Just u <- query (GetUser un)
       Just r <- query (GetRepository (un, rn))
 
-      patch <- R.withRepositoryDirectory [] ("repos/" ++ un ++ "/" ++ rn) (\dr -> do
+      patch <- R.withRepositoryDirectory [] (repoDir un rn) (\dr -> do
         ps <- R.read_repo dr
 
         let ps' = R.patchSetToPatches ps

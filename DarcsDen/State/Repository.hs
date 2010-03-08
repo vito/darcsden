@@ -2,7 +2,7 @@
   TemplateHaskell, TypeFamilies, UndecidableInstances #-}
 module DarcsDen.State.Repository where
 
-import Control.Exception (onException)
+import Darcs.Utils (withCurrentDirectory)
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.Data (Data)
@@ -55,18 +55,14 @@ deleteRepository key = modify (\(Repositories rs) -> Repositories (M.delete key 
 
 $(mkMethods ''Repositories ['getRepository, 'getUserRepositories, 'addRepository, 'updateRepository, 'deleteRepository])
 
+repoDir :: String -> String -> String
+repoDir un rn = "/jail/home/" ++ un ++ "/" ++ rn
+
 newRepository :: Repository -> IO ()
 newRepository r = do update $ AddRepository r
-                     withDirectory ("repos/" ++ rOwner r ++ "/" ++ rName r) (R.createRepository [])
+                     withCurrentDirectory (repoDir (rOwner r) (rName r)) (R.createRepository [])
 
 destroyRepository :: (String, String) -> IO ()
 destroyRepository r = do update $ DeleteRepository r
-                         removeDirectoryRecursive ("repos/" ++ fst r ++ "/" ++ snd r)
+                         removeDirectoryRecursive (repoDir (fst r) (snd r))
 
-withDirectory :: FilePath -> IO a -> IO a
-withDirectory p d = do createDirectoryIfMissing True p
-                       o <- getCurrentDirectory
-                       setCurrentDirectory p
-                       (do r <- d
-                           setCurrentDirectory o
-                           return r) `onException` (setCurrentDirectory o)
