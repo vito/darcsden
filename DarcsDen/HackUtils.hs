@@ -82,7 +82,7 @@ newSession r = do id <- sessID
 -- Page helpers
 doPage :: String -> [JSValue] -> Page
 doPage p c s e = do sess <- query $ GetSession (sID s) -- Session must be re-grabbed for any new notifications to be shown
-                    res <- renderToResponse e ("html/" ++ p ++ ".html") (var "notifications" (sNotifications $ fromMaybe s sess):c)
+                    res <- renderToResponse e ("html/" ++ p ++ ".html") (var "session" (fromMaybe s sess):c)
                     update $ UpdateSession ((fromMaybe s sess) { sNotifications = [] })
                     return res
 

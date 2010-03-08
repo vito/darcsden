@@ -15,7 +15,7 @@
 	  {% block crumb %}index{% endblock %}
 	</h1>
 	{% block notifications %}
-	{% for n in notifications %}
+	{% for n in session.sNotifications %}
 	{% if n.Warning %}
 	<div class="notification warning">{{n.Warning}}</div>
 	{% elif n.Success %}
