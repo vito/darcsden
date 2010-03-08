@@ -13,7 +13,7 @@
 {% block content %}
 <p class="repo-desc">{{repo.rDescription}}{% if repo.rWebsite %} &mdash; <a href="{{repo.rWebsite}}">{{repo.rWebsite}}</a>{% endif %}</p>
 
-<h1>changelog</h1>
+<h1>changes</h1>
 <ul class="repo-log">
   {% for log in patches %}
   <li>

@@ -151,8 +151,8 @@ browseRepository un rn f s e
     (\(Invalid _) -> notFound s e)
 
 
-repositoryLog :: String -> String -> Page
-repositoryLog un rn s e
+repositoryChanges :: String -> String -> Page
+repositoryChanges un rn s e
   = validate e [ io "user does not exist" $ query (GetUser un) >>= return . (/= Nothing)
                , io "repository does not exist" $ query (GetRepository (un, rn)) >>= return . (/= Nothing)
                , io "repository invalid" $ do
@@ -169,10 +169,10 @@ repositoryLog un rn s e
         ps <- R.read_repo dr
         sequence $ WO.mapRL (\p -> toLog (P.patch2patchinfo p)) $ WO.reverseFL $ R.patchSetToPatches ps
 
-      doPage "repo-log" [ var "user" u
-                        , var "repo" r
-                        , var "patches" patches
-                        ] s e)
+      doPage "repo-changes" [ var "user" u
+                            , var "repo" r
+                            , var "patches" patches
+                            ] s e)
     (\(Invalid _) -> notFound s e)
 
 repositoryPatch :: String -> String -> String -> Page
