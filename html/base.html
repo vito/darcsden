@@ -9,6 +9,15 @@
 	<script src="/public/js/main.js" type="text/javascript"></script>
   </head>
   <body>
+	<ul class="links nav">
+	  {% if session.sUser.Just %}
+	  <li class="logout"><a href="/logout">log out</a></li>
+	  {% else %}
+	  <li class="login"><a href="/login">log in</a></li>
+	  <li class="register"><a href="/register">register</a></li>
+	  {% endif %}
+	</ul>
+
 	<h1 class="head">
 	  <a href="/">darcsden</a>
 	  ::

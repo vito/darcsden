@@ -94,6 +94,25 @@ form .buttons input[type="submit"] {
 	color: #fff;
 }
 
+.links.nav li {
+	font-size: 2em;
+	font-weight: bold;
+}
+.links {
+	float: right;
+}
+.links li {
+	font-size: 1.5em;
+	float: right;
+}
+.links li a {
+	font-family: monospace;
+	padding: .5em 0 .5em 22px;
+}
+.links li.changes a {
+	background: url('/public/images/log.gif') no-repeat left 8px;
+}
+
 .repo-desc {
 	color: #777;
 	font-size: 1.4em;
