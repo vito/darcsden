@@ -13,7 +13,7 @@ import Data.Map ((!))
 import Hack
 import Happstack.State
 import System.FilePath (takeExtension)
-import System.Time (getClockTime, CalendarTime)
+import System.Time (getClockTime, CalendarTime, calendarTimeToString)
 import Text.JSON.Generic
 import Text.Highlighting.Kate
 import Text.XHtml.Strict (renderHtmlFragment)
@@ -42,7 +42,7 @@ data RepoItem = RepoItem { iName :: String
                 deriving (Eq, Show, Data, Typeable)
 
 data PatchLog = PatchLog { pID :: String
-                         , pDate :: CalendarTime
+                         , pDate :: String
                          , pName :: String
                          , pAuthor :: Either String User
                          , pLog :: [String]
@@ -288,7 +288,7 @@ toLog p = do u <- query $ GetUserByEmail (emailFrom (pi_author p))
                    Nothing -> Left (pi_author p)
                    Just u -> Right u
 
-             return $ PatchLog (make_filename p) (pi_date p) (pi_name p) author (pi_log p)
+             return $ PatchLog (make_filename p) (calendarTimeToString $ pi_date p) (pi_name p) author (pi_log p)
   where emailFrom = reverse . takeWhile (/= '<') . tail . reverse
 
 toChanges :: P.Effect p => P.Named p -> IO PatchChanges
