@@ -9,6 +9,7 @@ import Data.Data (Data)
 import Data.Typeable (Typeable)
 import Happstack.State
 import Happstack.State.ClockTime
+import System.Cmd (system)
 import System.Directory
 import qualified Darcs.Repository as R
 import qualified Data.Map as M
@@ -65,6 +66,9 @@ newRepository :: Repository -> IO ()
 newRepository r = do update $ AddRepository r
                      createDirectoryIfMissing True (repoDir (rOwner r) (rName r))
                      withCurrentDirectory (repoDir (rOwner r) (rName r)) (R.createRepository [])
+                     system $ "chown -R " ++ name ++ ":" ++ name ++ " " ++ (repoDir (rOwner r) (rName r))
+                     return ()
+  where name = saneName (rOwner r)
 
 destroyRepository :: (String, String) -> IO ()
 destroyRepository r = do update $ DeleteRepository r
