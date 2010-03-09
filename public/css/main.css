@@ -256,6 +256,30 @@ div.readme h3 {
 	background: url('/public/images/modified.gif') no-repeat left 8px;
 }
 
+.pagination {
+	font-family: monospace;
+	font-size: 1.2em;
+}
+.pagination li {
+	float: left;
+	margin-right: 1em;
+}
+.pagination li a {
+	background: #000;
+	color: #fff;
+	padding: .5em .75em;
+	text-decoration: none;
+	border: .1em dotted #fff;
+}
+.pagination li a:hover {
+	text-decoration: underline;
+}
+.pagination li a:active {
+	background: #fff;
+	border-color: #000;
+	color: #000;
+}
+
 .user-repos li {
 	padding: .5em 0;
 }

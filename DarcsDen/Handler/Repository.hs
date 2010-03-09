@@ -169,13 +169,21 @@ pagedRepoChanges un rn page s e
       Just u <- query (GetUser un)
       Just r <- query (GetRepository (un, rn))
 
-      patches <- R.withRepositoryDirectory [] (repoDir un rn) $ \dr -> do
-        ps <- R.read_repo dr
-        mapM (toLog . P.patch2patchinfo) . paginate . WO.unsafeUnRL . WO.reverseFL $ R.patchSetToPatches ps
+      (patches, totalPages) <- R.withRepositoryDirectory [] (repoDir un rn) $ \dr -> do
+        pset <- R.read_repo dr
+        let ps = WO.unsafeUnRL . WO.reverseFL . R.patchSetToPatches $ pset
+        ls <- mapM (toLog . P.patch2patchinfo) . paginate $ ps
+        return (ls, ceiling ((fromIntegral (length ps) :: Double) / 30))
 
       doPage "repo-changes" [ var "user" u
                             , var "repo" r
                             , var "patches" patches
+                            , var "page" page
+                            , var "totalPages" totalPages
+                            , var "nextPage" (page + 1)
+                            , var "prevPage" (page - 1)
+                            , var "notFirst" (page /= 1)
+                            , var "notLast" (page /= totalPages)
                             ] s e)
     (\(Invalid f) -> notify Warning s f >> redirectTo ("/" ++ un ++ "/" ++ rn))
     where paginate = take 30 . drop (30 * (page - 1))
