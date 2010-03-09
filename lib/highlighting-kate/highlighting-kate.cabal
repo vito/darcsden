@@ -46,9 +46,11 @@ Extra-Source-Files:  README
                      xml/eiffel.xml
                      xml/erlang.xml
                      xml/fortran.xml
+					 xml/go.xml
                      xml/haskell.xml
                      xml/haskell.xml.bkp
                      xml/html.xml
+					 xml/io.xml
                      xml/javadoc.xml
                      xml/javascript.xml
                      xml/javascript.xml.bkp
@@ -79,6 +81,7 @@ Extra-Source-Files:  README
                      xml/ruby.xml
                      xml/scala.xml
                      xml/scheme.xml
+					 xml/slate.xml
                      xml/sgml.xml
                      xml/sql-mysql.xml
                      xml/sql-postgresql.xml
@@ -132,6 +135,7 @@ Library
                      Text.Highlighting.Kate.Syntax.Eiffel
                      Text.Highlighting.Kate.Syntax.Erlang
                      Text.Highlighting.Kate.Syntax.Fortran
+                     Text.Highlighting.Kate.Syntax.Go
                      Text.Highlighting.Kate.Syntax.Haskell
                      Text.Highlighting.Kate.Syntax.Html
                      Text.Highlighting.Kate.Syntax.Io
