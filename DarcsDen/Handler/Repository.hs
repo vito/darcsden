@@ -6,14 +6,12 @@ import Darcs.Patch.Info (PatchInfo, pi_date, pi_name, pi_author, pi_log, make_fi
 import Darcs.Patch.Prim (Prim(..), DirPatchType(..), FilePatchType(..))
 import Darcs.Utils (withCurrentDirectory)
 import Data.Char (chr)
-import Data.Data (Data)
-import Data.Typeable (Typeable)
 import Data.List (inits, intercalate, isPrefixOf, isSuffixOf, nub, sort)
 import Data.Map ((!))
 import Hack
 import Happstack.State
 import System.FilePath (takeExtension)
-import System.Time (getClockTime, CalendarTime, calendarTimeToString)
+import System.Time (getClockTime, calendarTimeToString)
 import Text.JSON.Generic
 import Text.Highlighting.Kate
 import Text.XHtml.Strict (renderHtmlFragment)
@@ -173,13 +171,14 @@ pagedRepoChanges un rn page s e
 
       patches <- R.withRepositoryDirectory [] (repoDir un rn) $ \dr -> do
         ps <- R.read_repo dr
-        sequence $ map (\p -> toLog (P.patch2patchinfo p)) $ take 30 $ drop (30 * (page - 1)) $ WO.unsafeUnRL $ WO.reverseFL $ R.patchSetToPatches ps
+        mapM (toLog . P.patch2patchinfo) . paginate . WO.unsafeUnRL . WO.reverseFL $ R.patchSetToPatches ps
 
       doPage "repo-changes" [ var "user" u
                             , var "repo" r
                             , var "patches" patches
                             ] s e)
     (\(Invalid f) -> notify Warning s f >> redirectTo ("/" ++ un ++ "/" ++ rn))
+    where paginate = take 30 . drop (30 * (page - 1))
 
 repositoryPatch :: String -> String -> String -> Page
 repositoryPatch un rn p s e
@@ -288,9 +287,9 @@ fromAnchored :: A.AnchoredPath -> String
 fromAnchored = fromBS . A.flatten
 
 toLog :: PatchInfo -> IO PatchLog
-toLog p = do u <- query $ GetUserByEmail (emailFrom (pi_author p))
+toLog p = do mu <- query $ GetUserByEmail (emailFrom (pi_author p))
 
-             let author = case u of
+             let author = case mu of
                    Nothing -> Left (pi_author p)
                    Just u -> Right u
 
@@ -298,8 +297,8 @@ toLog p = do u <- query $ GetUserByEmail (emailFrom (pi_author p))
   where emailFrom = reverse . takeWhile (/= '<') . tail . reverse
 
 toChanges :: P.Effect p => P.Named p -> IO PatchChanges
-toChanges p = do log <- toLog (P.patch2patchinfo p)
-                 return $ PatchChanges log (simplify [] $ map primToChange $ WO.unsafeUnFL (P.effect p))
+toChanges p = do l <- toLog (P.patch2patchinfo p)
+                 return . PatchChanges l . simplify [] . map primToChange . WO.unsafeUnFL $ P.effect p
   where simplify a [] = reverse a
         simplify a (c@(FileChange n t):cs) | t `elem` [FileAdded, FileRemoved, FileBinary]
           = simplify (c:filter (notFile n) a) (filter (notFile n) cs)
