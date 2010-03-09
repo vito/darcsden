@@ -5,7 +5,6 @@ module DarcsDen.State.Repository where
 import Darcs.Utils (withCurrentDirectory)
 import Control.Monad.Reader
 import Control.Monad.State
-import Data.Char (isAlphaNum)
 import Data.Data (Data)
 import Data.Typeable (Typeable)
 import Happstack.State
@@ -60,7 +59,7 @@ deleteRepository key = modify (\(Repositories rs) -> Repositories (M.delete key 
 $(mkMethods ''Repositories ['getRepository, 'getUserRepositories, 'addRepository, 'updateRepository, 'deleteRepository])
 
 repoDir :: String -> String -> FilePath
-repoDir un rn = userDir un ++ "/" ++ filter isAlphaNum rn
+repoDir un rn = userDir un ++ "/" ++ saneName rn
 
 newRepository :: Repository -> IO ()
 newRepository r = do update $ AddRepository r

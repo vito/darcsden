@@ -89,6 +89,7 @@ initialize s e@(Env { requestMethod = GET }) = doPage "init" [] s e
 initialize s@(Session { sUser = Just n }) e
   = validate e
     [ nonEmpty "name"
+    , predicate "name" isSane "contain only alphanumeric characters, underscores, and hyphens"
     , io "user is not valid" (query (GetUser n) >>= (return . (/= Nothing)))
     ]
     (\(OK r) -> do now <- getClockTime

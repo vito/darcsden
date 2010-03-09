@@ -1,6 +1,5 @@
 module DarcsDen.Handler.User where
 
-import Data.Char (isAlphaNum)
 import Data.Maybe (fromMaybe)
 import Hack
 import Happstack.State
@@ -27,7 +26,7 @@ register s e = validate e [ when (nonEmpty "name")
                                  (\(OK r) -> io "name is already in use" $ do
                                      u <- query (GetUser (r ! "name"))
                                      return (u == Nothing))
-                          , predicate "name" (and . map isAlphaNum) "be alphanumeric"
+                          , predicate "name" isSane "contain only alphanumeric characters, underscores, and hyphens"
                           , nonEmpty "email"
                           , when (nonEmpty "password1" `And` nonEmpty "password2")
                                  (const $ equal "password1" "password2")

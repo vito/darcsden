@@ -5,7 +5,7 @@ module DarcsDen.State.User where
 import Codec.Utils (Octet)
 import Control.Monad.Reader
 import Control.Monad.State
-import Data.Char (ord, isAlphaNum)
+import Data.Char (ord)
 import Data.Data (Data)
 import Data.Digest.SHA512
 import Data.Typeable (Typeable)
@@ -75,7 +75,7 @@ deleteUser name = modify (\(Users us) -> Users (M.delete name us))
 $(mkMethods ''Users ['getUser, 'getUserByEmail, 'addUser, 'updateUser, 'deleteUser])
 
 userDir :: String -> String
-userDir un = "/jail/home/" ++ filter isAlphaNum un
+userDir un = "/jail/home/" ++ saneName un
 
 salt :: Int -> IO [Octet]
 salt num = do r <- replicateM num (randomRIO (0 :: Int, 255))
@@ -102,14 +102,23 @@ newUser u = do update $ AddUser u
                            then return True
                            else update (DeleteUser (uName u)) >> return False
                  else update (DeleteUser (uName u)) >> return False
-  where name = filter isAlphaNum (uName u)
+  where name = saneName (uName u)
 
 getPubkeys :: String -> IO String
 getPubkeys un = do check <- doesFileExist key
                    if check
                      then readFile key
                      else return ""
-  where key = "/keys/" ++ filter isAlphaNum un
+  where key = "/keys/" ++ saneName un
 
 updatePubkeys :: String -> String -> IO ()
-updatePubkeys un ps = writeFile ("/keys/" ++ filter isAlphaNum un) ps
+updatePubkeys un ps = writeFile ("/keys/" ++ saneName un) ps
+
+charIsSane :: Char -> Bool
+charIsSane = flip elem (['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ "-_")
+
+isSane :: String -> Bool
+isSane = all charIsSane
+
+saneName :: String -> String
+saneName = filter charIsSane
