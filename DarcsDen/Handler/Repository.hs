@@ -155,7 +155,10 @@ browseRepository un rn f s e
 
 
 repositoryChanges :: String -> String -> Page
-repositoryChanges un rn s e
+repositoryChanges un rn s e = pagedRepoChanges un rn 1 s e
+
+pagedRepoChanges :: String -> String -> Int -> Page
+pagedRepoChanges un rn page s e
   = validate e [ io "user does not exist" $ query (GetUser un) >>= return . (/= Nothing)
                , io "repository does not exist" $ query (GetRepository (un, rn)) >>= return . (/= Nothing)
                , io "repository invalid" $ do
@@ -170,7 +173,7 @@ repositoryChanges un rn s e
 
       patches <- R.withRepositoryDirectory [] (repoDir un rn) $ \dr -> do
         ps <- R.read_repo dr
-        sequence $ WO.mapRL (\p -> toLog (P.patch2patchinfo p)) $ WO.reverseFL $ R.patchSetToPatches ps
+        sequence $ map (\p -> toLog (P.patch2patchinfo p)) $ take 30 $ drop (30 * (page - 1)) $ WO.unsafeUnRL $ WO.reverseFL $ R.patchSetToPatches ps
 
       doPage "repo-changes" [ var "user" u
                             , var "repo" r

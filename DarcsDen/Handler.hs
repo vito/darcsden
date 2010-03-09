@@ -5,6 +5,7 @@ import Hack.Contrib.Mime
 import Happstack.State
 import System.Directory (doesFileExist, canonicalizePath, makeRelativeToCurrentDirectory)
 import Data.ByteString.Lazy.Char8 (unpack, split, pack)
+import Data.Char (isNumber)
 import Data.List (intercalate, isPrefixOf)
 import System.FilePath (takeExtension)
 import qualified Data.ByteString.Lazy as LS
@@ -42,6 +43,7 @@ pageFor [name, repo] = repository name repo
 pageFor (name:repo:"_darcs":unsafe) = serveDirectory (repoDir name repo ++ "/_darcs/") unsafe
 pageFor (name:repo:"browse":file) = browseRepository name repo file
 pageFor [name, repo, "changes"] = repositoryChanges name repo
+pageFor [name, repo, "changes", "page", page] | all isNumber page = pagedRepoChanges name repo (read page :: Int)
 pageFor [name, repo, "patch", p] = repositoryPatch name repo p
 pageFor _ = notFound
 
