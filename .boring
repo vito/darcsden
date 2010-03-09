@@ -120,6 +120,4 @@ Main
 
 # miscellaneous stuff
 TODO
-
-# repos
-repos
+^dist$
