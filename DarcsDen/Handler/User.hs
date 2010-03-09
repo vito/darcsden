@@ -45,7 +45,9 @@ register s e = validate e [ when (nonEmpty "name")
                                      , uJoined = now
                                      })
                   if n
-                    then redirectTo "/"
+                    then setUser (Just (r ! "name")) s
+                         >>= success "You have been successfully registered and logged in."
+                         >> redirectTo "/"
                     else warn "User creation failed." s >> doPage "register" [] s e)
                (\(Invalid failed) -> do
                    notify Warning s failed

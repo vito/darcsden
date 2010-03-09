@@ -101,7 +101,9 @@ initialize s@(Session { sUser = Just n }) e
                                               , rCreated = now
                                               }
                    redirectTo "/")
-    (\(Invalid f) -> doPage "init" [var "failed" (map explain f), assocObj "in" (getInputs e)] s e)
+    (\(Invalid f) -> do
+        notify Warning s f
+        doPage "init" [assocObj "in" (getInputs e)] s e)
 
 repository :: String -> String -> Page
 repository un rn s e = browseRepository un rn [] s e
@@ -174,7 +176,7 @@ repositoryChanges un rn s e
                             , var "repo" r
                             , var "patches" patches
                             ] s e)
-    (\(Invalid _) -> notFound s e)
+    (\(Invalid f) -> notify Warning s f >> redirectTo ("/" ++ un ++ "/" ++ rn))
 
 repositoryPatch :: String -> String -> String -> Page
 repositoryPatch un rn p s e
@@ -204,7 +206,7 @@ repositoryPatch un rn p s e
                           , JSObject $ toJSObject [("summary", JSArray (summarize [] (pChanges patch)))]
                           , var "changes" (filter modification (pChanges patch))
                           ] s e)
-    (\(Invalid f) -> print f >> notFound s e)
+    (\(Invalid f) -> notify Warning s f >> redirectTo ("/" ++ un ++ "/" ++ rn ++ "/changes"))
     where summarize :: [[(String, JSValue)]] -> [PatchChange] -> [JSValue]
           summarize a [] = map (JSObject . toJSObject) (nub a)
           summarize a ((FileChange n FileRemoved):cs) = summarize (a ++ [[("file", toJSON n), ("type", toJSON "removed")]]) cs
