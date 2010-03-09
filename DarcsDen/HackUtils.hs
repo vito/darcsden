@@ -21,7 +21,7 @@ import DarcsDen.State.Session
 
 type Page = Session -> Application
 
-notFound :: Page
+notFound :: Page -- TODO: 404 error code
 notFound = doPage "404" []
 
 redirectTo :: String -> IO Response
@@ -93,11 +93,12 @@ var key val = JSObject $ toJSObject [(key, toJSON val)]
 assocObj :: Data a => String -> [(String, a)] -> JSValue
 assocObj key val = JSObject $ toJSObject [(key, JSObject . toJSObject . map (\(k, v) -> (k, toJSON v)) $ val)]
 
-renderToResponse :: Hack.Env -> String -> [JSValue] -> IO Response
+-- Press for Hack
+renderToResponse :: Env -> String -> [JSValue] -> IO Response
 renderToResponse env filename context = runJSValuesWithPath sl filename >>= resultToResponse
     where sl = context ++ (defaultContext env)
 
-envToJS :: Hack.Env -> JSValue
+envToJS :: Env -> JSValue
 envToJS env = env'
     where
         env' = JSObject $ toJSObject [
@@ -112,14 +113,14 @@ envToJS env = env'
             ("hackUrlScheme", toJSON . show $ hackUrlScheme env)
             ]
 
-defaultContext :: Hack.Env -> [JSValue]
+defaultContext :: Env -> [JSValue]
 defaultContext env = [JSObject $ toJSObject [("env", envToJS env)]]
 
 resultToResponse result = do
     case result of
         Left err -> error $ show err
         Right succ -> do
-            return $ Hack.Response {
+            return $ Response {
                 status = 200,
                 headers = [("Content-Type", "text/html")],
                 body = toLazyByteString $ foldl (++) "" succ
