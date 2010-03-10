@@ -310,7 +310,7 @@ toLog p = do mu <- query $ GetUserByEmail (emailFrom (pi_author p))
                    Nothing -> Left (pi_author p)
                    Just u -> Right u
 
-             return $ PatchLog (make_filename p) (calendarTimeToString $ pi_date p) (pi_name p) author (pi_log p)
+             return $ PatchLog (take 20 $ make_filename p) (calendarTimeToString $ pi_date p) (pi_name p) author (pi_log p)
   where emailFrom = reverse . takeWhile (/= '<') . tail . reverse
 
 toChanges :: P.Effect p => P.Named p -> IO PatchChanges
@@ -321,13 +321,13 @@ toChanges p = do l <- toLog (P.patch2patchinfo p)
           = simplify (c:filter (notFile n) a) (filter (notFile n) cs)
         simplify a ((FileChange n (FileHunk l f t)):cs)
           = simplify ((FileChange n (FileHunk l (hl n f) (hl n t))):a) cs
-        simplify a (p@(PrefChange _ _ _):cs) = simplify (p:a) cs
+        simplify a (c@(PrefChange _ _ _):cs) = simplify (c:a) cs
         simplify a (_:cs) = simplify a cs
 
         notFile n (FileChange { cfName = n' }) | n == n' = False
         notFile _ _ = True
 
-        hl n "" = ""
+        hl _ "" = ""
         hl n t = highlight n t []
 
 primToChange :: Prim -> PatchChange
