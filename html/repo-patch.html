@@ -26,6 +26,7 @@
   </li>
 </ul>
 
+{% if summary %}
 <h1>summary</h1>
 <ul class="patch-summary">
   {% for change in summary %}
@@ -36,6 +37,7 @@
   {% endif %}
   {% endfor %}
 </ul>
+{% endif %}
 
 {% if changes %}
 <h1>changes</h1>
