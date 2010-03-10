@@ -149,7 +149,8 @@ form.settings input[type="text"] {
 	font-size: 1.2em;
 }
 .repo-files li a,
-.patch-summary li a {
+.patch-summary li a,
+.patch-summary li.summary-preference {
 	display: block;
 	padding: .5em 0 .5em 24px;
 }
@@ -254,6 +255,9 @@ div.readme h3 {
 }
 .patch-summary li.summary-modified {
 	background: url('/public/images/modified.gif') no-repeat left 8px;
+}
+.patch-summary li.summary-preference {
+	background: url('/public/images/preference.gif') no-repeat left 8px;
 }
 
 .pagination {

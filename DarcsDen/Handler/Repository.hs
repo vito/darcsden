@@ -56,6 +56,10 @@ data PatchChange = Moved { cmFrom :: FilePath
                  | FileChange { cfName :: FilePath
                               , cfType :: FileChange
                               }
+                 | PrefChange { cpName :: String
+                              , cpFrom :: String
+                              , cpTo :: String
+                              }
                  deriving (Eq, Show, Data, Typeable)
 
 data DirChange = DirRemoved | DirAdded
@@ -222,6 +226,11 @@ repositoryPatch un rn p s e
           summarize a ((FileChange n FileRemoved):cs) = summarize (a ++ [[("file", toJSON n), ("type", toJSON "removed")]]) cs
           summarize a ((FileChange n FileAdded):cs) = summarize (a ++ [[("file", toJSON n), ("type", toJSON "added")]]) cs
           summarize a ((FileChange n _):cs) = summarize (a ++ [[("file", toJSON n), ("type", toJSON "modified")]]) cs
+          summarize a ((PrefChange n f t):cs) = summarize (a ++ [[ ("preference", toJSON n)
+                                                                 , ("from", toJSON f)
+                                                                 , ("to", toJSON t)
+                                                                 , ("type", toJSON "change")
+                                                                 ]]) cs
           summarize a (_:cs) = summarize a cs
 
           modification (FileChange _ (FileHunk _ _ _)) = True
@@ -311,16 +320,21 @@ toChanges p = do l <- toLog (P.patch2patchinfo p)
         simplify a (c@(FileChange n t):cs) | t `elem` [FileAdded, FileRemoved, FileBinary]
           = simplify (c:filter (notFile n) a) (filter (notFile n) cs)
         simplify a ((FileChange n (FileHunk l f t)):cs)
-          = simplify ((FileChange n (FileHunk l (if null f then f else highlight n f []) (if null t then t else highlight n t []))):a) cs
+          = simplify ((FileChange n (FileHunk l (hl n f) (hl n t))):a) cs
+        simplify a (p@(PrefChange _ _ _):cs) = simplify (p:a) cs
         simplify a (_:cs) = simplify a cs
 
         notFile n (FileChange { cfName = n' }) | n == n' = False
         notFile _ _ = True
 
+        hl n "" = ""
+        hl n t = highlight n t []
+
 primToChange :: Prim -> PatchChange
 primToChange (Move f t) = Moved (fn2fp f) (fn2fp t)
 primToChange (DP f t) = DirChange (fn2fp f) (fromDP t)
 primToChange (FP f t) = FileChange (fn2fp f) (fromFP t)
+primToChange (ChangePref n f t) = PrefChange n f t
 primToChange a = error ("primToChange not supported for " ++ show a)
 
 fromDP :: DirPatchType -> DirChange
