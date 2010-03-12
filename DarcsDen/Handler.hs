@@ -39,14 +39,14 @@ pageFor ["settings"] = settings
 pageFor ["init"] = initialize
 pageFor ("public":unsafe) = serveDirectory "public/" unsafe
 pageFor [name] = user name
-pageFor [name, repo] = repository name repo
+pageFor [name, repo] = browseRepo name repo []
 pageFor (name:repo:"_darcs":unsafe) = serveDirectory (repoDir name repo ++ "/_darcs/") unsafe
-pageFor (name:repo:"browse":file) = browseRepository name repo file
+pageFor (name:repo:"browse":file) = browseRepo name repo file
 pageFor [name, repo, "edit"] = editRepo name repo
 pageFor [name, repo, "delete"] = deleteRepo name repo
-pageFor [name, repo, "changes"] = repositoryChanges name repo
+pageFor [name, repo, "changes"] = pagedRepoChanges name repo 1
 pageFor [name, repo, "changes", "page", page] | all isNumber page = pagedRepoChanges name repo (read page :: Int)
-pageFor [name, repo, "patch", p] = repositoryPatch name repo p
+pageFor [name, repo, "patch", p] = repoPatch name repo p
 pageFor _ = notFound
 
 serveDirectory :: String -> [String] -> Page

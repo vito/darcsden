@@ -109,11 +109,8 @@ initialize s@(Session { sUser = Just n }) e
         notify Warning s f
         doPage "init" [assocObj "in" (getInputs e)] s e)
 
-repository :: String -> String -> Page
-repository un rn s e = browseRepository un rn [] s e
-
-browseRepository :: String -> String -> [String] -> Page
-browseRepository un rn f s e
+browseRepo :: String -> String -> [String] -> Page
+browseRepo un rn f s e
   = validate e [ io "user does not exist" $ query (GetUser un) >>= return . (/= Nothing)
                , io "repository does not exist" $ query (GetRepository (un, rn)) >>= return . (/= Nothing)
                , io "repository invalid" $ do
@@ -158,9 +155,6 @@ browseRepository un rn f s e
     (\(Invalid failed) -> notify Warning s failed >> redirectTo ("/" ++ un))
 
 
-repositoryChanges :: String -> String -> Page
-repositoryChanges un rn s e = pagedRepoChanges un rn 1 s e
-
 pagedRepoChanges :: String -> String -> Int -> Page
 pagedRepoChanges un rn page s e
   = validate e [ io "user does not exist" $ query (GetUser un) >>= return . (/= Nothing)
@@ -194,8 +188,8 @@ pagedRepoChanges un rn page s e
     (\(Invalid f) -> notify Warning s f >> redirectTo ("/" ++ un ++ "/" ++ rn))
     where paginate = take 30 . drop (30 * (page - 1))
 
-repositoryPatch :: String -> String -> String -> Page
-repositoryPatch un rn p s e
+repoPatch :: String -> String -> String -> Page
+repoPatch un rn p s e
   = validate e [ io "user does not exist" $ query (GetUser un) >>= return . (/= Nothing)
                , io "repository does not exist" $ query (GetRepository (un, rn)) >>= return . (/= Nothing)
                , io "repository invalid" $ do
