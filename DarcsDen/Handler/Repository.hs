@@ -144,6 +144,7 @@ browseRepo un rn f s e
                                       else urlTo un rn (init f))
                         , var "path" path
                         , var "readme" (maybe "" id readme)
+                        , var "isAdmin" (sUser s == Just (rOwner r))
                         ] s e
         (_, Just source) ->
           doPage "repo-blob" [ var "user" u
@@ -151,6 +152,7 @@ browseRepo un rn f s e
                              , var "file" (last path)
                              , var "blob" (highlight (last f) source [OptNumberLines])
                              , var "path" (init path)
+                             , var "isAdmin" (sUser s == Just (rOwner r))
                              ] s e)
     (\(Invalid failed) -> notify Warning s failed >> redirectTo ("/" ++ un))
 
@@ -184,6 +186,7 @@ pagedRepoChanges un rn page s e
                             , var "prevPage" (page - 1)
                             , var "notFirst" (page /= 1)
                             , var "notLast" (page /= totalPages)
+                            , var "isAdmin" (sUser s == Just (rOwner r))
                             ] s e)
     (\(Invalid f) -> notify Warning s f >> redirectTo ("/" ++ un ++ "/" ++ rn))
     where paginate = take 30 . drop (30 * (page - 1))
@@ -215,6 +218,7 @@ repoPatch un rn p s e
                           , var "log" (pPatch patch)
                           , JSObject $ toJSObject [("summary", JSArray (summarize [] (pChanges patch)))]
                           , var "changes" (filter modification (pChanges patch))
+                          , var "isAdmin" (sUser s == Just (rOwner r))
                           ] s e)
     (\(Invalid f) -> notify Warning s f >> redirectTo ("/" ++ un ++ "/" ++ rn ++ "/changes"))
     where summarize :: [[(String, JSValue)]] -> [PatchChange] -> [JSValue]
@@ -240,7 +244,9 @@ editRepo un rn s e@(Env { requestMethod = GET })
     ]
     (\(OK _) -> do
         Just r <- query (GetRepository (un, rn))
-        doPage "repo-edit" [var "repo" r] s e)
+        doPage "repo-edit" [ var "repo" r
+                           , var "isAdmin" True
+                           ] s e)
     (\(Invalid f) -> notify Warning s f >> redirectTo "/")
 editRepo un rn s e
   = validate e
@@ -277,7 +283,9 @@ deleteRepo un rn s e@(Env { requestMethod = GET })
     ]
     (\(OK _) -> do
         Just r <- query (GetRepository (un, rn))
-        doPage "repo-delete" [var "repo" r] s e)
+        doPage "repo-delete" [ var "repo" r
+                             , var "isAdmin" True
+                             ] s e)
     (\(Invalid f) -> notify Warning s f >> redirectTo "/")
 deleteRepo un rn s e
   = validate e

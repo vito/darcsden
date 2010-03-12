@@ -2,6 +2,10 @@
 
 {% block content %}
 <ul class="links">
+  {% if isAdmin %}
+  <li class="edit"><a href="/{{repo.rOwner}}/{{repo.rName}}/edit">edit</a></li>
+  <li class="delete"><a href="/{{repo.rOwner}}/{{repo.rName}}/delete">delete</a></li>
+  {% endif %}
   <li class="changes"><a href="/{{user.uName}}/{{repo.rName}}/changes">changes</a></li>
 </ul>
 

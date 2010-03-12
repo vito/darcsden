@@ -132,7 +132,8 @@ form .cancel-buttons a.cancel {
 }
 .links li {
 	font-size: 1.5em;
-	float: right;
+	display: inline-block;
+	margin-left: .5em;
 }
 .links li a {
 	font-family: monospace;
