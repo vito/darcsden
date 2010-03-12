@@ -90,6 +90,13 @@ form.settings input[type="text"] {
 	margin-bottom: 1.4em;
 }
 
+.blurb {
+	font-size: 1.4em;
+	line-height: 1.4em;
+	color: #777;
+	margin-bottom: .5em;
+}
+
 .notification {
 	padding: .5em;
 	font-size: 1.2em;

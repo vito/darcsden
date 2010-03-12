@@ -1,9 +1,11 @@
 {% extends "html/base.html" %}
 
 {% block content %}
+{% if session.sUser.Just %}
 <h1><a href="/init">create a repository -></a></h1>
-<br />
+
 {% if repositories %}
+<br />
 <h1>your repositories</h1>
 <ul class="user-repos">
   {% for repo in repositories %}
@@ -17,4 +19,10 @@
   {% endfor %}
 </ul>
 {% endif %}
+{% else %}
+<p class="blurb">darcsden is a place to share your <a href="http://darcs.net/">darcs</a> projects and collaborate with others.</p>
+<p class="blurb">it is currently undergoing very heavy development, and is not perfected yet, although it does seem to be pretty stable. i'll keep downtimes as brief as possible, but they will be there (especially when I'm fixing things and need to re-launch it).</p>
+<p class="blurb">if you want to help out or just poke around an example repository, feel free to take a gander at <a href="/alex/darcsden">darcsden's source code</a>!</p>
+{% endif %}
 {% endblock %}
+
