@@ -11,6 +11,7 @@ import Happstack.State
 import Happstack.State.ClockTime
 import System.Cmd (system)
 import System.Directory
+import System.Exit (ExitCode(ExitSuccess))
 import qualified Darcs.Repository as R
 import qualified Data.Map as M
 
@@ -62,12 +63,12 @@ $(mkMethods ''Repositories ['getRepository, 'getUserRepositories, 'addRepository
 repoDir :: String -> String -> FilePath
 repoDir un rn = userDir un ++ "/" ++ saneName rn
 
-newRepository :: Repository -> IO ()
+newRepository :: Repository -> IO Bool
 newRepository r = do update $ AddRepository r
                      createDirectoryIfMissing True (repoDir (rOwner r) (rName r))
                      withCurrentDirectory (repoDir (rOwner r) (rName r)) (R.createRepository [])
-                     system $ "chown -R " ++ name ++ ":" ++ name ++ " " ++ (repoDir (rOwner r) (rName r))
-                     return ()
+                     chownRes <- system $ "chown -R " ++ name ++ ":" ++ name ++ " " ++ (repoDir (rOwner r) (rName r))
+                     return (chownRes == ExitSuccess)
   where name = saneName (rOwner r)
 
 destroyRepository :: (String, String) -> IO ()

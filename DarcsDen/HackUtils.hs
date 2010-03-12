@@ -1,7 +1,6 @@
 module DarcsDen.HackUtils where
 
 import Control.Monad.Reader
-import Control.Monad.State
 import Data.ByteString.Class (toLazyByteString)
 import Data.ByteString.Lazy.Char8 (unpack, split, pack, intercalate, empty)
 import Data.Char (chr, isSpace)
@@ -35,7 +34,7 @@ getInputs = map (\[k,v] -> (sanitize k, sanitize v)) . map (split '=') . split '
             where sanitize = unEscapeString . unpack . intercalate (pack " ") . split '+'
 
 input :: String -> String -> Env -> String
-input k d e = maybe k id (getInput k e)
+input k d e = fromMaybe d (getInput k e)
 
 setCookies :: [(String, String)] -> IO Response -> IO Response
 setCookies cs r = do o <- r
@@ -62,24 +61,25 @@ sessID = replicateM 32 randomAlphaNum
         random 0 = randomRIO (48, 57) >>= return . chr
         random 1 = randomRIO (97, 122) >>= return . chr
         random 2 = randomRIO (65, 90) >>= return . chr
+        random _ = error "impossible: invalid random type"
 
 withSession :: Env -> (Session -> IO Response) -> IO Response
 withSession e r = case M.lookup "DarcsDenSession" cookies of
                     Nothing -> newSession r
-                    Just id -> do ms <- query (GetSession id)
-                                  case ms of
-                                    Nothing -> newSession r
-                                    Just s -> r s
+                    Just sid -> do ms <- query (GetSession sid)
+                                   case ms of
+                                     Nothing -> newSession r
+                                     Just s -> r s
     where cookies = readCookies e
 
 newSession :: (Session -> IO Response) -> IO Response
-newSession r = do id <- sessID
-                  update $ AddSession (session id)
-                  setCookies [("DarcsDenSession", id)] (r (session id))
-    where session id = Session { sID = id
-                               , sUser = Nothing
-                               , sNotifications = []
-                               }
+newSession r = do sid <- sessID
+                  update $ AddSession (session sid)
+                  setCookies [("DarcsDenSession", sid)] (r (session sid))
+    where session sid = Session { sID = sid
+                                , sUser = Nothing
+                                , sNotifications = []
+                                }
 -- Page helpers
 doPage :: String -> [JSValue] -> Page
 doPage p c s e = do sess <- query $ GetSession (sID s) -- Session must be re-grabbed for any new notifications to be shown
@@ -116,12 +116,13 @@ envToJS env = env'
 defaultContext :: Env -> [JSValue]
 defaultContext env = [JSObject $ toJSObject [("env", envToJS env)]]
 
-resultToResponse result = do
+resultToResponse :: (Show t, Monad m) => Either t [String] -> m Response
+resultToResponse result =
     case result of
         Left err -> error $ show err
-        Right succ -> do
+        Right ok ->
             return $ Response {
                 status = 200,
                 headers = [("Content-Type", "text/html")],
-                body = toLazyByteString $ foldl (++) "" succ
+                body = toLazyByteString $ foldl (++) "" ok
             }

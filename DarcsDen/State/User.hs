@@ -92,13 +92,13 @@ merge a b = concat (zipWith (\ x y -> [x, y]) a b) ++ leftover
 
 newUser :: User -> IO Bool
 newUser u = do update $ AddUser u
-               res <- system $ "useradd -G darcsden " ++ name
+               addRes <- system $ "useradd -G darcsden " ++ name
 
-               if res == ExitSuccess
+               if addRes == ExitSuccess
                  then do createDirectoryIfMissing True $ userDir name
-                         res <- system $ "chown " ++ name ++ ":" ++ name ++ " " ++ userDir name
+                         chownRes <- system $ "chown " ++ name ++ ":" ++ name ++ " " ++ userDir name
 
-                         if res == ExitSuccess
+                         if chownRes == ExitSuccess
                            then return True
                            else update (DeleteUser (uName u)) >> return False
                  else update (DeleteUser (uName u)) >> return False

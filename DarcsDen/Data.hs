@@ -1,7 +1,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module DarcsDen.Data where
 
-import Darcs.Patch (Prim)
 import Data.Typeable (Typeable)
 import Data.Data (Data)
 import System.Time (CalendarTime(..), Month(..), Day(..))

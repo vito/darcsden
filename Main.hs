@@ -12,7 +12,7 @@ import DarcsDen.State
 main :: IO ()
 main = withProgName "darcsden" $ do
          state <- startSystemState (Proxy :: Proxy State)
-         _ <- forkIO (run handler)
+         forkIO (run handler)
          waitForTermination
          putStrLn "Shutting down..."
          createCheckpoint state

@@ -6,7 +6,6 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Data.Data (Data)
 import Data.Typeable (Typeable)
-import Hack
 import Happstack.State
 import qualified Data.Map as M
 
@@ -36,7 +35,7 @@ instance Component Sessions where
   initialValue = Sessions M.empty
 
 getSession :: String -> Query Sessions (Maybe Session)
-getSession id = asks (\(Sessions ss) -> M.lookup id ss)
+getSession sid = asks (\(Sessions ss) -> M.lookup sid ss)
 
 addSession :: Session -> Update Sessions ()
 addSession s = modify (\(Sessions ss) -> Sessions (M.insert (sID s) s ss))
@@ -45,7 +44,7 @@ updateSession :: Session -> Update Sessions ()
 updateSession = addSession
 
 deleteSession :: String -> Update Sessions ()
-deleteSession id = modify (\(Sessions ss) -> Sessions (M.delete id ss))
+deleteSession sid = modify (\(Sessions ss) -> Sessions (M.delete sid ss))
 
 $(mkMethods ''Sessions ['getSession, 'addSession, 'updateSession, 'deleteSession])
 

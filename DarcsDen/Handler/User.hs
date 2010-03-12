@@ -82,9 +82,9 @@ settings s@(Session { sUser = Just n }) e@(Env { requestMethod = GET })
   = validate e
     [ io "you do not exist" $ query (GetUser n) >>= return . (/= Nothing) ]
     (\(OK _) -> do
-       Just user <- query (GetUser n)
+       Just u <- query (GetUser n)
        keys <- getPubkeys n
-       doPage "settings" [ var "user" user
+       doPage "settings" [ var "user" u
                          , var "pubkeys" keys
                          ] s e)
     (\(Invalid f) -> notify Warning s f >> redirectTo "/")
@@ -92,15 +92,15 @@ settings s@(Session { sUser = Just n }) e
   = validate e
     [ io "you do not exist" $ query (GetUser n) >>= return . (/= Nothing) ]
     (\(OK _) -> do
-        Just user <- query (GetUser n)
+        Just u <- query (GetUser n)
 
         case getInput "pubkeys" e of
           Nothing -> return ()
           Just keys -> updatePubkeys n keys
 
-        update (UpdateUser (user { uFullName = fromMaybe (uFullName user) (getInput "name" e)
-                                 , uWebsite = fromMaybe (uWebsite user) (getInput "website" e)
-                                 }))
+        update (UpdateUser (u { uFullName = fromMaybe (uFullName u) (getInput "name" e)
+                              , uWebsite = fromMaybe (uWebsite u) (getInput "website" e)
+                              }))
 
         success "Settings updated." s
 
