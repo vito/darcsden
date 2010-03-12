@@ -395,9 +395,9 @@ toChanges p = do l <- toLog (P.patch2patchinfo p)
         hl n t = highlight n t []
 
 primToChange :: Prim -> PatchChange
-primToChange (Move f t) = Moved (fn2fp f) (fn2fp t)
-primToChange (DP f t) = DirChange (fn2fp f) (fromDP t)
-primToChange (FP f t) = FileChange (fn2fp f) (fromFP t)
+primToChange (Move f t) = Moved (drop 2 $ fn2fp f) (drop 2 $ fn2fp t)
+primToChange (DP f t) = DirChange (drop 2 $ fn2fp f) (fromDP t)
+primToChange (FP f t) = FileChange (drop 2 $ fn2fp f) (fromFP t)
 primToChange (ChangePref n f t) = PrefChange n f t
 primToChange a = error ("primToChange not supported for " ++ show a)
 
