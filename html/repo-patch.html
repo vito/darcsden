@@ -1,4 +1,4 @@
-{% extends "html/base.html" %}
+{% extends "html/repo-base.html" %}
 
 {% block crumb %}
 <a href="/{{user.uName}}">{{user.uName}}</a>
@@ -8,9 +8,7 @@
 {% endfor %}
 {% endblock %}
 
-{% block content %}
-<p class="repo-desc">{{repo.rDescription}}{% if repo.rWebsite %} &mdash; <a href="{{repo.rWebsite}}">{{repo.rWebsite}}</a>{% endif %}</p>
-
+{% block body %}
 <h1>patch</h1>
 <ul class="repo-log">
   <li>

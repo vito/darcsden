@@ -1,4 +1,4 @@
-{% extends "html/base.html" %}
+{% extends "html/repo-base.html" %}
 
 {% block title %}{{user.uName}}'s {{repo.rName}} :: darcsden{% endblock %}
 
@@ -10,15 +10,7 @@
 {% endfor %}
 {% endblock %}
 
-{% block content %}
-<ul class="links">
-  <li class="changes"><a href="/{{user.uName}}/{{repo.rName}}/changes">changes</a></li>
-</ul>
-
-<p class="repo-desc">
-  {{repo.rDescription}}{% if repo.rWebsite %} &mdash; <a href="{{repo.rWebsite}}">{{repo.rWebsite}}</a>{% endif %}
-</p>
-
+{% block body %}
 {% if files %}
 <h1>files</h1>
 <ul class="repo-files">

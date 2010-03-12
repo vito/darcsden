@@ -1,0 +1,12 @@
+{% extends "html/base.html" %}
+
+{% block content %}
+<ul class="links">
+  <li class="changes"><a href="/{{user.uName}}/{{repo.rName}}/changes">changes</a></li>
+</ul>
+
+<p class="repo-desc">
+  {{repo.rDescription}}{% if repo.rWebsite %} &mdash; <a href="{{repo.rWebsite}}">{{repo.rWebsite}}</a>{% endif %}
+</p>
+{% block body %}{% endblock %}
+{% endblock %}

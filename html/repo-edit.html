@@ -1,6 +1,6 @@
-{% extends "html/base.html" %}
+{% extends "html/repo-base.html" %}
 
-{% block content %}
+{% block body %}
 <h1>edit repository</h1>
 <form action="/{{repo.rOwner}}/{{repo.rName}}/edit" method="post">
   <fieldset>

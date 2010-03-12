@@ -1,4 +1,4 @@
-{% extends "html/base.html" %}
+{% extends "html/repo-base.html" %}
 
 {% block crumb %}
 <a href="/{{user.uName}}">{{user.uName}}</a>
@@ -8,7 +8,7 @@
 {% endfor %}
 {% endblock %}
 
-{% block content %}
+{% block body %}
 <p class="repo-desc">{{repo.rDescription}}{% if repo.rWebsite %} &mdash; <a href="{{repo.rWebsite}}">{{repo.rWebsite}}</a>{% endif %}</p>
 
 <h1><a href="{{file.iURL}}">{{file.iName}}</a></h1>
