@@ -8,8 +8,10 @@ import Darcs.Utils (withCurrentDirectory)
 import Data.Char (chr)
 import Data.List (inits, intercalate, isPrefixOf, isSuffixOf, nub, sort)
 import Data.Map ((!))
+import Data.Maybe (fromJust, fromMaybe)
 import Hack
 import Happstack.State
+import System.Directory (renameDirectory)
 import System.FilePath (takeExtension)
 import System.Time (getClockTime, calendarTimeToString)
 import Text.JSON.Generic
@@ -236,6 +238,68 @@ repositoryPatch un rn p s e
           modification (FileChange _ (FileHunk _ _ _)) = True
           modification _ = False
 
+editRepo :: String -> String -> Page
+editRepo un rn s e@(Env { requestMethod = GET })
+ = validate e
+    [ when (io "repository does not exist" $ query (GetRepository (un, rn)) >>= return . (/= Nothing))
+           (\(OK _) -> io "you do not own this repository" (return $ Just un == sUser s))
+    ]
+    (\(OK _) -> do
+        Just r <- query (GetRepository (un, rn))
+        doPage "repo-edit" [var "repo" r] s e)
+    (\(Invalid f) -> notify Warning s f >> redirectTo "/")
+editRepo un rn s e
+  = validate e
+    [ when (io "repository does not exist" $ query (GetRepository (un, rn)) >>= return . (/= Nothing))
+           (\(OK _) -> io "you do not own this repository" (return $ Just un == sUser s))
+    , nonEmpty "name"
+    ]
+    (\(OK _) -> do
+        Just r <- query (GetRepository (un, rn))
+
+        let newName = fromMaybe (rName r) (getInput "name" e)
+        if rName r /= newName
+          then do renameDirectory (repoDir un rn) (repoDir un (fromJust (getInput "name" e)))
+                  update (DeleteRepository (un, rn))
+          else return ()
+
+        update (UpdateRepository (r { rName = newName
+                                    , rDescription = fromMaybe (rDescription r) (getInput "description" e)
+                                    , rWebsite = fromMaybe (rWebsite r) (getInput "website" e)
+                                    }))
+
+        success "Repository updated." s
+
+        redirectTo ("/" ++ un ++ "/" ++ newName ++ "/edit"))
+    (\(Invalid f) -> do
+        notify Warning s f
+        redirectTo ("/" ++ un ++ "/" ++ rn ++ "/edit"))
+
+deleteRepo :: String -> String -> Page
+deleteRepo un rn s e@(Env { requestMethod = GET })
+ = validate e
+    [ when (io "repository does not exist" $ query (GetRepository (un, rn)) >>= return . (/= Nothing))
+           (\(OK _) -> io "you do not own this repository" (return $ Just un == sUser s))
+    ]
+    (\(OK _) -> do
+        Just r <- query (GetRepository (un, rn))
+        doPage "repo-delete" [var "repo" r] s e)
+    (\(Invalid f) -> notify Warning s f >> redirectTo "/")
+deleteRepo un rn s e
+  = validate e
+    [ when (io "repository does not exist" $ query (GetRepository (un, rn)) >>= return . (/= Nothing))
+           (\(OK _) -> io "you do not own this repository" (return $ Just un == sUser s))
+    ]
+    (\(OK _) -> do
+        destroyRepository (un, rn)
+        success "Repository deleted." s
+        redirectTo ("/" ++ un))
+    (\(Invalid f) -> do
+        notify Warning s f
+        redirectTo ("/" ++ un ++ "/" ++ rn))
+
+
+-- Helper functions (TODO: Probably put somewhere better.)
 files :: R.Repository P.Patch -> [String] -> IO (Maybe [RepoItem])
 files r f = do tree <- repoTree r f
                return $ fmap (\t -> sort . map (item t . fst) . onelevel $ t) tree

@@ -85,6 +85,14 @@ form .note {
 form.settings input[type="text"] {
 	margin-right: 8em;
 }
+form .cancel-buttons {
+	font-size: 1.2em;
+	color: #777;
+}
+form .cancel-buttons a.cancel {
+	color: #f00;
+	font-weight: bold;
+}
 
 .head {
 	margin-bottom: 1.4em;

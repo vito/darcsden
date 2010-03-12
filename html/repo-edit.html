@@ -1,0 +1,28 @@
+{% extends "html/base.html" %}
+
+{% block content %}
+<h1>edit repository</h1>
+<form action="/{{repo.rOwner}}/{{repo.rName}}/edit" method="post">
+  <fieldset>
+    <div class="field">
+      <input type="text" name="name" id="name" value="{{repo.rName}}" />
+      <label for="name">name</label>
+      <br />
+    </div>
+    <div class="field">
+      <input type="text" name="description" id="description" value="{{repo.rDescription}}"/>
+      <label for="description">description</label>
+      <br />
+    </div>
+    <div class="field">
+      <input type="text" name="website" id="website" value="{{repo.rWebsite}}"/>
+      <label for="website">website</label>
+      <br />
+    </div>
+    <div class="buttons">
+      <input type="submit" value="update repository" />
+	  <br />
+    </div>
+  </fieldset>
+</form>
+{% endblock %}
