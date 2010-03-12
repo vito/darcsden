@@ -5,7 +5,7 @@ import Darcs.Patch.FileName (fn2fp)
 import Darcs.Patch.Info (PatchInfo, pi_date, pi_name, pi_author, pi_log, make_filename)
 import Darcs.Patch.Prim (Prim(..), DirPatchType(..), FilePatchType(..))
 import Darcs.Utils (withCurrentDirectory)
-import Data.Char (chr)
+import Data.Char (chr, isNumber)
 import Data.List (inits, intercalate, isPrefixOf, isSuffixOf, nub, sort)
 import Data.Map ((!))
 import Data.Maybe (fromJust, fromMaybe)
@@ -87,6 +87,24 @@ instance Ord RepoItem where
   compare (RepoItem _ _ False) (RepoItem _ _ True) = GT
   compare (RepoItem a _ _) (RepoItem b _ _) = compare a b
 
+handleRepo :: String -> String -> [String] -> Page
+handleRepo name repo action s e
+  = validate e [ io "repository does not exist" $ query (GetRepository (name, repo)) >>= return . (/= Nothing)
+               , io "repository invalid" $ getRepo (repoDir name repo) >>= return . either (const False) (const True)
+               ]
+    (\(OK _) ->
+      case action of
+        [] -> browseRepo name repo [] s e
+        ("_darcs":unsafe) -> serveDirectory (repoDir name repo ++ "/_darcs/") unsafe s e
+        ("browse":file) -> browseRepo name repo file s e
+        ["edit"] -> editRepo name repo s e
+        ["delete"] -> deleteRepo name repo s e
+        ["changes"] -> pagedRepoChanges name repo 1 s e
+        ["changes", "page", page] | all isNumber page -> pagedRepoChanges name repo (read page :: Int) s e
+        ["patch", patch] -> repoPatch name repo patch s e
+        _ -> notFound s e)
+    (\(Invalid f) -> notify Warning s f >> redirectTo "/")
+
 initialize :: Page
 initialize s@(Session { sUser = Nothing }) _ = warn "You must be logged in to create a repository." s >> redirectTo "/login"
 initialize s e@(Env { requestMethod = GET }) = doPage "init" [] s e
@@ -110,138 +128,105 @@ initialize s@(Session { sUser = Just n }) e
         doPage "init" [assocObj "in" (getInputs e)] s e)
 
 browseRepo :: String -> String -> [String] -> Page
-browseRepo un rn f s e
-  = validate e [ io "user does not exist" $ query (GetUser un) >>= return . (/= Nothing)
-               , io "repository does not exist" $ query (GetRepository (un, rn)) >>= return . (/= Nothing)
-               , io "repository invalid" $ do
-                   mr <- R.maybeIdentifyRepository [] (repoDir un rn)
-                   case mr of
-                     Left _ -> return False
-                     Right _ -> return True
-               ]
-    (\(OK _) -> do
-      Just u <- query (GetUser un)
-      Just r <- query (GetRepository (un, rn))
-      Right dr <- R.maybeIdentifyRepository [] (repoDir un rn)
+browseRepo un rn f s e = do
+  Just u <- query (GetUser un)
+  Just r <- query (GetRepository (un, rn))
+  Right dr <- getRepo (repoDir un rn)
 
-      fs <- files dr f
-      bl <- blob dr f
+  fs <- files dr f
+  bl <- blob dr f
 
-      let path = (map (\p -> RepoItem { iName = last p
-                                      , iURL = urlTo un rn p
-                                      , iIsDirectory = True
-                                      }) (tail $ inits f))
+  let path = (map (\p -> RepoItem { iName = last p
+                                  , iURL = urlTo un rn p
+                                  , iIsDirectory = True
+                                  }) (tail $ inits f))
 
-      case (fs, bl) of
-        (Nothing, Nothing) -> notFound s e
-        (Just fs', _) -> do
-          readme <- getReadme dr f
-          doPage "repo" [ var "user" u
-                        , var "repo" r
-                        , var "files" (map (\i -> i { iURL = urlTo un rn (f ++ [iName i]) }) fs')
-                        , var "up" (if null f
-                                      then ""
-                                      else urlTo un rn (init f))
-                        , var "path" path
-                        , var "readme" (maybe "" id readme)
-                        , var "isAdmin" (sUser s == Just (rOwner r))
-                        ] s e
-        (_, Just source) ->
-          doPage "repo-blob" [ var "user" u
-                             , var "repo" r
-                             , var "file" (last path)
-                             , var "blob" (highlight (last f) source [OptNumberLines])
-                             , var "path" (init path)
-                             , var "isAdmin" (sUser s == Just (rOwner r))
-                             ] s e)
-    (\(Invalid failed) -> notify Warning s failed >> redirectTo ("/" ++ un))
-
+  case (fs, bl) of
+    (Nothing, Nothing) -> notFound s e
+    (Just fs', _) -> do
+      readme <- getReadme dr f
+      doPage "repo" [ var "user" u
+                    , var "repo" r
+                    , var "files" (map (\i -> i { iURL = urlTo un rn (f ++ [iName i]) }) fs')
+                    , var "up" (if null f
+                                  then ""
+                                  else urlTo un rn (init f))
+                    , var "path" path
+                    , var "readme" (maybe "" id readme)
+                    , var "isAdmin" (sUser s == Just (rOwner r))
+                    ] s e
+    (_, Just source) ->
+      doPage "repo-blob" [ var "user" u
+                         , var "repo" r
+                         , var "file" (last path)
+                         , var "blob" (highlight (last f) source [OptNumberLines])
+                         , var "path" (init path)
+                         , var "isAdmin" (sUser s == Just (rOwner r))
+                         ] s e
 
 pagedRepoChanges :: String -> String -> Int -> Page
-pagedRepoChanges un rn page s e
-  = validate e [ io "user does not exist" $ query (GetUser un) >>= return . (/= Nothing)
-               , io "repository does not exist" $ query (GetRepository (un, rn)) >>= return . (/= Nothing)
-               , io "repository invalid" $ do
-                   mr <- R.maybeIdentifyRepository [] (repoDir un rn)
-                   case mr of
-                     Left _ -> return False
-                     Right _ -> return True
-               ]
-    (\(OK _) -> do
-      Just u <- query (GetUser un)
-      Just r <- query (GetRepository (un, rn))
+pagedRepoChanges un rn page s e = do
+  Just u <- query (GetUser un)
+  Just r <- query (GetRepository (un, rn))
 
-      (patches, totalPages) <- R.withRepositoryDirectory [] (repoDir un rn) $ \dr -> do
-        pset <- R.read_repo dr
-        let ps = WO.unsafeUnRL . WO.reverseFL . R.patchSetToPatches $ pset
-        ls <- mapM (toLog . P.patch2patchinfo) . paginate $ ps
-        return (ls, ceiling ((fromIntegral (length ps) :: Double) / 30))
+  (patches, totalPages) <- R.withRepositoryDirectory [] (repoDir un rn) $ \dr -> do
+    pset <- R.read_repo dr
+    let ps = WO.unsafeUnRL . WO.reverseFL . R.patchSetToPatches $ pset
+    ls <- mapM (toLog . P.patch2patchinfo) . paginate $ ps
+    return (ls, ceiling ((fromIntegral (length ps) :: Double) / 30))
 
-      doPage "repo-changes" [ var "user" u
-                            , var "repo" r
-                            , var "patches" patches
-                            , var "page" page
-                            , var "totalPages" totalPages
-                            , var "nextPage" (page + 1)
-                            , var "prevPage" (page - 1)
-                            , var "notFirst" (page /= 1)
-                            , var "notLast" (page /= totalPages)
-                            , var "isAdmin" (sUser s == Just (rOwner r))
-                            ] s e)
-    (\(Invalid f) -> notify Warning s f >> redirectTo ("/" ++ un ++ "/" ++ rn))
-    where paginate = take 30 . drop (30 * (page - 1))
+  doPage "repo-changes" [ var "user" u
+                        , var "repo" r
+                        , var "patches" patches
+                        , var "page" page
+                        , var "totalPages" totalPages
+                        , var "nextPage" (page + 1)
+                        , var "prevPage" (page - 1)
+                        , var "notFirst" (page /= 1)
+                        , var "notLast" (page /= totalPages)
+                        , var "isAdmin" (sUser s == Just (rOwner r))
+                        ] s e
+  where paginate = take 30 . drop (30 * (page - 1))
 
 repoPatch :: String -> String -> String -> Page
-repoPatch un rn p s e
-  = validate e [ io "user does not exist" $ query (GetUser un) >>= return . (/= Nothing)
-               , io "repository does not exist" $ query (GetRepository (un, rn)) >>= return . (/= Nothing)
-               , io "repository invalid" $ do
-                   mr <- R.maybeIdentifyRepository [] (repoDir un rn)
-                   case mr of
-                     Left _ -> return False
-                     Right _ -> return True
-               ]
-    (\(OK _) -> do
-      Just u <- query (GetUser un)
-      Just r <- query (GetRepository (un, rn))
+repoPatch un rn p s e = do
+  Just u <- query (GetUser un)
+  Just r <- query (GetRepository (un, rn))
 
-      patch <- R.withRepositoryDirectory [] (repoDir un rn) (\dr -> do
-        ps <- R.read_repo dr
+  patch <- R.withRepositoryDirectory [] (repoDir un rn) (\dr -> do
+    ps <- R.read_repo dr
 
-        let ps' = R.patchSetToPatches ps
-            patch = head $ filter (\p' -> p `isPrefixOf` P.patchname p') (WO.unsafeUnFL ps')
+    let ps' = R.patchSetToPatches ps
+        patch = head $ filter (\p' -> p `isPrefixOf` P.patchname p') (WO.unsafeUnFL ps')
 
-        toChanges patch)
+    toChanges patch)
 
-      doPage "repo-patch" [ var "user" u
-                          , var "repo" r
-                          , var "log" (pPatch patch)
-                          , JSObject $ toJSObject [("summary", JSArray (summarize [] (pChanges patch)))]
-                          , var "changes" (filter modification (pChanges patch))
-                          , var "isAdmin" (sUser s == Just (rOwner r))
-                          ] s e)
-    (\(Invalid f) -> notify Warning s f >> redirectTo ("/" ++ un ++ "/" ++ rn ++ "/changes"))
-    where summarize :: [[(String, JSValue)]] -> [PatchChange] -> [JSValue]
-          summarize a [] = map (JSObject . toJSObject) (nub a)
-          summarize a ((FileChange n FileRemoved):cs) = summarize (a ++ [[("removed", toJSON n)]]) cs
-          summarize a ((FileChange n FileAdded):cs) = summarize (a ++ [[("added", toJSON n)]]) cs
-          summarize a ((FileChange n _):cs) = summarize (a ++ [[("modified", toJSON n)]]) cs
-          summarize a ((PrefChange n f t):cs) = summarize (a ++ [[ ("preference", toJSON n)
-                                                                 , ("from", toJSON f)
-                                                                 , ("to", toJSON t)
-                                                                 , ("type", toJSON "change")
-                                                                 ]]) cs
-          summarize a (_:cs) = summarize a cs
+  doPage "repo-patch" [ var "user" u
+                      , var "repo" r
+                      , var "log" (pPatch patch)
+                      , JSObject $ toJSObject [("summary", JSArray (summarize [] (pChanges patch)))]
+                      , var "changes" (filter modification (pChanges patch))
+                      , var "isAdmin" (sUser s == Just (rOwner r))
+                      ] s e
+  where summarize :: [[(String, JSValue)]] -> [PatchChange] -> [JSValue]
+        summarize a [] = map (JSObject . toJSObject) (nub a)
+        summarize a ((FileChange n FileRemoved):cs) = summarize (a ++ [[("removed", toJSON n)]]) cs
+        summarize a ((FileChange n FileAdded):cs) = summarize (a ++ [[("added", toJSON n)]]) cs
+        summarize a ((FileChange n _):cs) = summarize (a ++ [[("modified", toJSON n)]]) cs
+        summarize a ((PrefChange n f t):cs) = summarize (a ++ [[ ("preference", toJSON n)
+                                                               , ("from", toJSON f)
+                                                               , ("to", toJSON t)
+                                                               , ("type", toJSON "change")
+                                                               ]]) cs
+        summarize a (_:cs) = summarize a cs
 
-          modification (FileChange _ (FileHunk _ _ _)) = True
-          modification _ = False
+        modification (FileChange _ (FileHunk _ _ _)) = True
+        modification _ = False
 
 editRepo :: String -> String -> Page
 editRepo un rn s e@(Env { requestMethod = GET })
  = validate e
-    [ when (io "repository does not exist" $ query (GetRepository (un, rn)) >>= return . (/= Nothing))
-           (\(OK _) -> io "you do not own this repository" (return $ Just un == sUser s))
-    ]
+    [ io "you do not own this repository" (return $ Just un == sUser s) ]
     (\(OK _) -> do
         Just r <- query (GetRepository (un, rn))
         doPage "repo-edit" [ var "repo" r
@@ -250,8 +235,7 @@ editRepo un rn s e@(Env { requestMethod = GET })
     (\(Invalid f) -> notify Warning s f >> redirectTo "/")
 editRepo un rn s e
   = validate e
-    [ when (io "repository does not exist" $ query (GetRepository (un, rn)) >>= return . (/= Nothing))
-           (\(OK _) -> io "you do not own this repository" (return $ Just un == sUser s))
+    [ io "you do not own this repository" (return $ Just un == sUser s)
     , nonEmpty "name"
     ]
     (\(OK _) -> do
@@ -278,20 +262,16 @@ editRepo un rn s e
 deleteRepo :: String -> String -> Page
 deleteRepo un rn s e@(Env { requestMethod = GET })
  = validate e
-    [ when (io "repository does not exist" $ query (GetRepository (un, rn)) >>= return . (/= Nothing))
-           (\(OK _) -> io "you do not own this repository" (return $ Just un == sUser s))
-    ]
-    (\(OK _) -> do
-        Just r <- query (GetRepository (un, rn))
-        doPage "repo-delete" [ var "repo" r
-                             , var "isAdmin" True
-                             ] s e)
-    (\(Invalid f) -> notify Warning s f >> redirectTo "/")
+   [ io "you do not own this repository" (return $ Just un == sUser s) ]
+   (\(OK _) -> do
+       Just r <- query (GetRepository (un, rn))
+       doPage "repo-delete" [ var "repo" r
+                            , var "isAdmin" True
+                            ] s e)
+   (\(Invalid f) -> notify Warning s f >> redirectTo "/")
 deleteRepo un rn s e
   = validate e
-    [ when (io "repository does not exist" $ query (GetRepository (un, rn)) >>= return . (/= Nothing))
-           (\(OK _) -> io "you do not own this repository" (return $ Just un == sUser s))
-    ]
+    [ io "you do not own this repository" (return $ Just un == sUser s) ]
     (\(OK _) -> do
         destroyRepository (un, rn)
         success "Repository deleted." s

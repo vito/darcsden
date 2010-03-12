@@ -1,14 +1,8 @@
 module DarcsDen.Handler where
 
 import Hack
-import Hack.Contrib.Mime
 import Happstack.State
-import System.Directory (doesFileExist, canonicalizePath, makeRelativeToCurrentDirectory)
-import Data.ByteString.Lazy.Char8 (unpack, split, pack)
-import Data.Char (isNumber)
-import Data.List (intercalate, isPrefixOf)
-import System.FilePath (takeExtension)
-import qualified Data.ByteString.Lazy as LS
+import qualified Data.ByteString.Lazy.Char8 as LC
 
 import DarcsDen.HackUtils
 import DarcsDen.Handler.Repository
@@ -27,7 +21,7 @@ index s@(Session { sUser = Just n }) e
 -- URL handling
 handler :: Application
 handler e = withSession e (\s -> pageFor path s e)
-    where path = map unpack . split '/' . pack . tail . pathInfo $ e
+    where path = map LC.unpack . LC.split '/' . LC.pack . tail . pathInfo $ e
 
 pageFor :: [String] -> Page
 pageFor [] = index
@@ -39,27 +33,5 @@ pageFor ["settings"] = settings
 pageFor ["init"] = initialize
 pageFor ("public":unsafe) = serveDirectory "public/" unsafe
 pageFor [name] = user name
-pageFor [name, repo] = browseRepo name repo []
-pageFor (name:repo:"_darcs":unsafe) = serveDirectory (repoDir name repo ++ "/_darcs/") unsafe
-pageFor (name:repo:"browse":file) = browseRepo name repo file
-pageFor [name, repo, "edit"] = editRepo name repo
-pageFor [name, repo, "delete"] = deleteRepo name repo
-pageFor [name, repo, "changes"] = pagedRepoChanges name repo 1
-pageFor [name, repo, "changes", "page", page] | all isNumber page = pagedRepoChanges name repo (read page :: Int)
-pageFor [name, repo, "patch", p] = repoPatch name repo p
-pageFor _ = notFound
+pageFor (name:repo:action) = handleRepo name repo action
 
-serveDirectory :: String -> [String] -> Page
-serveDirectory prefix unsafe s e
-  = do safe <- canonicalizePath (prefix ++ intercalate "/" unsafe) >>= makeRelativeToCurrentDirectory
-       exists <- doesFileExist safe
-
-       -- Make sure there's no trickery going on here.
-       if not (prefix `isPrefixOf` safe && exists)
-         then notFound s e
-         else do
-
-       let mime = maybe "text/plain" id $ lookup_mime_type (takeExtension safe)
-
-       file <- LS.readFile safe
-       return (Response 200 [("Content-Type", mime)] file)

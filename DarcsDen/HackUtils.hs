@@ -2,17 +2,22 @@ module DarcsDen.HackUtils where
 
 import Control.Monad.Reader
 import Data.ByteString.Class (toLazyByteString)
-import Data.ByteString.Lazy.Char8 (unpack, split, pack, intercalate, empty)
 import Data.Char (chr, isSpace)
+import Data.List (intercalate, isPrefixOf)
 import Data.Maybe (fromMaybe)
 import Hack
+import Hack.Contrib.Mime
 import Happstack.State
 import Network.URI (unEscapeString)
+import System.Directory (doesFileExist, canonicalizePath, makeRelativeToCurrentDirectory)
+import System.FilePath (takeExtension)
 import System.Random (randomRIO)
 import System.Time
 import System.Locale (defaultTimeLocale)
 import Text.JSON.Generic
 import Text.Press.Run
+import qualified Data.ByteString.Lazy as LS
+import qualified Data.ByteString.Lazy.Char8 as LC
 import qualified Data.Map as M
 
 import DarcsDen.State.Session
@@ -24,14 +29,14 @@ notFound :: Page -- TODO: 404 error code
 notFound = doPage "404" []
 
 redirectTo :: String -> IO Response
-redirectTo dest = return $ Response 302 [("Location", dest)] empty
+redirectTo dest = return $ Response 302 [("Location", dest)] LC.empty
 
 getInput :: String -> Env -> Maybe String
 getInput key = lookup key . getInputs
 
 getInputs :: Env -> [(String, String)]
-getInputs = map (\[k,v] -> (sanitize k, sanitize v)) . map (split '=') . split '&' . hackInput
-            where sanitize = unEscapeString . unpack . intercalate (pack " ") . split '+'
+getInputs = map (\[k,v] -> (sanitize k, sanitize v)) . map (LC.split '=') . LC.split '&' . hackInput
+            where sanitize = unEscapeString . LC.unpack . LC.intercalate (LC.pack " ") . LC.split '+'
 
 input :: String -> String -> Env -> String
 input k d e = fromMaybe d (getInput k e)
@@ -80,6 +85,22 @@ newSession r = do sid <- sessID
                                 , sUser = Nothing
                                 , sNotifications = []
                                 }
+
+serveDirectory :: String -> [String] -> Page
+serveDirectory prefix unsafe s e
+  = do safe <- canonicalizePath (prefix ++ intercalate "/" unsafe) >>= makeRelativeToCurrentDirectory
+       exists <- doesFileExist safe
+
+       -- Make sure there's no trickery going on here.
+       if not (prefix `isPrefixOf` safe && exists)
+         then notFound s e
+         else do
+
+       let mime = maybe "text/plain" id $ lookup_mime_type (takeExtension safe)
+
+       file <- LS.readFile safe
+       return (Response 200 [("Content-Type", mime)] file)
+
 -- Page helpers
 doPage :: String -> [JSValue] -> Page
 doPage p c s e = do sess <- query $ GetSession (sID s) -- Session must be re-grabbed for any new notifications to be shown
