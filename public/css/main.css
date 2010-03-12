@@ -165,7 +165,8 @@ form .cancel-buttons a.cancel {
 }
 .repo-files li a,
 .patch-summary li a,
-.patch-summary li.summary-preference {
+.patch-summary li.summary-preference,
+.patch-summary li.summary-removed {
 	display: block;
 	padding: .5em 0 .5em 24px;
 }
@@ -263,16 +264,16 @@ div.readme h3 {
 }
 
 .patch-summary li.summary-added {
-	background: url('/public/images/added.gif') no-repeat left 8px;
+	background: url('/public/images/added.gif') no-repeat left center;
 }
 .patch-summary li.summary-removed {
-	background: url('/public/images/removed.gif') no-repeat left 8px;
+	background: url('/public/images/removed.gif') no-repeat left center;
 }
 .patch-summary li.summary-modified {
-	background: url('/public/images/modified.gif') no-repeat left 8px;
+	background: url('/public/images/modified.gif') no-repeat left center;
 }
 .patch-summary li.summary-preference {
-	background: url('/public/images/preference.gif') no-repeat left 8px;
+	background: url('/public/images/preference.gif') no-repeat left center;
 }
 
 .pagination {

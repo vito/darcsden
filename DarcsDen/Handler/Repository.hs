@@ -225,9 +225,9 @@ repositoryPatch un rn p s e
     (\(Invalid f) -> notify Warning s f >> redirectTo ("/" ++ un ++ "/" ++ rn ++ "/changes"))
     where summarize :: [[(String, JSValue)]] -> [PatchChange] -> [JSValue]
           summarize a [] = map (JSObject . toJSObject) (nub a)
-          summarize a ((FileChange n FileRemoved):cs) = summarize (a ++ [[("file", toJSON n), ("type", toJSON "removed")]]) cs
-          summarize a ((FileChange n FileAdded):cs) = summarize (a ++ [[("file", toJSON n), ("type", toJSON "added")]]) cs
-          summarize a ((FileChange n _):cs) = summarize (a ++ [[("file", toJSON n), ("type", toJSON "modified")]]) cs
+          summarize a ((FileChange n FileRemoved):cs) = summarize (a ++ [[("removed", toJSON n)]]) cs
+          summarize a ((FileChange n FileAdded):cs) = summarize (a ++ [[("added", toJSON n)]]) cs
+          summarize a ((FileChange n _):cs) = summarize (a ++ [[("modified", toJSON n)]]) cs
           summarize a ((PrefChange n f t):cs) = summarize (a ++ [[ ("preference", toJSON n)
                                                                  , ("from", toJSON f)
                                                                  , ("to", toJSON t)

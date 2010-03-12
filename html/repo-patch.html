@@ -32,8 +32,12 @@
   {% for change in summary %}
   {% if change.preference %}
   <li class="summary-preference">changed "{{change.preference}}" preference from "{{change.from}}" to "{{change.to}}"</li>
-  {% else %}
-  <li class="summary-{{change.type}}"><a href="#{{change.file}}">{{change.file}}</a></li>
+  {% elif change.modified %}
+  <li class="summary-modified"><a href="#{{change.modified}}">{{change.modified}}</a></li>
+  {% elif change.removed %}
+  <li class="summary-removed">{{change.removed}}</li>
+  {% elif change.added %}
+  <li class="summary-added"><a href="/{{repo.rOwner}}/{{repo.rName}}/browse/{{change.added}}">{{change.added}}</a></li>
   {% endif %}
   {% endfor %}
 </ul>
@@ -43,8 +47,8 @@
 <h1>changes</h1>
 <ul class="patch-changes">
   {% for change in changes %}
-  <li>
-	<h2>{{change.FileChange.cfName}} :: <span class="line">line {{change.FileChange.cfType.FileHunk.fchLine}}</span></h2>
+  <li id="{{change.FileChange.cfName}}">
+	<h2><a href="/{{repo.rOwner}}/{{repo.rName}}/browse/{{change.FileChange.cfName}}">{{change.FileChange.cfName}}</a> :: <span class="line">line {{change.FileChange.cfType.FileHunk.fchLine}}</span></h2>
 	<div class="removed">{{{change.FileChange.cfType.FileHunk.fchRemove}}}</div>
 	<div class="added">{{{change.FileChange.cfType.FileHunk.fchAdd}}}</div>
   </li>
