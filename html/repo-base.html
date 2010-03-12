@@ -1,5 +1,10 @@
 {% extends "html/base.html" %}
 
+{% block crumb %}
+<a href="/{{repo.rOwner}}">{{repo.rOwner}}</a>
+-&gt; <a href="/{{repo.rOwner}}/{{repo.rName}}">{{repo.rName}}</a>
+{% endblock %}
+
 {% block content %}
 <ul class="links">
   {% if isAdmin %}
@@ -12,5 +17,6 @@
 <p class="repo-desc">
   {{repo.rDescription}}{% if repo.rWebsite %} &mdash; <a href="{{repo.rWebsite}}">{{repo.rWebsite}}</a>{% endif %}
 </p>
+
 {% block body %}{% endblock %}
 {% endblock %}
