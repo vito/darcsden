@@ -114,7 +114,6 @@ form .cancel-buttons a.cancel {
 	padding: 1em 0;
 	font-size: 1.2em;
 	border-top: .1em dotted #ccc;
-	clear: both;
 	color: #777;
 	line-height: 1.4em;
 	font-family: monospace;
@@ -331,4 +330,8 @@ div.readme h3 {
 
 .user-repos li {
 	padding: .5em 0;
+}
+
+.clear {
+	clear: both;
 }
