@@ -73,8 +73,9 @@ newRepository r = do update $ AddRepository r
                      groupRes <- system $ "groupadd " ++ group
                      userRes <- system $ "usermod -aG " ++ group ++ " " ++ user
                      chownRes <- system $ "chown -R " ++ user ++ ":" ++ group ++ " " ++ repoDir (rOwner r) (rName r)
-                     chmodRes <- system $ "chmod -R g+w " ++ repoDir (rOwner r) (rName r)
-                     return (all (== ExitSuccess) [groupRes, userRes, chownRes, chmodRes])
+                     chmodRes1 <- system $ "chmod -R o-rwx " ++ repoDir (rOwner r) (rName r)
+                     chmodRes2 <- system $ "chmod -R g+w " ++ repoDir (rOwner r) (rName r)
+                     return (all (== ExitSuccess) [groupRes, userRes, chownRes, chmodRes1, chmodRes2])
   where user = saneName (rOwner r)
         group = user ++ "/" ++ saneName (rName r)
         defaults = unlines [ "ALL umask 007"
