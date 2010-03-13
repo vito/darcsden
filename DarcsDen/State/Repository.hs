@@ -67,18 +67,26 @@ newRepository :: Repository -> IO Bool
 newRepository r = do update $ AddRepository r
                      createDirectoryIfMissing True (repoDir (rOwner r) (rName r))
                      withCurrentDirectory (repoDir (rOwner r) (rName r)) (R.createRepository [])
-                     chownRes <- system $ "chown -R " ++ name ++ ":" ++ name ++ " " ++ (repoDir (rOwner r) (rName r))
-                     return (chownRes == ExitSuccess)
-  where name = saneName (rOwner r)
+                     writeFile (repoDir (rOwner r) (rName r) ++ "/_darcs/prefs/defaults") defaults
+                     groupRes <- system $ "groupadd " ++ group
+                     userRes <- system $ "usermod -aG " ++ group ++ " " ++ user
+                     chownRes <- system $ "chown -R " ++ user ++ ":" ++ group ++ " " ++ repoDir (rOwner r) (rName r)
+                     chmodRes <- system $ "chmod -R g+w " ++ repoDir (rOwner r) (rName r)
+                     return (all (== ExitSuccess) [groupRes, userRes, chownRes, chmodRes])
+  where user = saneName (rOwner r)
+        group = user ++ "/" ++ saneName (rName r)
+        defaults = unlines [ "ALL umask 007"
+                           , "apply posthook chgrp -Rf " ++ group ++ " .; exit 0"
+                           ]
 
 destroyRepository :: (String, String) -> IO ()
 destroyRepository r = do update $ DeleteRepository r
                          removeDirectoryRecursive (repoDir (fst r) (snd r))
 
 forkRepository :: String -> Repository -> IO Bool
-forkRepository un r = do update (AddRepository (r { rOwner = saneName un }))
-                         forkRes <- system $ "su " ++ name ++ " -c \"darcs get -q '" ++ orig ++ "' '" ++ fork ++ "'\""
+forkRepository un r = do newRepository (r { rOwner = saneName un })
+                         forkRes <- system $ "su " ++ name ++ " -c 'darcs pull -aq " ++ orig ++ " --repodir " ++ fork ++ "'"
                          return (forkRes == ExitSuccess)
   where name = saneName un
         orig = repoDir (rOwner r) (rName r)
-        fork = repoDir un (rName r)
+        fork = repoDir name (rName r)
