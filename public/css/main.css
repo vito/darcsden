@@ -109,6 +109,23 @@ form .cancel-buttons a.cancel {
 	margin-bottom: 1.4em;
 }
 
+.footer {
+	margin-top: 4em;
+	padding: 1em 0;
+	font-size: 1.2em;
+	border-top: .1em dotted #ccc;
+	clear: both;
+	color: #777;
+	line-height: 1.4em;
+	font-family: monospace;
+}
+.footer .tg {
+	float: right;
+}
+.footer a:hover {
+	color: #000;
+}
+
 .blurb {
 	font-size: 1.4em;
 	line-height: 1.4em;
