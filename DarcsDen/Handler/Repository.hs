@@ -90,7 +90,8 @@ instance Ord RepoItem where
 
 handleRepo :: String -> String -> [String] -> Page
 handleRepo un rn action s e
-  = validate e [ when (io "repository does not exist" $ query (GetRepository (name, repo)) >>= return . (/= Nothing))
+  = validate e [ io "user does not exist" $ query (GetUser un) >>= return . (/= Nothing)
+               , when (io "repository does not exist" $ query (GetRepository (un, rn)) >>= return . (/= Nothing))
                       (\(OK _) -> io "repository invalid" $ getRepo (repoDir name repo) >>= return . either (const False) (const True))
                ]
     (\(OK _) ->
@@ -100,8 +101,8 @@ handleRepo un rn action s e
         ("browse":file) -> browseRepo name repo file s e
         ["edit"] -> editRepo name repo s e
         ["delete"] -> deleteRepo name repo s e
-        ["changes"] -> pagedRepoChanges name repo 1 s e
-        ["changes", "page", page] | all isNumber page -> pagedRepoChanges name repo (read page :: Int) s e
+        ["changes"] -> repoChanges name repo 1 s e
+        ["changes", "page", page] | all isNumber page -> repoChanges name repo (read page :: Int) s e
         ["patch", patch] -> repoPatch name repo patch s e
         ["fork"] -> forkRepo name repo s e
         _ -> notFound s e)
@@ -118,15 +119,19 @@ initialize s@(Session { sUser = Just n }) e
     , predicate "name" isSane "contain only alphanumeric characters, underscores, and hyphens"
     , io "user is not valid" (query (GetUser n) >>= (return . (/= Nothing)))
     ]
-    (\(OK r) -> do now <- getClockTime
-                   newRepository $ Repository { rName = r ! "name"
-                                              , rDescription = input "description" "" e
-                                              , rWebsite = input "website" "" e
-                                              , rOwner = n
-                                              , rUsers = []
-                                              , rCreated = now
-                                              }
-                   redirectTo "/")
+    (\(OK r) -> do
+        now <- getClockTime
+        newRepository $ Repository { rName = r ! "name"
+                                   , rDescription = input "description" "" e
+                                   , rWebsite = input "website" "" e
+                                   , rOwner = n
+                                   , rUsers = []
+                                   , rCreated = now
+                                   }
+
+        success "Repository created." s
+
+        redirectTo ("/" ++ n ++ "/" ++ (r ! "name")))
     (\(Invalid f) -> do
         notify Warning s f
         doPage "init" [assocObj "in" (getInputs e)] s e)
@@ -140,10 +145,10 @@ browseRepo un rn f s e = do
   fs <- files dr f
   bl <- blob dr f
 
-  let path = (map (\p -> RepoItem { iName = last p
-                                  , iURL = urlTo un rn p
-                                  , iIsDirectory = True
-                                  }) (tail $ inits f))
+  let path = map (\p -> RepoItem { iName = last p
+                                 , iURL = urlTo un rn p
+                                 , iIsDirectory = True
+                                 }) (tail $ inits f)
 
   case (fs, bl) of
     (Nothing, Nothing) -> notFound s e
@@ -168,8 +173,8 @@ browseRepo un rn f s e = do
                          , var "isAdmin" (sUser s == Just (rOwner r))
                          ] s e
 
-pagedRepoChanges :: String -> String -> Int -> Page
-pagedRepoChanges un rn page s e = do
+repoChanges :: String -> String -> Int -> Page
+repoChanges un rn page s e = do
   Just u <- query (GetUser un)
   Just r <- query (GetRepository (un, rn))
 

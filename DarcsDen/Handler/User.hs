@@ -55,26 +55,28 @@ register s e = validate e [ when (nonEmpty "name")
 
 login :: Page
 login s e@(Env { requestMethod = GET }) = doPage "login" [] s e
-login s e = validate e
-            [ when
-                (nonEmpty "name" `And` nonEmpty "password")
-                (\(OK r) ->
-                     io "invalid username or password" $ do
-                       c <- query $ GetUser (r ! "name")
-                       case c of
-                         Nothing -> return False
-                         Just u -> let hashed = hashPassword (r ! "password") (uSalt u)
-                                   in return $ uPassword u == hashed)
-            ]
-            (\(OK r) -> do
-                setUser (Just $ r ! "name") s >>= success "Logged in!"
-                redirectTo "/")
-            (\(Invalid failed) -> do
-                notify Warning s failed
-                doPage "login" [assocObj "in" (getInputs e)] s e)
+login s e
+  = validate e
+    [ when (nonEmpty "name" `And` nonEmpty "password")
+           (\(OK r) ->
+             io "invalid username or password" $ do
+               c <- query $ GetUser (r ! "name")
+               case c of
+                 Nothing -> return False
+                 Just u -> let hashed = hashPassword (r ! "password") (uSalt u)
+                           in return $ uPassword u == hashed)
+    ]
+    (\(OK r) -> setUser (Just $ r ! "name") s
+                  >>= success "Logged in!"
+                  >> redirectTo "/")
+    (\(Invalid failed) -> do
+        notify Warning s failed
+        doPage "login" [assocObj "in" (getInputs e)] s e)
 
 logout :: Page
-logout s _ = setUser Nothing s >>= success "Logged out." >> redirectTo "/"
+logout s _ = setUser Nothing s
+               >>= success "Logged out."
+               >> redirectTo "/"
 
 settings :: Page
 settings s@(Session { sUser = Nothing }) _ = warn "You must be logged in to change your settings." s >> redirectTo "/login"
