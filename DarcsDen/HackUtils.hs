@@ -26,7 +26,7 @@ import DarcsDen.State.Session
 type Page = Session -> Application
 
 notFound :: Page -- TODO: 404 error code
-notFound = doPage "404" []
+notFound _ _ = return $ Response 404 [("Content-type", "text-plain")] (LC.pack "404 not found")
 
 redirectTo :: String -> IO Response
 redirectTo dest = return $ Response 302 [("Location", dest)] LC.empty
