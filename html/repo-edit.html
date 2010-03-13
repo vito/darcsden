@@ -10,15 +10,29 @@
       <br />
     </div>
     <div class="field">
-      <input type="text" name="description" id="description" value="{{repo.rDescription}}"/>
+      <input type="text" name="description" id="description" value="{{repo.rDescription}}" />
       <label for="description">description</label>
       <br />
     </div>
     <div class="field">
-      <input type="text" name="website" id="website" value="{{repo.rWebsite}}"/>
+      <input type="text" name="website" id="website" value="{{repo.rWebsite}}" />
       <label for="website">website</label>
       <br />
     </div>
+	<div class="field">
+	  <input type="text" name="add-members" id="add-members" />
+	  <label for="add-members">add members</label>
+	  <span class="note">comma separated</span>
+	</div>
+	<div class="field">
+	  <ul>
+		{% for member in members %}
+		<li><input type="checkbox" name="remove-{{member}}" /> <a href="/{{member}}">{{member}}</a></li>
+		{% endfor %}
+	  </ul>
+	  <label for="remove-members">remove members</label>
+	  <br />
+	</div>
     <div class="buttons">
       <input type="submit" value="update repository" />
 	  <br />

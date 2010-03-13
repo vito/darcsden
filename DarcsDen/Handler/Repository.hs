@@ -5,7 +5,7 @@ import Darcs.Patch.FileName (fn2fp)
 import Darcs.Patch.Info (PatchInfo, pi_date, pi_name, pi_author, pi_log, make_filename)
 import Darcs.Patch.Prim (Prim(..), DirPatchType(..), FilePatchType(..))
 import Darcs.Utils (withCurrentDirectory)
-import Data.Char (chr, isNumber)
+import Data.Char (chr, isNumber, isSpace)
 import Data.List (inits, intercalate, isPrefixOf, isSuffixOf, nub, sort)
 import Data.Map ((!))
 import Data.Maybe (fromJust, fromMaybe)
@@ -26,6 +26,7 @@ import qualified Storage.Hashed.AnchoredPath as A
 import qualified Storage.Hashed.Tree as T
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LS
+import qualified Data.ByteString.Lazy.Char8 as LC
 
 import DarcsDen.Data ()
 import DarcsDen.HackUtils
@@ -232,7 +233,9 @@ editRepo un rn s e@(Env { requestMethod = GET })
     [ io "you do not own this repository" (return $ Just un == sUser s) ]
     (\(OK _) -> do
         Just r <- query (GetRepository (un, rn))
+        ms <- members r
         doPage "repo-edit" [ var "repo" r
+                           , var "members" ms
                            , var "isAdmin" True
                            ] s e)
     (\(Invalid f) -> notify Warning s f >> redirectTo "/")
@@ -243,6 +246,22 @@ editRepo un rn s e
     ]
     (\(OK _) -> do
         Just r <- query (GetRepository (un, rn))
+        ms <- members r
+
+        mapM_ (\m -> case getInput ("remove-" ++ m) e of
+                  Nothing -> return False
+                  Just _ -> removeMember m r) ms
+
+        case getInput "add-members" e of
+          Just "" -> return ()
+          Just as -> mapM_ (\m -> do c <- query (GetUser $ LC.unpack m)
+                                     case c of
+                                       Just _ -> addMember (strip . LC.unpack $ m) r
+                                       Nothing -> warn ("Invalid user; cannot add: " ++ LC.unpack m) s >> return False)
+                     (LC.split ',' (LC.pack as))
+          _ -> return ()
+
+        Just s' <- query (GetSession (sID s)) -- may be some new warnings from user adding
 
         let newName = fromMaybe (rName r) (getInput "name" e)
         if rName r /= newName
@@ -255,12 +274,14 @@ editRepo un rn s e
                                     , rWebsite = fromMaybe (rWebsite r) (getInput "website" e)
                                     }))
 
-        success "Repository updated." s
+        success "Repository updated." s'
 
         redirectTo ("/" ++ un ++ "/" ++ newName ++ "/edit"))
     (\(Invalid f) -> do
         notify Warning s f
         redirectTo ("/" ++ un ++ "/" ++ rn ++ "/edit"))
+  where strip = strip' . strip'
+        strip' = reverse . dropWhile isSpace
 
 deleteRepo :: String -> String -> Page
 deleteRepo un rn s e@(Env { requestMethod = GET })
