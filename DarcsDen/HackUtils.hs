@@ -9,7 +9,7 @@ import Hack
 import Hack.Contrib.Mime
 import Happstack.State
 import Network.URI (unEscapeString)
-import System.Directory (doesFileExist, canonicalizePath, makeRelativeToCurrentDirectory)
+import System.Directory (doesFileExist, canonicalizePath)
 import System.FilePath (takeExtension)
 import System.Random (randomRIO)
 import System.Time
@@ -88,7 +88,7 @@ newSession r = do sid <- sessID
 
 serveDirectory :: String -> [String] -> Page
 serveDirectory prefix unsafe s e
-  = do safe <- canonicalizePath (prefix ++ intercalate "/" unsafe) >>= makeRelativeToCurrentDirectory
+  = do safe <- canonicalizePath (prefix ++ intercalate "/" unsafe)
        exists <- doesFileExist safe
 
        -- Make sure there's no trickery going on here.

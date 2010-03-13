@@ -2,6 +2,7 @@ module DarcsDen.Handler where
 
 import Hack
 import Happstack.State
+import System.Directory (getCurrentDirectory)
 import qualified Data.ByteString.Lazy.Char8 as LC
 
 import DarcsDen.HackUtils
@@ -31,7 +32,9 @@ pageFor ["login"] = login
 pageFor ["logout"] = logout
 pageFor ["settings"] = settings
 pageFor ["init"] = initialize
-pageFor ("public":unsafe) = serveDirectory "public/" unsafe
+pageFor ("public":unsafe) = \s e -> do
+  dir <- getCurrentDirectory
+  serveDirectory (dir ++ "/public/") unsafe s e
 pageFor [name] = user name
 pageFor (name:repo:action) = handleRepo name repo action
 
