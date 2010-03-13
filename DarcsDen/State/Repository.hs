@@ -75,3 +75,10 @@ destroyRepository :: (String, String) -> IO ()
 destroyRepository r = do update $ DeleteRepository r
                          removeDirectoryRecursive (repoDir (fst r) (snd r))
 
+forkRepository :: String -> Repository -> IO Bool
+forkRepository un r = do update (AddRepository (r { rOwner = saneName un }))
+                         forkRes <- system $ "su " ++ name ++ " -c \"darcs get -q '" ++ orig ++ "' '" ++ fork ++ "'\""
+                         return (forkRes == ExitSuccess)
+  where name = saneName un
+        orig = repoDir (rOwner r) (rName r)
+        fork = repoDir un (rName r)

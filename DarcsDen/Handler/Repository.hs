@@ -88,7 +88,7 @@ instance Ord RepoItem where
   compare (RepoItem a _ _) (RepoItem b _ _) = compare a b
 
 handleRepo :: String -> String -> [String] -> Page
-handleRepo name repo action s e
+handleRepo un rn action s e
   = validate e [ io "repository does not exist" $ query (GetRepository (name, repo)) >>= return . (/= Nothing)
                , io "repository invalid" $ getRepo (repoDir name repo) >>= return . either (const False) (const True)
                ]
@@ -102,8 +102,11 @@ handleRepo name repo action s e
         ["changes"] -> pagedRepoChanges name repo 1 s e
         ["changes", "page", page] | all isNumber page -> pagedRepoChanges name repo (read page :: Int) s e
         ["patch", patch] -> repoPatch name repo patch s e
+        ["fork"] -> forkRepo name repo s e
         _ -> notFound s e)
     (\(Invalid f) -> notify Warning s f >> redirectTo "/")
+  where name = saneName un
+        repo = saneName rn
 
 initialize :: Page
 initialize s@(Session { sUser = Nothing }) _ = warn "You must be logged in to create a repository." s >> redirectTo "/login"
@@ -279,6 +282,16 @@ deleteRepo un rn s e
     (\(Invalid f) -> do
         notify Warning s f
         redirectTo ("/" ++ un ++ "/" ++ rn))
+
+forkRepo :: String -> String -> Page
+forkRepo _ _ s@(Session { sUser = Nothing }) _ = warn "You must be logged in to fork a repository." s >> redirectTo "/"
+forkRepo un rn s@(Session { sUser = Just n }) _ = do
+  Just r <- query (GetRepository (un, rn))
+
+  forkRepository n r
+
+  success "Repository forked." s
+  redirectTo ("/" ++ n ++ "/" ++ rName r)
 
 
 -- Helper functions (TODO: Probably put somewhere better.)
