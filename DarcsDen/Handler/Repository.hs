@@ -90,8 +90,8 @@ instance Ord RepoItem where
 
 handleRepo :: String -> String -> [String] -> Page
 handleRepo un rn action s e
-  = validate e [ io "repository does not exist" $ query (GetRepository (name, repo)) >>= return . (/= Nothing)
-               , io "repository invalid" $ getRepo (repoDir name repo) >>= return . either (const False) (const True)
+  = validate e [ when (io "repository does not exist" $ query (GetRepository (name, repo)) >>= return . (/= Nothing))
+                      (\(OK _) -> io "repository invalid" $ getRepo (repoDir name repo) >>= return . either (const False) (const True))
                ]
     (\(OK _) ->
       case action of
