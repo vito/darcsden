@@ -74,13 +74,11 @@ newRepository r = do update $ AddRepository r
                      userRes <- system $ "usermod -aG " ++ group ++ " " ++ user
                      chownRes <- system $ "chown -R " ++ user ++ ":" ++ group ++ " " ++ repoDir (rOwner r) (rName r)
                      chmodRes1 <- system $ "chmod -R o-rwx " ++ repoDir (rOwner r) (rName r)
-                     chmodRes2 <- system $ "chmod -R g+w " ++ repoDir (rOwner r) (rName r)
+                     chmodRes2 <- system $ "chmod -R g+ws " ++ repoDir (rOwner r) (rName r)
                      return (all (== ExitSuccess) [groupRes, userRes, chownRes, chmodRes1, chmodRes2])
   where user = saneName (rOwner r)
         group = user ++ "/" ++ saneName (rName r)
-        defaults = unlines [ "ALL umask 007"
-                           , "apply posthook chgrp -Rf " ++ group ++ " .; exit 0"
-                           ]
+        defaults = "ALL umask 0007\n"
 
 destroyRepository :: (String, String) -> IO ()
 destroyRepository r = do update $ DeleteRepository r
