@@ -25,7 +25,7 @@ handler e = withSession e (\s -> pageFor path s e)
     where path = splitOn "/" . tail . pathInfo $ e
 
 pageFor :: [String] -> Page
-pageFor [] = index
+pageFor [""] = index
 pageFor ["index"] = index
 pageFor ["register"] = register
 pageFor ["login"] = login
