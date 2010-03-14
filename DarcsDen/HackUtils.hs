@@ -26,6 +26,7 @@ import DarcsDen.State.Session
 
 type Page = Session -> Application
 
+
 notFound :: Page -- TODO: 404 error code
 notFound _ _ = return $ Response 404 [("Content-type", "text-plain")] (LC.pack "404 not found")
 

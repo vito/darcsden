@@ -54,8 +54,9 @@ setUser n s = let new = s { sUser = n }
               in update (UpdateSession new) >> return new
 
 notice :: (String -> Notification) -> String -> Session -> IO Session
-notice n m s = let new = s { sNotifications = sNotifications s ++ [n m] }
-               in update (UpdateSession new) >> return new
+notice n m s = do Just s' <- query (GetSession (sID s))
+                  let new = s' { sNotifications = sNotifications s' ++ [n m] }
+                  update (UpdateSession new) >> return new
 
 warn :: String -> Session -> IO Session
 warn = notice Warning
