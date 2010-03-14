@@ -96,6 +96,18 @@ forkRepository un r = do newRepository (r { rOwner = saneName un })
         orig = repoDir (rOwner r) (rName r)
         fork = repoDir name (rName r)
 
+renameRepository :: String -> Repository -> IO (Either ExitCode Repository)
+renameRepository n r = do renameRes <- system $ "groupmod -n " ++ newGroup ++ " " ++ oldGroup
+                          if renameRes /= ExitSuccess
+                            then return (Left renameRes)
+                            else do
+                          renameDirectory (repoDir (rOwner r) (rName r)) (repoDir (rOwner r) n)
+                          update (DeleteRepository (rOwner r, rName r)) -- can't update; new key
+                          update (AddRepository (r { rName = n }))
+                          return (Right (r { rName = n }))
+  where newGroup = saneName (rOwner r) ++ "/" ++ saneName n
+        oldGroup = saneName (rOwner r) ++ "/" ++ saneName (rName r)
+
 members :: Repository -> IO [String]
 members r = do groups <- LC.readFile "/etc/group"
                case filter (\(name:_) -> name == group) $ map (LC.split ':') (LC.lines groups) of

@@ -5,11 +5,10 @@ import Data.Char (isNumber, isSpace)
 import Data.List (inits)
 import Data.List.Split (wordsBy)
 import Data.Map ((!))
-import Data.Maybe (fromJust, fromMaybe)
+import Data.Maybe (fromMaybe)
 import Hack
 import Happstack.State
 import System.Time (getClockTime)
-import System.Directory (renameDirectory)
 import Text.Highlighting.Kate
 import Text.JSON.Generic
 
@@ -159,45 +158,49 @@ editRepo un rn s e
   = validate e
     [ io "you do not own this repository" (return $ Just un == sUser s)
     , nonEmpty "name"
+    , predicate "name" isSane "contain only alphanumeric characters, underscores, and hyphens"
     ]
-    (\(OK _) -> do
+    (\(OK i) -> do
         Just r <- query (GetRepository (un, rn))
         ms <- members r
 
-        mapM_ (\m -> case getInput ("remove-" ++ m) e of
-                  Nothing -> return False
-                  Just _ -> removeMember m r) ms
+        removeMembers r ms
+        addMembers r (fromMaybe "" (getInput "add-members" e))
 
-        case getInput "add-members" e of
-          Just "" -> return ()
-          Just as -> mapM_ (\m -> do c <- query (GetUser m)
-                                     case c of
-                                       Just _ -> addMember (strip m) r
-                                       Nothing -> warn ("Invalid user; cannot add: " ++ m) s >> return False)
-                           (wordsBy (== ',') as)
-          _ -> return ()
+        new <- rename r (i ! "name")
 
-        Just s' <- query (GetSession (sID s)) -- there may be some new warnings from user adding
+        update (UpdateRepository (new { rDescription = fromMaybe (rDescription r) (getInput "description" e)
+                                      , rWebsite = fromMaybe (rWebsite r) (getInput "website" e)
+                                      }))
 
-        let newName = fromMaybe (rName r) (getInput "name" e)
-        if rName r /= newName
-          then do renameDirectory (repoDir un rn) (repoDir un (fromJust (getInput "name" e)))
-                  update (DeleteRepository (un, rn))
-          else return ()
-
-        update (UpdateRepository (r { rName = newName
-                                    , rDescription = fromMaybe (rDescription r) (getInput "description" e)
-                                    , rWebsite = fromMaybe (rWebsite r) (getInput "website" e)
-                                    }))
-
-        success "Repository updated." s'
-
-        redirectTo ("/" ++ un ++ "/" ++ newName ++ "/edit"))
+        success "Repository updated." s
+        redirectTo ("/" ++ un ++ "/" ++ (i ! "name") ++ "/edit"))
     (\(Invalid f) -> do
         notify Warning s f
         redirectTo ("/" ++ un ++ "/" ++ rn ++ "/edit"))
   where strip = strip' . strip'
         strip' = reverse . dropWhile isSpace
+
+        removeMembers r ms
+          = mapM_ (\m -> case getInput ("remove-" ++ m) e of
+                      Nothing -> return False
+                      Just _ -> removeMember m r) ms
+
+        addMembers r as
+          = mapM_ (\m -> do c <- query (GetUser m)
+                            case c of
+                              Just _ -> addMember (strip m) r
+                              Nothing -> warn ("Invalid user; cannot add: " ++ m) s >> return False)
+                  (wordsBy (== ',') as)
+
+        rename r n
+          = if rName r /= n
+              then do renamed <- renameRepository n r
+                      case renamed of
+                        Left err -> do warn ("Repository renaming failed: " ++ show err) s
+                                       return r
+                        Right r' -> return r'
+              else return r
 
 deleteRepo :: String -> String -> Page
 deleteRepo un rn s e@(Env { requestMethod = GET })
