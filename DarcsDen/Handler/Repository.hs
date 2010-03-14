@@ -38,6 +38,7 @@ handleRepo un rn action s e
         ["changes", "page", page] | all isNumber page -> repoChanges name repo (read page :: Int) s e
         ["patch", patch] -> repoPatch name repo patch s e
         ["fork"] -> forkRepo name repo s e
+        ["fork-as"] -> forkRepoAs name repo s e
         _ -> notFound s e)
     (\(Invalid f) -> notify Warning s f >> redirectTo "/")
   where name = saneName un
@@ -223,10 +224,38 @@ deleteRepo un rn s e
 
 forkRepo :: String -> String -> Page
 forkRepo _ _ s@(Session { sUser = Nothing }) _ = warn "You must be logged in to fork a repository." s >> redirectTo "/"
-forkRepo un rn s@(Session { sUser = Just n }) _ = do
-  Just r <- query (GetRepository (un, rn))
+forkRepo un rn s@(Session { sUser = Just n }) e
+  = validate e
+    [ io "destination repository already exists" $ query (GetRepository (n, rn)) >>= return . (== Nothing) ]
+    (\(OK _) -> do
+        Just r <- query (GetRepository (un, rn))
 
-  forkRepository n r
+        forkRepository n (rName r) r
 
-  success "Repository forked." s
-  redirectTo ("/" ++ n ++ "/" ++ rName r)
+        success "Repository forked." s
+        redirectTo ("/" ++ n ++ "/" ++ rName r))
+    (\(Invalid _) -> do
+        Just r <- query (GetRepository (un, rn))
+        doPage "repo-fork" [ var "repo" r
+                           , var "name" (rName r)
+                           ] s e)
+
+forkRepoAs :: String -> String -> Page
+forkRepoAs _ _ s@(Session { sUser = Nothing }) _ = warn "You must be logged in to fork a repository." s >> redirectTo "/"
+forkRepoAs un rn s@(Session { sUser = Just n }) e
+  = validate e
+    [ when (nonEmpty "name")
+           (\(OK i) -> io "destination repository already exists" $ query (GetRepository (n, i ! "name")) >>= return . (== Nothing))
+    ]
+    (\(OK i) -> do
+        Just r <- query (GetRepository (un, rn))
+
+        forkRepository n (i ! "name") r
+
+        success "Repository forked." s
+        redirectTo ("/" ++ n ++ "/" ++ (i ! "name")))
+    (\(Invalid _) -> do
+        Just r <- query (GetRepository (un, rn))
+        doPage "repo-fork" [ var "repo" r
+                           , var "name" (input "name" (rName r) e)
+                           ] s e)

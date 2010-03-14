@@ -86,13 +86,15 @@ destroyRepository r = do update $ DeleteRepository r
                          removeDirectoryRecursive (repoDir (fst r) (snd r))
   where group = saneName (fst r) ++ "/" ++ saneName (snd r)
 
-forkRepository :: String -> Repository -> IO Bool
-forkRepository un r = do newRepository (r { rOwner = saneName un })
-                         forkRes <- system $ "su " ++ name ++ " -c 'darcs pull -aq " ++ orig ++ " --repodir " ++ fork ++ "'"
-                         return (forkRes == ExitSuccess)
+forkRepository :: String -> String -> Repository -> IO Bool
+forkRepository un rn r = do newRepository (r { rOwner = saneName un
+                                             , rName = saneName rn
+                                             })
+                            forkRes <- system $ "su " ++ name ++ " -c 'darcs pull -aq " ++ orig ++ " --repodir " ++ fork ++ "'"
+                            return (forkRes == ExitSuccess)
   where name = saneName un
         orig = repoDir (rOwner r) (rName r)
-        fork = repoDir name (rName r)
+        fork = repoDir name (saneName rn)
 
 renameRepository :: String -> Repository -> IO (Either ExitCode Repository)
 renameRepository n r = do renameRes <- system $ "groupmod -n " ++ newGroup ++ " " ++ oldGroup
