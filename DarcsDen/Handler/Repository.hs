@@ -3,7 +3,7 @@ module DarcsDen.Handler.Repository where
 
 import Data.Char (isNumber, isSpace)
 import Data.List (inits)
-import Data.List.Split (splitOn)
+import Data.List.Split (wordsBy)
 import Data.Map ((!))
 import Data.Maybe (fromJust, fromMaybe)
 import Hack
@@ -174,7 +174,7 @@ editRepo un rn s e
                                      case c of
                                        Just _ -> addMember (strip m) r
                                        Nothing -> warn ("Invalid user; cannot add: " ++ m) s >> return False)
-                           (splitOn "," as)
+                           (wordsBy (== ',') as)
           _ -> return ()
 
         Just s' <- query (GetSession (sID s)) -- there may be some new warnings from user adding

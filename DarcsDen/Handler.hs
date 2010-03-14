@@ -1,6 +1,6 @@
 module DarcsDen.Handler where
 
-import Data.List.Split (splitOn)
+import Data.List.Split (wordsBy)
 import Hack
 import Happstack.State
 import System.Directory (getCurrentDirectory)
@@ -22,10 +22,10 @@ index s@(Session { sUser = Just n }) e
 -- URL handling
 handler :: Application
 handler e = withSession e (\s -> pageFor path s e)
-    where path = splitOn "/" . tail . pathInfo $ e
+    where path = wordsBy (== '/') . tail . pathInfo $ e
 
 pageFor :: [String] -> Page
-pageFor [""] = index
+pageFor [] = index
 pageFor ["index"] = index
 pageFor ["register"] = register
 pageFor ["login"] = login
@@ -37,4 +37,3 @@ pageFor ("public":unsafe) = \s e -> do
   serveDirectory (dir ++ "/public/") unsafe s e
 pageFor [name] = user name
 pageFor (name:repo:action) = handleRepo name repo action
-pageFor _ = notFound
