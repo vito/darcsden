@@ -7,6 +7,7 @@ import Darcs.Patch.Prim (Prim(..), DirPatchType(..), FilePatchType(..))
 import Darcs.Utils (withCurrentDirectory)
 import Data.Char (chr, isNumber, isSpace)
 import Data.List (inits, intercalate, isPrefixOf, isSuffixOf, nub, sort)
+import Data.List.Split (splitOn)
 import Data.Map ((!))
 import Data.Maybe (fromJust, fromMaybe)
 import Hack
@@ -26,7 +27,6 @@ import qualified Storage.Hashed.AnchoredPath as A
 import qualified Storage.Hashed.Tree as T
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LS
-import qualified Data.ByteString.Lazy.Char8 as LC
 
 import DarcsDen.Data ()
 import DarcsDen.HackUtils
@@ -259,11 +259,11 @@ editRepo un rn s e
 
         case getInput "add-members" e of
           Just "" -> return ()
-          Just as -> mapM_ (\m -> do c <- query (GetUser $ LC.unpack m)
+          Just as -> mapM_ (\m -> do c <- query (GetUser m)
                                      case c of
-                                       Just _ -> addMember (strip . LC.unpack $ m) r
-                                       Nothing -> warn ("Invalid user; cannot add: " ++ LC.unpack m) s >> return False)
-                     (LC.split ',' (LC.pack as))
+                                       Just _ -> addMember (strip m) r
+                                       Nothing -> warn ("Invalid user; cannot add: " ++ m) s >> return False)
+                     (splitOn "," as)
           _ -> return ()
 
         Just s' <- query (GetSession (sID s)) -- may be some new warnings from user adding

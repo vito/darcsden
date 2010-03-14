@@ -1,9 +1,9 @@
 module DarcsDen.Handler where
 
+import Data.List.Split (splitOn)
 import Hack
 import Happstack.State
 import System.Directory (getCurrentDirectory)
-import qualified Data.ByteString.Lazy.Char8 as LC
 
 import DarcsDen.HackUtils
 import DarcsDen.Handler.Repository
@@ -22,7 +22,7 @@ index s@(Session { sUser = Just n }) e
 -- URL handling
 handler :: Application
 handler e = withSession e (\s -> pageFor path s e)
-    where path = map LC.unpack . LC.split '/' . LC.pack . tail . pathInfo $ e
+    where path = splitOn "/" . tail . pathInfo $ e
 
 pageFor :: [String] -> Page
 pageFor [] = index

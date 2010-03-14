@@ -4,6 +4,7 @@ import Control.Monad.Reader
 import Data.ByteString.Class (toLazyByteString)
 import Data.Char (chr, isSpace)
 import Data.List (intercalate, isPrefixOf)
+import Data.List.Split (splitOn)
 import Data.Maybe (fromMaybe)
 import Hack
 import Hack.Contrib.Mime
@@ -35,8 +36,8 @@ getInput :: String -> Env -> Maybe String
 getInput key = lookup key . getInputs
 
 getInputs :: Env -> [(String, String)]
-getInputs = map (\[k,v] -> (sanitize k, sanitize v)) . map (LC.split '=') . LC.split '&' . hackInput
-            where sanitize = unEscapeString . LC.unpack . LC.intercalate (LC.pack " ") . LC.split '+'
+getInputs = map (\[k,v] -> (sanitize k, sanitize v)) . map (splitOn "=") . splitOn "&" . LC.unpack . hackInput
+            where sanitize = unEscapeString . intercalate " " . splitOn "+"
 
 input :: String -> String -> Env -> String
 input k d e = fromMaybe d (getInput k e)
