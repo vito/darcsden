@@ -37,8 +37,11 @@ getInput :: String -> Env -> Maybe String
 getInput key = lookup key . getInputs
 
 getInputs :: Env -> [(String, String)]
-getInputs = map (\[k,v] -> (sanitize k, sanitize v)) . map (wordsBy (== '=')) . wordsBy (== '&') . LC.unpack . hackInput
-            where sanitize = unEscapeString . intercalate " " . wordsBy (== '+')
+getInputs e = map keyVal . map (wordsBy (== '=')) . wordsBy (== '&') . LC.unpack . hackInput $ e
+  where sanitize = unEscapeString . intercalate " " . wordsBy (== '+')
+        keyVal (k:v:_) = (sanitize k, sanitize v)
+        keyVal [k] = (sanitize k, "")
+        keyVal _ = error $ "Bad input: " ++ (LC.unpack $ hackInput e)
 
 input :: String -> String -> Env -> String
 input k d e = fromMaybe d (getInput k e)
