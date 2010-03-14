@@ -2,7 +2,7 @@
 module DarcsDen.Handler.Repository where
 
 import Data.Char (isNumber, isSpace)
-import Data.List (inits, nub)
+import Data.List (inits)
 import Data.List.Split (splitOn)
 import Data.Map ((!))
 import Data.Maybe (fromJust, fromMaybe)
@@ -139,23 +139,9 @@ repoPatch un rn p s e = do
                       , var "repo" r
                       , var "log" (pPatch patch)
                       , JSObject $ toJSObject [("summary", JSArray (summarize [] (pChanges patch)))]
-                      , var "changes" (filter modification (pChanges patch))
+                      , var "changes" (filter isModification (pChanges patch))
                       , var "isAdmin" (sUser s == Just (rOwner r))
                       ] s e
-  where summarize :: [[(String, JSValue)]] -> [PatchChange] -> [JSValue]
-        summarize a [] = map (JSObject . toJSObject) (nub a)
-        summarize a ((FileChange n FileRemoved):cs) = summarize (a ++ [[("removed", toJSON n)]]) cs
-        summarize a ((FileChange n FileAdded):cs) = summarize (a ++ [[("added", toJSON n)]]) cs
-        summarize a ((FileChange n _):cs) = summarize (a ++ [[("modified", toJSON n)]]) cs
-        summarize a ((PrefChange n f t):cs) = summarize (a ++ [[ ("preference", toJSON n)
-                                                               , ("from", toJSON f)
-                                                               , ("to", toJSON t)
-                                                               , ("type", toJSON "change")
-                                                               ]]) cs
-        summarize a (_:cs) = summarize a cs
-
-        modification (FileChange _ (FileHunk _ _ _)) = True
-        modification _ = False
 
 editRepo :: String -> String -> Page
 editRepo un rn s e@(Env { requestMethod = GET })
@@ -188,7 +174,7 @@ editRepo un rn s e
                                      case c of
                                        Just _ -> addMember (strip m) r
                                        Nothing -> warn ("Invalid user; cannot add: " ++ m) s >> return False)
-                     (splitOn "," as)
+                           (splitOn "," as)
           _ -> return ()
 
         Just s' <- query (GetSession (sID s)) -- there may be some new warnings from user adding

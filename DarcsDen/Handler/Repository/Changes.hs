@@ -5,9 +5,11 @@ import Darcs.Patch.Info (PatchInfo, pi_date, pi_name, pi_author, pi_log, make_fi
 import Darcs.Patch.FileName (fn2fp)
 import Darcs.Patch.Prim (Prim(..), DirPatchType(..), FilePatchType(..))
 import Data.Data (Data)
+import Data.List (nub)
 import Data.Typeable (Typeable)
 import Happstack.State (query)
 import System.Time (calendarTimeToString)
+import Text.JSON.Generic
 import qualified Darcs.Patch as P
 import qualified Darcs.Repository as R
 import qualified Darcs.Witnesses.Ordered as WO
@@ -121,3 +123,19 @@ getPatch dir patch = R.withRepositoryDirectory [] dir $ \dr ->
 
 fromPS :: P.RepoPatch p => R.PatchSet p -> [P.Named p]
 fromPS = WO.unsafeUnRL . WO.reverseFL . R.patchSetToPatches
+
+summarize :: [[(String, JSValue)]] -> [PatchChange] -> [JSValue]
+summarize a [] = map (JSObject . toJSObject) (nub a)
+summarize a ((FileChange n FileRemoved):cs) = summarize (a ++ [[("removed", toJSON n)]]) cs
+summarize a ((FileChange n FileAdded):cs) = summarize (a ++ [[("added", toJSON n)]]) cs
+summarize a ((FileChange n _):cs) = summarize (a ++ [[("modified", toJSON n)]]) cs
+summarize a ((PrefChange n f t):cs) = summarize (a ++ [[ ("preference", toJSON n)
+                                                       , ("from", toJSON f)
+                                                       , ("to", toJSON t)
+                                                       , ("type", toJSON "change")
+                                                       ]]) cs
+summarize a (_:cs) = summarize a cs
+
+isModification :: PatchChange -> Bool
+isModification (FileChange _ (FileHunk _ _ _)) = True
+isModification _ = False
