@@ -37,4 +37,4 @@ pageFor ("public":unsafe) = \s e -> do
   serveDirectory (dir ++ "/public/") unsafe s e
 pageFor [name] = user name
 pageFor (name:repo:action) = handleRepo name repo action
-
+pageFor _ = notFound
