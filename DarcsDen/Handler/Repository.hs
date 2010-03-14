@@ -9,8 +9,6 @@ import Data.Maybe (fromMaybe)
 import Hack
 import Happstack.State
 import System.Time (getClockTime)
-import Text.Highlighting.Kate
-import Text.JSON.Generic
 
 import DarcsDen.Data ()
 import DarcsDen.HackUtils
@@ -103,7 +101,7 @@ browseRepo un rn f s e = do
       doPage "repo-blob" [ var "user" u
                          , var "repo" r
                          , var "file" (last path)
-                         , var "blob" (highlight (last f) source [OptNumberLines])
+                         , var "blob" (highlightBlob (last f) source)
                          , var "path" (init path)
                          , var "isAdmin" (sUser s == Just (rOwner r))
                          ] s e
@@ -137,7 +135,7 @@ repoPatch un rn p s e = do
   doPage "repo-patch" [ var "user" u
                       , var "repo" r
                       , var "log" (pPatch patch)
-                      , JSObject $ toJSObject [("summary", JSArray (summarize [] (pChanges patch)))]
+                      , array "summary" (summarize [] (pChanges patch))
                       , var "changes" (filter isModification (pChanges patch))
                       , var "isAdmin" (sUser s == Just (rOwner r))
                       ] s e
@@ -165,7 +163,7 @@ editRepo un rn s e
         ms <- members r
 
         removeMembers r ms
-        addMembers r (fromMaybe "" (getInput "add-members" e))
+        addMembers r (input "add-members" "" e)
 
         new <- rename r (i ! "name")
 

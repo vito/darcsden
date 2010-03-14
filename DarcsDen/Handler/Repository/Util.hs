@@ -23,6 +23,9 @@ highlight f s os = case hl of
                  then Right (map (\l -> [([], l)]) (lines s))
                  else highlightAs lang s
 
+highlightBlob :: String -> String -> String
+highlightBlob f s = highlight f s [OptNumberLines]
+
 fromBS :: BS.ByteString -> String
 fromBS = map (chr . fromIntegral) . BS.unpack
 

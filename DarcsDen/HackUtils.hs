@@ -119,6 +119,9 @@ var key val = JSObject $ toJSObject [(key, toJSON val)]
 assocObj :: Data a => String -> [(String, a)] -> JSValue
 assocObj key val = JSObject $ toJSObject [(key, JSObject . toJSObject . map (\(k, v) -> (k, toJSON v)) $ val)]
 
+array :: String -> [JSValue] -> JSValue
+array key val = JSObject $ toJSObject [(key, JSArray val)]
+
 -- Press for Hack
 renderToResponse :: Env -> String -> [JSValue] -> IO Response
 renderToResponse env filename context = runJSValuesWithPath sl filename >>= resultToResponse
