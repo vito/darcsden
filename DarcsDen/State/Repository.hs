@@ -5,7 +5,9 @@ module DarcsDen.State.Repository where
 import Darcs.Utils (withCurrentDirectory)
 import Control.Monad.Reader
 import Control.Monad.State
+import Data.Char (ord)
 import Data.Data (Data)
+import Data.Digest.OpenSSL.MD5 (md5sum)
 import Data.List (intercalate)
 import Data.Typeable (Typeable)
 import Happstack.State
@@ -14,6 +16,7 @@ import System.Cmd (system)
 import System.Directory
 import System.Exit (ExitCode(ExitSuccess))
 import qualified Darcs.Repository as R
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy.Char8 as LC
 import qualified Data.Map as M
 
@@ -77,14 +80,14 @@ newRepository r = do update $ AddRepository r
                      chmodRes2 <- system $ "chmod -R g+ws " ++ repoDir (rOwner r) (rName r)
                      return (all (== ExitSuccess) [groupRes, userRes, chownRes, chmodRes1, chmodRes2])
   where user = saneName (rOwner r)
-        group = user ++ "/" ++ saneName (rName r)
+        group = groupName (rOwner r) (rName r)
         defaults = "ALL umask 0007\n"
 
 destroyRepository :: (String, String) -> IO ()
 destroyRepository r = do update $ DeleteRepository r
                          system $ "groupdel " ++ group
                          removeDirectoryRecursive (repoDir (fst r) (snd r))
-  where group = saneName (fst r) ++ "/" ++ saneName (snd r)
+  where group = groupName (fst r) (snd r)
 
 forkRepository :: String -> String -> Repository -> IO Bool
 forkRepository un rn r = do newRepository (r { rOwner = saneName un
@@ -105,27 +108,27 @@ renameRepository n r = do renameRes <- system $ "groupmod -n " ++ newGroup ++ " 
                           update (DeleteRepository (rOwner r, rName r)) -- can't update; new key
                           update (AddRepository (r { rName = n }))
                           return (Right (r { rName = n }))
-  where newGroup = saneName (rOwner r) ++ "/" ++ saneName n
-        oldGroup = saneName (rOwner r) ++ "/" ++ saneName (rName r)
+  where newGroup = groupName (rOwner r) n
+        oldGroup = groupName (rOwner r) (rName r)
 
 members :: Repository -> IO [String]
 members r = do groups <- LC.readFile "/etc/group"
                case filter (\(name:_) -> name == group) $ map (LC.split ':') (LC.lines groups) of
                  ((_:_:_:users:_):_) -> return . map LC.unpack . LC.split ',' $ users
                  _ -> return []
-  where group = LC.pack $ saneName (rOwner r) ++ "/" ++ saneName (rName r)
+  where group = LC.pack $ groupName (rOwner r) (rName r)
 
 addMember :: String -> Repository -> IO Bool
 addMember m r = do addRes <- system $ "usermod -aG " ++ group ++ " " ++ user
                    return (addRes == ExitSuccess)
   where user = saneName m
-        group = saneName (rOwner r) ++ "/" ++ saneName (rName r)
+        group = groupName (rOwner r) (rName r)
 
 removeMember :: String -> Repository -> IO Bool
 removeMember m r = do removeRes <- system $ "usermod -G `" ++ removeFromList ++ "` " ++ user
                       return (removeRes == ExitSuccess)
   where user = saneName m
-        group = saneName (rOwner r) ++ "/" ++ saneName (rName r)
+        group = groupName (rOwner r) (rName r)
         groups       = "id -Gn " ++ user
         removeFirst  = "sed 's|^" ++ group ++ " ||'"
         removeMiddle = "sed 's| " ++ group ++ " | |'"
@@ -138,3 +141,5 @@ removeMember m r = do removeRes <- system $ "usermod -G `" ++ removeFromList ++ 
                                            , commaDelim
                                            ]
 
+groupName :: String -> String -> String
+groupName un rn = md5sum . BS.pack . map (fromIntegral . ord) $ saneName un ++ "/" ++ saneName rn
