@@ -9,6 +9,7 @@ import Data.Char (ord)
 import Data.Data (Data)
 import Data.Digest.OpenSSL.MD5 (md5sum)
 import Data.List (intercalate)
+import Data.List.Split (wordsBy)
 import Data.Typeable (Typeable)
 import Happstack.State
 import Happstack.State.ClockTime
@@ -17,7 +18,6 @@ import System.Directory
 import System.Exit (ExitCode(ExitSuccess))
 import qualified Darcs.Repository as R
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Lazy.Char8 as LC
 import qualified Data.Map as M
 
 import DarcsDen.State.User
@@ -112,11 +112,11 @@ renameRepository n r = do renameRes <- system $ "groupmod -n " ++ newGroup ++ " 
         oldGroup = groupName (rOwner r) (rName r)
 
 members :: Repository -> IO [String]
-members r = do groups <- LC.readFile "/etc/group"
-               case filter (\(name:_) -> name == group) $ map (LC.split ':') (LC.lines groups) of
-                 ((_:_:_:users:_):_) -> return . map LC.unpack . LC.split ',' $ users
+members r = do groups <- readFile "/etc/group"
+               case filter (\(name:_) -> name == group) $ map (wordsBy (== ':')) (lines groups) of
+                 ((_:_:_:users:_):_) -> return (wordsBy (== ',') users)
                  _ -> return []
-  where group = LC.pack $ groupName (rOwner r) (rName r)
+  where group = groupName (rOwner r) (rName r)
 
 addMember :: String -> Repository -> IO Bool
 addMember m r = do addRes <- system $ "usermod -aG " ++ group ++ " " ++ user
