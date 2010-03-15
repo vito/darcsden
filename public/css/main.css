@@ -150,10 +150,6 @@ form .cancel-buttons a.cancel {
 	color: #fff;
 }
 
-.links.nav li {
-	font-size: 2em;
-	font-weight: bold;
-}
 .links {
 	float: right;
 }
@@ -164,10 +160,35 @@ form .cancel-buttons a.cancel {
 }
 .links li a {
 	font-family: monospace;
-	padding: .5em 0 .5em 22px;
+	padding: .5em 0 .5em 21px;
+}
+.links li.edit a {
+	background: url('/public/images/edit.gif') no-repeat left 8px;
+}
+.links li.delete a {
+	background: url('/public/images/delete.gif') no-repeat left 8px;
+}
+.links li.fork a {
+	background: url('/public/images/fork.gif') no-repeat left 8px;
 }
 .links li.changes a {
 	background: url('/public/images/log.gif') no-repeat left 8px;
+}
+.links.nav li {
+	font-size: 2em;
+	font-weight: bold;
+}
+.links.nav li.settings a {
+	background: url('/public/images/settings.gif') no-repeat left 13px;
+}
+.links.nav li.logout a {
+	background: url('/public/images/logout.gif') no-repeat left 13px;
+}
+.links.nav li.login a {
+	background: url('/public/images/login.gif') no-repeat left 13px;
+}
+.links.nav li.register a {
+	background: url('/public/images/register.gif') no-repeat left 13px;
 }
 
 .repo-desc,

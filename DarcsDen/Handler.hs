@@ -19,6 +19,7 @@ index s@(Session { sUser = Just n }) e
   = do repos <- query $ GetUserRepositories n
        doPage "index" [var "repositories" repos] s e
 
+
 -- URL handling
 handler :: Application
 handler e = withSession e (\s -> pageFor path s e)
