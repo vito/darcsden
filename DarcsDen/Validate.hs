@@ -64,7 +64,7 @@ verify e (And a b) = do x <- verify e a
                           [Right (OK ra), Right (OK rb)] ->
                               return $ Right $ OK (ra `M.union` rb)
                           other ->
-                              return $ invalid (concat . map (\(Invalid i) -> i) $ lefts other)
+                              return $ invalid (concatMap (\(Invalid i) -> i) $ lefts other)
 verify e (If a b) = do x <- verify e a
                        case x of
                          Right o@(OK r) -> do t <- verify e (b o)
@@ -90,12 +90,12 @@ check = check' (ok [])
       check' (Right (OK vs)) e (t:ts)
           = do v <- verify e t
                case v of
-                 Right (OK r) -> check' (Right (OK (M.union vs r))) e ts
+                 Right (OK r) -> check' (Right (OK (vs `M.union` r))) e ts
                  _ -> check' v e ts
 
 -- Validators
 nonEmpty :: String -> Valid
-nonEmpty a = Predicate a (\x -> (x /= "")) "not be empty"
+nonEmpty a = Predicate a (/= "") "not be empty"
 
 equal :: String -> String -> Valid
 equal a b = PredicateOp a b (==) "be the same"

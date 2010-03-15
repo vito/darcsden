@@ -86,8 +86,8 @@ newRepository r = do update $ AddRepository r
 destroyRepository :: (String, String) -> IO ()
 destroyRepository r = do update $ DeleteRepository r
                          system $ "groupdel " ++ group
-                         removeDirectoryRecursive (repoDir (fst r) (snd r))
-  where group = groupName (fst r) (snd r)
+                         removeDirectoryRecursive (uncurry repoDir r)
+  where group = uncurry groupName r
 
 forkRepository :: String -> String -> Repository -> IO Bool
 forkRepository un rn r = do newRepository (r { rOwner = saneName un

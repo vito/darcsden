@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 module DarcsDen.Handler.Repository where
 
 import Data.Char (isNumber, isSpace)
@@ -23,9 +23,9 @@ import DarcsDen.Validate
 
 handleRepo :: String -> String -> [String] -> Page
 handleRepo un rn action s e
-  = validate e [ io "user does not exist" $ query (GetUser un) >>= return . (/= Nothing)
-               , when (io "repository does not exist" $ query (GetRepository (un, rn)) >>= return . (/= Nothing))
-                      (\(OK _) -> io "repository invalid" $ getRepo (repoDir name repo) >>= return . either (const False) (const True))
+  = validate e [ io "user does not exist" $ fmap (/= Nothing) (query (GetUser un))
+               , when (io "repository does not exist" $ fmap (/= Nothing) (query (GetRepository (un, rn))))
+                      (\(OK _) -> io "repository invalid" $ fmap (either (const False) (const True)) $ getRepo (repoDir name repo))
                ]
     (\(OK _) ->
       case action of
@@ -51,17 +51,18 @@ initialize s@(Session { sUser = Just n }) e
   = validate e
     [ nonEmpty "name"
     , predicate "name" isSane "contain only alphanumeric characters, underscores, and hyphens"
-    , io "user is not valid" (query (GetUser n) >>= (return . (/= Nothing)))
+    , io "user is not valid" (fmap (/= Nothing) (query (GetUser n)))
     ]
     (\(OK r) -> do
         now <- getClockTime
-        newRepository $ Repository { rName = r ! "name"
-                                   , rDescription = input "description" "" e
-                                   , rWebsite = input "website" "" e
-                                   , rOwner = n
-                                   , rUsers = []
-                                   , rCreated = now
-                                   }
+        newRepository
+          Repository { rName = r ! "name"
+                     , rDescription = input "description" "" e
+                     , rWebsite = input "website" "" e
+                     , rOwner = n
+                     , rUsers = []
+                     , rCreated = now
+                     }
 
         success "Repository created." s
 
@@ -95,7 +96,7 @@ browseRepo un rn f s e = do
                                   then ""
                                   else urlTo un rn (init f))
                     , var "path" path
-                    , var "readme" (maybe "" id readme)
+                    , var "readme" (fromMaybe "" readme)
                     , var "isAdmin" (sUser s == Just (rOwner r))
                     ] s e
     (_, Just source) ->
@@ -180,10 +181,10 @@ editRepo un rn s e
   where strip = strip' . strip'
         strip' = reverse . dropWhile isSpace
 
-        removeMembers r ms
+        removeMembers r
           = mapM_ (\m -> case getInput ("remove-" ++ m) e of
                       Nothing -> return False
-                      Just _ -> removeMember m r) ms
+                      Just _ -> removeMember m r)
 
         addMembers r as
           = mapM_ (\m -> do c <- query (GetUser m)
@@ -217,16 +218,16 @@ deleteRepo un rn s e
     (\(OK _) -> do
         destroyRepository (un, rn)
         success "Repository deleted." s
-        redirectTo ("/" ++ un))
+        redirectTo ('/' : un))
     (\(Invalid f) -> do
         notify Warning s f
-        redirectTo ("/" ++ un ++ "/" ++ rn))
+        redirectTo ('/' : un ++ "/" ++ rn))
 
 forkRepo :: String -> String -> Page
 forkRepo _ _ s@(Session { sUser = Nothing }) _ = warn "You must be logged in to fork a repository." s >> redirectTo "/"
 forkRepo un rn s@(Session { sUser = Just n }) e
   = validate e
-    [ io "destination repository already exists" $ query (GetRepository (n, rn)) >>= return . (== Nothing) ]
+    [ io "destination repository already exists" $ fmap (== Nothing) (query (GetRepository (n, rn))) ]
     (\(OK _) -> do
         Just r <- query (GetRepository (un, rn))
 
@@ -245,7 +246,7 @@ forkRepoAs _ _ s@(Session { sUser = Nothing }) _ = warn "You must be logged in t
 forkRepoAs un rn s@(Session { sUser = Just n }) e
   = validate e
     [ when (nonEmpty "name")
-           (\(OK i) -> io "destination repository already exists" $ query (GetRepository (n, i ! "name")) >>= return . (== Nothing))
+           (\(OK i) -> io "destination repository already exists" $ fmap (== Nothing) (query (GetRepository (n, i ! "name"))))
     ]
     (\(OK i) -> do
         Just r <- query (GetRepository (un, rn))

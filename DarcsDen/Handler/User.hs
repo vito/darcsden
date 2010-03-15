@@ -35,15 +35,15 @@ register s e = validate e [ when (nonEmpty "name")
                (\(OK r) -> do
                   now <- getClockTime
                   slt <- salt 32
-                  n <- newUser (User { uName = r ! "name"
-                                     , uPassword = hashPassword (r ! "password1") slt
-                                     , uSalt = slt
-                                     , uFullName = ""
-                                     , uWebsite = ""
-                                     , uEmail = r ! "email"
-                                     , uPubkeys = []
-                                     , uJoined = now
-                                     })
+                  n <- newUser User { uName = r ! "name"
+                                    , uPassword = hashPassword (r ! "password1") slt
+                                    , uSalt = slt
+                                    , uFullName = ""
+                                    , uWebsite = ""
+                                    , uEmail = r ! "email"
+                                    , uPubkeys = []
+                                    , uJoined = now
+                                    }
                   if n
                     then setUser (Just (r ! "name")) s
                          >>= success "You have been successfully registered and logged in."
@@ -82,7 +82,7 @@ settings :: Page
 settings s@(Session { sUser = Nothing }) _ = warn "You must be logged in to change your settings." s >> redirectTo "/login"
 settings s@(Session { sUser = Just n }) e@(Env { requestMethod = GET })
   = validate e
-    [ io "you do not exist" $ query (GetUser n) >>= return . (/= Nothing) ]
+    [ io "you do not exist" $ fmap (/= Nothing) (query (GetUser n)) ]
     (\(OK _) -> do
        Just u <- query (GetUser n)
        keys <- getPubkeys n
@@ -92,7 +92,7 @@ settings s@(Session { sUser = Just n }) e@(Env { requestMethod = GET })
     (\(Invalid f) -> notify Warning s f >> redirectTo "/")
 settings s@(Session { sUser = Just n }) e
   = validate e
-    [ io "you do not exist" $ query (GetUser n) >>= return . (/= Nothing) ]
+    [ io "you do not exist" $ fmap (/= Nothing) (query (GetUser n)) ]
     (\(OK _) -> do
         Just u <- query (GetUser n)
 

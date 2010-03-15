@@ -112,7 +112,7 @@ getPubkeys un = do check <- doesFileExist key
   where key = "/keys/" ++ saneName un
 
 updatePubkeys :: String -> String -> IO ()
-updatePubkeys un ps = writeFile ("/keys/" ++ saneName un) ps
+updatePubkeys un = writeFile ("/keys/" ++ saneName un)
 
 charIsSane :: Char -> Bool
 charIsSane = flip elem (['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ "-_")

@@ -74,8 +74,8 @@ toChanges p = do l <- toLog (P.patch2patchinfo p)
   where simplify a [] = reverse a
         simplify a (c@(FileChange n t):cs) | t `elem` [FileAdded, FileRemoved, FileBinary]
           = simplify (c:filter (notFile n) a) (filter (notFile n) cs)
-        simplify a ((FileChange n (FileHunk l f t)):cs)
-          = simplify ((FileChange n (FileHunk l (hl n f) (hl n t))):a) cs
+        simplify a (FileChange n (FileHunk l f t):cs)
+          = simplify (FileChange n (FileHunk l (hl n f) (hl n t)):a) cs
         simplify a (c@(PrefChange _ _ _):cs) = simplify (c:a) cs
         simplify a (_:cs) = simplify a cs
 
@@ -124,10 +124,10 @@ fromPS = WO.unsafeUnRL . WO.reverseFL . R.patchSetToPatches
 
 summarize :: [[(String, JSValue)]] -> [PatchChange] -> [JSValue]
 summarize a [] = map (JSObject . toJSObject) (nub a)
-summarize a ((FileChange n FileRemoved):cs) = summarize (a ++ [[("removed", toJSON n)]]) cs
-summarize a ((FileChange n FileAdded):cs) = summarize (a ++ [[("added", toJSON n)]]) cs
-summarize a ((FileChange n _):cs) = summarize (a ++ [[("modified", toJSON n)]]) cs
-summarize a ((PrefChange n f t):cs) = summarize (a ++ [[ ("preference", toJSON n)
+summarize a (FileChange n FileRemoved:cs) = summarize (a ++ [[("removed", toJSON n)]]) cs
+summarize a (FileChange n FileAdded:cs) = summarize (a ++ [[("added", toJSON n)]]) cs
+summarize a (FileChange n _:cs) = summarize (a ++ [[("modified", toJSON n)]]) cs
+summarize a (PrefChange n f t:cs) = summarize (a ++ [[ ("preference", toJSON n)
                                                        , ("from", toJSON f)
                                                        , ("to", toJSON t)
                                                        , ("type", toJSON "change")

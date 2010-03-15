@@ -1,6 +1,7 @@
 module DarcsDen.HackUtils where
 
 import Control.Monad.Reader
+import Control.Arrow (second)
 import Data.ByteString.Class (toLazyByteString)
 import Data.Char (chr, isSpace)
 import Data.List (intercalate, isPrefixOf)
@@ -37,11 +38,11 @@ getInput :: String -> Env -> Maybe String
 getInput key = lookup key . getInputs
 
 getInputs :: Env -> [(String, String)]
-getInputs e = map keyVal . map (wordsBy (== '=')) . wordsBy (== '&') . LC.unpack . hackInput $ e
+getInputs e = map (keyVal . wordsBy (== '=')) . wordsBy (== '&') . LC.unpack . hackInput $ e
   where sanitize = unEscapeString . intercalate " " . wordsBy (== '+')
         keyVal (k:v:_) = (sanitize k, sanitize v)
         keyVal [k] = (sanitize k, "")
-        keyVal _ = error $ "Bad input: " ++ (LC.unpack $ hackInput e)
+        keyVal _ = error $ "Bad input: " ++ LC.unpack (hackInput e)
 
 input :: String -> String -> Env -> String
 input k d e = fromMaybe d (getInput k e)
@@ -49,7 +50,7 @@ input k d e = fromMaybe d (getInput k e)
 setCookies :: [(String, String)] -> IO Response -> IO Response
 setCookies cs r = do o <- r
                      now <- getClockTime
-                     return (o { headers = (cookies (expires now)) ++ (headers o) })
+                     return (o { headers = cookies (expires now) ++ headers o })
     where cookies e = map (\(x, y) -> ("Set-Cookie", x ++ "=" ++ y ++ "; path=/; expires=" ++ format e)) cs
           expires = toUTCTime . addToClockTime (noTimeDiff { tdMonth = 1})
           format = formatCalendarTime defaultTimeLocale "%a, %d-%b-%Y %T GMT"
@@ -58,7 +59,7 @@ withCookies :: (M.Map String String -> Application) -> Application
 withCookies a env = a (readCookies env) env
 
 readCookies :: Env -> M.Map String String
-readCookies e = readCookies' M.empty (maybe "" id (lookup "Cookie" (http e)))
+readCookies e = readCookies' M.empty (fromMaybe "" (lookup "Cookie" (http e)))
     where readCookies' acc "" = acc
           readCookies' acc s = let (crumb, rest) = span (/= ';') s
                                    (key, val) = span (/= '=') crumb
@@ -68,9 +69,9 @@ sessID :: IO String
 sessID = replicateM 32 randomAlphaNum
   where randomAlphaNum = do which <- randomRIO (0, 2 :: Integer)
                             random which
-        random 0 = randomRIO (48, 57) >>= return . chr
-        random 1 = randomRIO (97, 122) >>= return . chr
-        random 2 = randomRIO (65, 90) >>= return . chr
+        random 0 = fmap chr $ randomRIO (48, 57)
+        random 1 = fmap chr $ randomRIO (97, 122)
+        random 2 = fmap chr $ randomRIO (65, 90)
         random _ = error "impossible: invalid random type"
 
 withSession :: Env -> (Session -> IO Response) -> IO Response
@@ -101,7 +102,7 @@ serveDirectory prefix unsafe s e
          then notFound s e
          else do
 
-       let mime = maybe "text/plain" id $ lookup_mime_type (takeExtension safe)
+       let mime = fromMaybe "text/plain" $ lookup_mime_type (takeExtension safe)
 
        file <- LS.readFile safe
        return (Response 200 [("Content-Type", mime)] file)
@@ -117,7 +118,7 @@ var :: Data a => String -> a -> JSValue
 var key val = JSObject $ toJSObject [(key, toJSON val)]
 
 assocObj :: Data a => String -> [(String, a)] -> JSValue
-assocObj key val = JSObject $ toJSObject [(key, JSObject . toJSObject . map (\(k, v) -> (k, toJSON v)) $ val)]
+assocObj key val = JSObject $ toJSObject [(key, JSObject . toJSObject . map (second toJSON) $ val)]
 
 array :: String -> [JSValue] -> JSValue
 array key val = JSObject $ toJSObject [(key, JSArray val)]
@@ -125,7 +126,7 @@ array key val = JSObject $ toJSObject [(key, JSArray val)]
 -- Press for Hack
 renderToResponse :: Env -> String -> [JSValue] -> IO Response
 renderToResponse env filename context = runJSValuesWithPath sl filename >>= resultToResponse
-    where sl = context ++ (defaultContext env)
+    where sl = context ++ defaultContext env
 
 envToJS :: Env -> JSValue
 envToJS env = env'
@@ -150,7 +151,7 @@ resultToResponse result =
     case result of
         Left err -> error $ show err
         Right ok ->
-            return $ Response {
+            return Response {
                 status = 200,
                 headers = [("Content-Type", "text/html")],
                 body = toLazyByteString $ foldl (++) "" ok

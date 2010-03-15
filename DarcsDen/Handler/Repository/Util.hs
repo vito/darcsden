@@ -18,7 +18,7 @@ highlight f s os = case hl of
                      Right res -> renderHtmlFragment (formatAsXHtml os lang res)
                      Left _ -> s
     where langs = languagesByExtension (takeExtension f)
-          lang = if null langs then "text" else (head langs)
+          lang = if null langs then "text" else head langs
           hl = if null langs
                  then Right (map (\l -> [([], l)]) (lines s))
                  else highlightAs lang s
