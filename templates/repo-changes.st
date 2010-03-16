@@ -1,4 +1,6 @@
-$repobase(content={
+$repobase(
+  extrahead={<link href="changes/atom" type="application/atom+xml" rel="alternate" title="$repo.name$ changes" />};
+  content={
 <h1>changes</h1>
 <ul class="repo-log">
   $patches:{ log |

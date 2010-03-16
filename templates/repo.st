@@ -1,5 +1,6 @@
 $repobase(
   title={$user.uName$'s $repo.name$ :: darcsden};
+  extrahead={<link href="$repo.name$/changes/atom" type="application/atom+xml" rel="alternate" title="$repo.name$ changes" />};
   crumb={
 $path:{ d |
 -&gt; <a href="$d.iURL$">$d.iName$</a>
