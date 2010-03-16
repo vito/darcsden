@@ -10,7 +10,6 @@ import Hack
 import Happstack.State
 import System.Time (getClockTime)
 
-import DarcsDen.Data ()
 import DarcsDen.HackUtils
 import DarcsDen.Handler.Repository.Util
 import DarcsDen.Handler.Repository.Browse
