@@ -18,6 +18,7 @@ import DarcsDen.Handler.Repository.Changes
 import DarcsDen.State.Repository
 import DarcsDen.State.Session
 import DarcsDen.State.User
+import DarcsDen.Util
 import DarcsDen.Validate
 
 
@@ -91,7 +92,7 @@ browseRepo un rn f s e = do
       readme <- getReadme dr f
       doPage "repo" [ var "user" u
                     , var "repo" r
-                    , var "files" (map (\i -> i { iURL = urlTo un rn (f ++ [iName i]) }) fs')
+                    , var "files" (toMaybe $ map (\i -> i { iURL = urlTo un rn (f ++ [iName i]) }) fs')
                     , var "up" (if null f
                                   then ""
                                   else urlTo un rn (init f))
