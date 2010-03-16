@@ -37,6 +37,7 @@ handleRepo un rn action s e
         ["delete"] -> deleteRepo name repo s e
         ["changes"] -> repoChanges name repo 1 s e
         ["changes", "page", page] | all isNumber page -> repoChanges name repo (read page :: Int) s e
+        ["changes","atom"] -> repoAtomFeed name repo s e
         ["patch", patch] -> repoPatch name repo patch s e
         ["fork"] -> forkRepo name repo s e
         ["fork-as"] -> forkRepoAs name repo s e
@@ -127,6 +128,16 @@ repoChanges un rn page s _ = do
                         , var "notLast" (page /= totalPages)
                         , var "isAdmin" (sUser s == Just (rOwner r))
                         ] s
+
+repoAtomFeed :: String -> String -> Page
+repoAtomFeed un rn s _ = do
+  Just u <- query (GetUser un)
+  Just r <- query (GetRepository (un, rn))
+  (patches, _) <- getChanges (repoDir un rn) 1
+  doPage "repo-changes-atom" [ var "user" u
+                     , var "repo" r
+                     , var "patches" patches
+                     ] s
 
 repoPatch :: String -> String -> String -> Page
 repoPatch un rn p s _ = do
