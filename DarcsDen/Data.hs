@@ -1,4 +1,4 @@
-{-# LANGUAGE StandaloneDeriving,DeriveDataTypeable #-}
+{-# LANGUAGE StandaloneDeriving, DeriveDataTypeable #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module DarcsDen.Data where
 

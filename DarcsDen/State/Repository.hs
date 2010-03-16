@@ -83,7 +83,7 @@ newRepository r = do update $ AddRepository r
                      u <- getUserEntryForName user
                      g <- getGroupEntryForName group
                      recursively (\p -> setOwnerAndGroup p (userID u) (groupID g)) repo
-                     recursively (\p -> setFileMode p modes) repo
+                     recursively (flip setFileMode modes) repo
 
                      return (all (== ExitSuccess) [groupRes, userRes])
   where user = saneName (rOwner r)
