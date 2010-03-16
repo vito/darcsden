@@ -11,6 +11,12 @@ recursively f p = do dir <- doesDirectoryExist p
                                mapM_ (recursively f . ((p ++ "/") ++)) $ filter (\d -> d /= "." && d /= "..") contents
                        else f p
 
+recursivelyOnDirs :: (FilePath -> IO ()) -> FilePath -> IO ()
+recursivelyOnDirs f p = recursively (\p' -> do dir <- doesDirectoryExist p'
+                                               if dir
+                                                 then f p'
+                                                 else return ()) p
+
 toMaybe :: [a] -> Maybe [a]
 toMaybe [] = Nothing
 toMaybe x = Just x

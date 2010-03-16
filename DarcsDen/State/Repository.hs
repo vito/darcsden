@@ -86,6 +86,7 @@ newRepository r = do update $ AddRepository r
                      g <- getGroupEntryForName group
                      recursively (\p -> setOwnerAndGroup p (userID u) (groupID g)) repo
                      recursively (flip setFileMode modes) repo
+                     recursivelyOnDirs (flip setFileMode (modes `unionFileModes` otherExecuteMode)) repo
 
                      return (all (== ExitSuccess) [groupRes, userRes])
   where user = saneName (rOwner r)
@@ -97,6 +98,7 @@ newRepository r = do update $ AddRepository r
                 , setGroupIDMode
                 , ownerModes
                 , groupModes
+                , otherReadMode
                 ]
 
 destroyRepository :: (String, String) -> IO ()
