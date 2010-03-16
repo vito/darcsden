@@ -139,21 +139,12 @@ addMember m r = do addRes <- system $ "usermod -aG " ++ group ++ " " ++ user
         group = repoGroup (rOwner r) (rName r)
 
 removeMember :: String -> Repository -> IO Bool
-removeMember m r = do removeRes <- system $ "usermod -G `" ++ removeFromList ++ "` " ++ user
+removeMember m r = do gs <- getAllGroupEntries
+                      removeRes <- system $ "usermod -G " ++ intercalate "," (groups gs) ++ " " ++ user
                       return (removeRes == ExitSuccess)
   where user = saneName m
         group = repoGroup (rOwner r) (rName r)
-        groups       = "id -Gn " ++ user
-        removeFirst  = "sed 's|^" ++ group ++ " ||'"
-        removeMiddle = "sed 's| " ++ group ++ " | |'"
-        removeLast   = "sed 's| " ++ group ++ "$||'"
-        commaDelim   = "tr -t ' ' ','"
-        removeFromList = intercalate " | " [ groups
-                                           , removeFirst
-                                           , removeMiddle
-                                           , removeLast
-                                           , commaDelim
-                                           ]
+        groups gs = map groupName $ filter (\g -> user `elem` groupMembers g && groupName g /= group) gs
 
 repoGroup :: String -> String -> String
 repoGroup un rn = md5sum . BS.pack . map (fromIntegral . ord) $ saneName un ++ "/" ++ saneName rn
