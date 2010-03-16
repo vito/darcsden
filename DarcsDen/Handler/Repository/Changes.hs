@@ -4,10 +4,11 @@ module DarcsDen.Handler.Repository.Changes where
 import Darcs.Patch.Info (PatchInfo, pi_date, pi_name, pi_author, pi_log, make_filename)
 import Darcs.Patch.FileName (fn2fp)
 import Darcs.Patch.Prim (Prim(..), DirPatchType(..), FilePatchType(..))
+import Data.Data (Data)
 import Data.List (nub)
+import Data.Typeable (Typeable)
 import Happstack.State (query)
 import System.Time (calendarTimeToString)
-import Text.JSON.Generic
 import qualified Darcs.Patch as P
 import qualified Darcs.Repository as R
 import qualified Darcs.Witnesses.Ordered as WO
