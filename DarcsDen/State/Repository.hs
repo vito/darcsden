@@ -17,7 +17,8 @@ import System.Directory
 import System.Exit (ExitCode(ExitSuccess))
 import System.Posix.User
 import System.Posix.Files
-import Text.StringTemplate.Classes
+import Text.StringTemplate (ToSElem(toSElem))
+import Text.StringTemplate.Classes (SElem(SM))
 import qualified Darcs.Repository as R
 import qualified Data.ByteString as BS
 import qualified Data.Map as M
