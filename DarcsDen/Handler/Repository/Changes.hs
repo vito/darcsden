@@ -12,6 +12,7 @@ import System.Time (calendarTimeToString)
 import qualified Darcs.Patch as P
 import qualified Darcs.Repository as R
 import qualified Darcs.Witnesses.Ordered as WO
+import qualified Data.Map as M
 
 import DarcsDen.Handler.Repository.Util
 import DarcsDen.State.User
@@ -124,8 +125,8 @@ getPatch dir patch = R.withRepositoryDirectory [] dir $ \dr ->
 fromPS :: P.RepoPatch p => R.PatchSet p -> [P.Named p]
 fromPS = WO.unsafeUnRL . WO.reverseFL . R.patchSetToPatches
 
-summarize :: [[(String, String)]] -> [PatchChange] -> [[(String, String)]]
-summarize a [] = nub a
+summarize :: [[(String, String)]] -> [PatchChange] -> [M.Map String String]
+summarize a [] = map M.fromList $ nub a
 summarize a (FileChange n FileRemoved:cs) = summarize (a ++ [[("removed", n)]]) cs
 summarize a (FileChange n FileAdded:cs) = summarize (a ++ [[("added", n)]]) cs
 summarize a (FileChange n _:cs) = summarize (a ++ [[("modified", n)]]) cs
