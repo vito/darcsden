@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-	<title>{% block title %}darcsden{% endblock %}</title>
+	<title>$title; null="darcsden"$</title>
 	<link rel="stylesheet" href="/public/css/main.css" type="text/css" media="screen" />
 	<link rel="stylesheet" href="/public/css/hk-kate.css" />
 	<script src="/public/js/jquery.js" type="text/javascript"></script>
@@ -10,32 +10,26 @@
   </head>
   <body>
 	<ul class="links nav">
-	  {% if session.sUser.Just %}
+	  $if(visitor)$
 	  <li class="settings"><a href="/settings">settings</a></li>
 	  <li class="logout"><a href="/logout">log out</a></li>
-	  {% else %}
+	  $else$
 	  <li class="login"><a href="/login">log in</a></li>
 	  <li class="register"><a href="/register">register</a></li>
-	  {% endif %}
+	  $endif$
 	</ul>
 
 	<h1 class="head">
 	  <a href="/">darcsden</a>
 	  ::
-	  {% block crumb %}index{% endblock %}
+	  $crumb; null="index"$
 	</h1>
-	{% block notifications %}
-	{% for n in session.sNotifications %}
-	{% if n.Warning %}
-	<div class="notification warning">{{n.Warning}}</div>
-	{% elif n.Success %}
-	<div class="notification success">{{n.Success}}</div>
-	{% else %}
-	<div class="notification message">{{n.Message}}</div>
-	{% endif %}
-	{% endfor %}
-	{% endblock %}
-	{% block content %}{% endblock %}
+
+	$notifications:{ n |
+	<div class="notification $n.type$">$n.message$</div>
+	}$
+
+	$content$
 
 	<div class="clear"></div>
 	<div class="footer">

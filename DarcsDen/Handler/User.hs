@@ -10,7 +10,7 @@ import DarcsDen.State.Repository
 import DarcsDen.State.Session
 import DarcsDen.State.User
 import DarcsDen.Validate
-import Data.Map ((!))
+import Data.Map ((!), fromList)
 
 
 user :: String -> Page
@@ -18,10 +18,10 @@ user name s e = do m <- query $ GetUser name
                    rs <- query $ GetUserRepositories name
                    case m of
                      Nothing -> notFound s e
-                     Just u -> doPage "user" [var "user" u, var "repositories" rs] s e
+                     Just u -> doPage "user" [var "user" u, var "repositories" rs] s
 
 register :: Page
-register s e@(Env { requestMethod = GET }) = doPage "register" [] s e
+register s (Env { requestMethod = GET }) = doPage "register" [] s
 register s e = validate e [ when (nonEmpty "name")
                                  (\(OK r) -> io "name is already in use" $ do
                                      u <- query (GetUser (r ! "name"))
@@ -48,13 +48,13 @@ register s e = validate e [ when (nonEmpty "name")
                     then setUser (Just (r ! "name")) s
                          >>= success "You have been successfully registered and logged in."
                          >> redirectTo "/"
-                    else warn "User creation failed." s >> doPage "register" [] s e)
+                    else warn "User creation failed." s >> doPage "register" [] s)
                (\(Invalid failed) -> do
                    notify Warning s failed
-                   doPage "register" [assocObj "in" (getInputs e)] s e)
+                   doPage "register" [var "in" (fromList $ getInputs e)] s)
 
 login :: Page
-login s e@(Env { requestMethod = GET }) = doPage "login" [] s e
+login s (Env { requestMethod = GET }) = doPage "login" [] s
 login s e
   = validate e
     [ when (nonEmpty "name" `And` nonEmpty "password")
@@ -71,7 +71,7 @@ login s e
                   >> redirectTo "/")
     (\(Invalid failed) -> do
         notify Warning s failed
-        doPage "login" [assocObj "in" (getInputs e)] s e)
+        doPage "login" [var "in" (fromList $ getInputs e)] s)
 
 logout :: Page
 logout s _ = setUser Nothing s
@@ -88,7 +88,7 @@ settings s@(Session { sUser = Just n }) e@(Env { requestMethod = GET })
        keys <- getPubkeys n
        doPage "settings" [ var "user" u
                          , var "pubkeys" keys
-                         ] s e)
+                         ] s)
     (\(Invalid f) -> notify Warning s f >> redirectTo "/")
 settings s@(Session { sUser = Just n }) e
   = validate e

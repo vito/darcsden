@@ -1,8 +1,6 @@
 module DarcsDen.HackUtils where
 
 import Control.Monad.Reader
-import Control.Arrow (second)
-import Data.ByteString.Class (toLazyByteString)
 import Data.Char (chr, isSpace)
 import Data.List (intercalate, isPrefixOf)
 import Data.List.Split (wordsBy)
@@ -16,11 +14,12 @@ import System.FilePath (takeExtension)
 import System.Random (randomRIO)
 import System.Time
 import System.Locale (defaultTimeLocale)
-import Text.JSON.Generic
-import Text.Press.Run
+import Text.StringTemplate
+import Text.StringTemplate.GenericStandard()
 import qualified Data.ByteString.Lazy as LS
 import qualified Data.ByteString.Lazy.Char8 as LC
 import qualified Data.Map as M
+import qualified Data.Text.Lazy as LT
 
 import DarcsDen.State.Session
 
@@ -108,51 +107,37 @@ serveDirectory prefix unsafe s e
        return (Response 200 [("Content-Type", mime)] file)
 
 -- Page helpers
-doPage :: String -> [JSValue] -> Page
-doPage p c s e = do sess <- query $ GetSession (sID s) -- Session must be re-grabbed for any new notifications to be shown
-                    res <- renderToResponse e ("html/" ++ p ++ ".html") (var "session" (fromMaybe s sess):c)
-                    update $ UpdateSession ((fromMaybe s sess) { sNotifications = [] })
-                    return res
+doPage :: String -> [StringTemplate LT.Text -> StringTemplate LT.Text] -> Session -> IO Response
+doPage t c s = do Just sess <- query $ GetSession (sID s) -- Session must be re-grabbed for any new notifications to be shown
+                  g1 <- directoryGroup "templates/" :: IO (STGroup LT.Text)
+                  let g2 = setEncoderGroup escapeHtmlString g1
+                      g3 = groupStringTemplates [("noescape", newSTMP "$it$" :: StringTemplate LT.Text)]
+                      g4 = mergeSTGroups g2 g3
+                  let Just tmpl = getStringTemplate t g4
+                  update $ UpdateSession (sess { sNotifications = [] })
+                  return $ Response 200 [("Content-type", "text/html")] (LC.pack (LT.unpack $ render (foldr ($) tmpl (context sess))))
+  where context sess = var "visitor" (sUser sess) : var "notifications" (map toNotify (sNotifications sess)) : c
 
-var :: Data a => String -> a -> JSValue
-var key val = JSObject $ toJSObject [(key, toJSON val)]
+        toNotify (Success m) = M.fromList [("type", "success"), ("message", m)]
+        toNotify (Warning m) = M.fromList [("type", "warning"), ("message", m)]
+        toNotify (Message m) = M.fromList [("type", "message"), ("message", m)]
 
-assocObj :: Data a => String -> [(String, a)] -> JSValue
-assocObj key val = JSObject $ toJSObject [(key, JSObject . toJSObject . map (second toJSON) $ val)]
+replaceLT :: LT.Text -> LT.Text -> LT.Text -> LT.Text
+replaceLT find repl src
+  | LT.null src = src
+  | otherwise = let l = LT.length find
+                in if LT.take (fromIntegral l) src == find
+                     then LT.append repl (replaceLT find repl (LT.drop (fromIntegral l) src))
+                     else LT.cons (LT.head src) (replaceLT find repl (LT.tail src))
 
-array :: String -> [JSValue] -> JSValue
-array key val = JSObject $ toJSObject [(key, JSArray val)]
+escapeHtmlString :: LT.Text -> LT.Text
+escapeHtmlString = repl "<" "&lt;" .
+                   repl ">" "&gt;" .
+                   repl "\"" "&quot;" .
+                   repl "\'" "&#39;" .
+                   repl "&" "&amp;"
+  where repl x y = replaceLT (LT.pack x) (LT.pack y)
 
--- Press for Hack
-renderToResponse :: Env -> String -> [JSValue] -> IO Response
-renderToResponse env filename context = runJSValuesWithPath sl filename >>= resultToResponse
-    where sl = context ++ defaultContext env
+var :: (ToSElem a, Stringable b) => String -> a -> StringTemplate b -> StringTemplate b
+var = setAttribute
 
-envToJS :: Env -> JSValue
-envToJS env = env'
-    where
-        env' = JSObject $ toJSObject [
-            ("requestMethod", toJSON . show $ requestMethod env),
-            ("scriptName", toJSON $ scriptName env),
-            ("queryString", toJSON $ queryString env),
-            ("serverName", toJSON $ serverName env),
-            ("serverPort", toJSON $ serverPort env),
-            ("http", toJSON $ http env),
-            ("hackVersion", toJSON $ hackVersion env),
-            ("hackHeaders", toJSON $ hackHeaders env),
-            ("hackUrlScheme", toJSON . show $ hackUrlScheme env)
-            ]
-
-defaultContext :: Env -> [JSValue]
-defaultContext env = [JSObject $ toJSObject [("env", envToJS env)]]
-
-resultToResponse :: (Show t, Monad m) => Either t [String] -> m Response
-resultToResponse result =
-    case result of
-        Left err -> error $ show err
-        Right ok ->
-            return Response {
-                status = 200,
-                headers = [("Content-Type", "text/html")],
-                body = toLazyByteString $ foldl (++) "" ok
-            }

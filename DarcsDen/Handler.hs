@@ -14,10 +14,10 @@ import DarcsDen.State.Repository
 
 -- Pages
 index :: Page
-index s@(Session { sUser = Nothing }) e = doPage "index" [] s e
-index s@(Session { sUser = Just n }) e
+index s@(Session { sUser = Nothing }) _ = doPage "index" [] s
+index s@(Session { sUser = Just n }) _
   = do repos <- query $ GetUserRepositories n
-       doPage "index" [var "repositories" repos] s e
+       doPage "index" [var "repositories" repos] s
 
 
 -- URL handling

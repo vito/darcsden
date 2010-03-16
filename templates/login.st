@@ -1,11 +1,9 @@
-{% extends "html/base.html" %}
-
-{% block content %}
+$base(content={
 <h1>log in</h1>
 <form action="/login" class="login" method="post">
   <fieldset>
     <div class="field">
-      <input type="text" name="name" value="{{in.name}}" />
+      <input type="text" name="name" value="$in.name$" />
       <label for="name">Name</label>
       <br />
     </div>
@@ -20,4 +18,4 @@
     </div>
   </fieldset>
 </form>
-{% endblock %}
+})$

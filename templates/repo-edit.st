@@ -1,21 +1,19 @@
-{% extends "html/repo-base.html" %}
-
-{% block body %}
+$repobase(content={
 <h1>edit repository</h1>
-<form action="/{{repo.rOwner}}/{{repo.rName}}/edit" method="post">
+<form action="/$repo.owner$/$repo.name$/edit" method="post">
   <fieldset>
     <div class="field">
-      <input type="text" name="name" id="name" value="{{repo.rName}}" />
+      <input type="text" name="name" id="name" value="$repo.name$" />
       <label for="name">name</label>
       <br />
     </div>
     <div class="field">
-      <input type="text" name="description" id="description" value="{{repo.rDescription}}" />
+      <input type="text" name="description" id="description" value="$repo.description$" />
       <label for="description">description</label>
       <br />
     </div>
     <div class="field">
-      <input type="text" name="website" id="website" value="{{repo.rWebsite}}" />
+      <input type="text" name="website" id="website" value="$repo.website$" />
       <label for="website">website</label>
       <br />
     </div>
@@ -26,9 +24,9 @@
 	</div>
 	<div class="field">
 	  <ul>
-		{% for member in members %}
-		<li><input type="checkbox" name="remove-{{member}}" /> <a href="/{{member}}">{{member}}</a></li>
-		{% endfor %}
+		$members:{ member |
+		<li><input type="checkbox" name="remove-$member$" /> <a href="/$member$">$member$</a></li>
+		}$
 	  </ul>
 	  <label for="remove-members">remove members</label>
 	  <br />
@@ -39,4 +37,4 @@
     </div>
   </fieldset>
 </form>
-{% endblock %}
+})$

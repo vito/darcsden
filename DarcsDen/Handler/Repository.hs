@@ -4,7 +4,7 @@ module DarcsDen.Handler.Repository where
 import Data.Char (isNumber, isSpace)
 import Data.List (inits)
 import Data.List.Split (wordsBy)
-import Data.Map ((!))
+import Data.Map ((!), fromList)
 import Data.Maybe (fromMaybe)
 import Hack
 import Happstack.State
@@ -46,11 +46,11 @@ handleRepo un rn action s e
 
 initialize :: Page
 initialize s@(Session { sUser = Nothing }) _ = warn "You must be logged in to create a repository." s >> redirectTo "/login"
-initialize s e@(Env { requestMethod = GET }) = doPage "init" [] s e
+initialize s (Env { requestMethod = GET }) = doPage "init" [] s
 initialize s@(Session { sUser = Just n }) e
   = validate e
-    [ nonEmpty "name"
-    , predicate "name" isSane "contain only alphanumeric characters, underscores, and hyphens"
+    [ when (nonEmpty "name" `And` predicate "name" isSane "contain only alphanumeric characters, underscores, and hyphens")
+           (\(OK i) -> io "destination repository already exists" $ fmap (== Nothing) (query (GetRepository (n, i ! "name"))))
     , io "user is not valid" (fmap (/= Nothing) (query (GetUser n)))
     ]
     (\(OK r) -> do
@@ -69,7 +69,7 @@ initialize s@(Session { sUser = Just n }) e
         redirectTo ("/" ++ n ++ "/" ++ (r ! "name")))
     (\(Invalid f) -> do
         notify Warning s f
-        doPage "init" [assocObj "in" (getInputs e)] s e)
+        doPage "init" [var "in" (fromList $ getInputs e)] s)
 
 browseRepo :: String -> String -> [String] -> Page
 browseRepo un rn f s e = do
@@ -96,9 +96,9 @@ browseRepo un rn f s e = do
                                   then ""
                                   else urlTo un rn (init f))
                     , var "path" path
-                    , var "readme" (fromMaybe "" readme)
+                    , var "readme" readme
                     , var "isAdmin" (sUser s == Just (rOwner r))
-                    ] s e
+                    ] s
     (_, Just source) ->
       doPage "repo-blob" [ var "user" u
                          , var "repo" r
@@ -106,10 +106,10 @@ browseRepo un rn f s e = do
                          , var "blob" (highlightBlob (last f) source)
                          , var "path" (init path)
                          , var "isAdmin" (sUser s == Just (rOwner r))
-                         ] s e
+                         ] s
 
 repoChanges :: String -> String -> Int -> Page
-repoChanges un rn page s e = do
+repoChanges un rn page s _ = do
   Just u <- query (GetUser un)
   Just r <- query (GetRepository (un, rn))
 
@@ -125,10 +125,10 @@ repoChanges un rn page s e = do
                         , var "notFirst" (page /= 1)
                         , var "notLast" (page /= totalPages)
                         , var "isAdmin" (sUser s == Just (rOwner r))
-                        ] s e
+                        ] s
 
 repoPatch :: String -> String -> String -> Page
-repoPatch un rn p s e = do
+repoPatch un rn p s _ = do
   Just u <- query (GetUser un)
   Just r <- query (GetRepository (un, rn))
 
@@ -137,10 +137,10 @@ repoPatch un rn p s e = do
   doPage "repo-patch" [ var "user" u
                       , var "repo" r
                       , var "log" (pPatch patch)
-                      , array "summary" (summarize [] (pChanges patch))
+                      , var "summary" (summarize [] (pChanges patch))
                       , var "changes" (filter isModification (pChanges patch))
                       , var "isAdmin" (sUser s == Just (rOwner r))
-                      ] s e
+                      ] s
 
 editRepo :: String -> String -> Page
 editRepo un rn s e@(Env { requestMethod = GET })
@@ -152,7 +152,7 @@ editRepo un rn s e@(Env { requestMethod = GET })
         doPage "repo-edit" [ var "repo" r
                            , var "members" ms
                            , var "isAdmin" True
-                           ] s e)
+                           ] s)
     (\(Invalid f) -> notify Warning s f >> redirectTo "/")
 editRepo un rn s e
   = validate e
@@ -210,7 +210,7 @@ deleteRepo un rn s e@(Env { requestMethod = GET })
        Just r <- query (GetRepository (un, rn))
        doPage "repo-delete" [ var "repo" r
                             , var "isAdmin" True
-                            ] s e)
+                            ] s)
    (\(Invalid f) -> notify Warning s f >> redirectTo "/")
 deleteRepo un rn s e
   = validate e
@@ -239,7 +239,8 @@ forkRepo un rn s@(Session { sUser = Just n }) e
         Just r <- query (GetRepository (un, rn))
         doPage "repo-fork" [ var "repo" r
                            , var "name" (rName r)
-                           ] s e)
+                           , var "isAdmin" True
+                           ] s)
 
 forkRepoAs :: String -> String -> Page
 forkRepoAs _ _ s@(Session { sUser = Nothing }) _ = warn "You must be logged in to fork a repository." s >> redirectTo "/"
@@ -259,4 +260,4 @@ forkRepoAs un rn s@(Session { sUser = Just n }) e
         Just r <- query (GetRepository (un, rn))
         doPage "repo-fork" [ var "repo" r
                            , var "name" (input "name" (rName r) e)
-                           ] s e)
+                           ] s)

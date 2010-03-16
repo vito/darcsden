@@ -16,6 +16,7 @@ import Happstack.State.ClockTime
 import System.Cmd (system)
 import System.Directory
 import System.Exit (ExitCode(ExitSuccess))
+import Text.StringTemplate.Classes
 import qualified Darcs.Repository as R
 import qualified Data.ByteString as BS
 import qualified Data.Map as M
@@ -143,3 +144,15 @@ removeMember m r = do removeRes <- system $ "usermod -G `" ++ removeFromList ++ 
 
 groupName :: String -> String -> String
 groupName un rn = md5sum . BS.pack . map (fromIntegral . ord) $ saneName un ++ "/" ++ saneName rn
+
+toMaybe :: String -> Maybe String
+toMaybe "" = Nothing
+toMaybe x = Just x
+
+instance ToSElem Repository where
+  toSElem r = SM (M.fromList [ ("name", toSElem $ rName r)
+                             , ("description", toSElem . toMaybe $ rDescription r)
+                             , ("website", toSElem . toMaybe $ rWebsite r)
+                             , ("owner", toSElem $ rOwner r)
+                             , ("created", toSElem $ rCreated r)
+                             ])

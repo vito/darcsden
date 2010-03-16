@@ -19,7 +19,8 @@ import DarcsDen.State.User
 data PatchLog = PatchLog { pID :: String
                          , pDate :: String
                          , pName :: String
-                         , pAuthor :: Either String User
+                         , pAuthor :: String
+                         , pIsUser :: Bool
                          , pLog :: [String]
                          }
                 deriving (Eq, Show, Data, Typeable)
@@ -61,11 +62,11 @@ data PatchChanges = PatchChanges { pPatch :: PatchLog
 toLog :: PatchInfo -> IO PatchLog
 toLog p = do mu <- query $ GetUserByEmail (emailFrom (pi_author p))
 
-             let author = case mu of
-                   Nothing -> Left (pi_author p)
-                   Just u -> Right u
+             let (author, isUser) = case mu of
+                   Nothing -> (pi_author p, False)
+                   Just u -> (uName u, True)
 
-             return $ PatchLog (take 20 $ make_filename p) (calendarTimeToString $ pi_date p) (pi_name p) author (pi_log p)
+             return $ PatchLog (take 20 $ make_filename p) (calendarTimeToString $ pi_date p) (pi_name p) author isUser (pi_log p)
   where emailFrom = reverse . takeWhile (/= '<') . tail . reverse
 
 toChanges :: P.Effect p => P.Named p -> IO PatchChanges
@@ -122,15 +123,15 @@ getPatch dir patch = R.withRepositoryDirectory [] dir $ \dr ->
 fromPS :: P.RepoPatch p => R.PatchSet p -> [P.Named p]
 fromPS = WO.unsafeUnRL . WO.reverseFL . R.patchSetToPatches
 
-summarize :: [[(String, JSValue)]] -> [PatchChange] -> [JSValue]
-summarize a [] = map (JSObject . toJSObject) (nub a)
-summarize a (FileChange n FileRemoved:cs) = summarize (a ++ [[("removed", toJSON n)]]) cs
-summarize a (FileChange n FileAdded:cs) = summarize (a ++ [[("added", toJSON n)]]) cs
-summarize a (FileChange n _:cs) = summarize (a ++ [[("modified", toJSON n)]]) cs
-summarize a (PrefChange n f t:cs) = summarize (a ++ [[ ("preference", toJSON n)
-                                                       , ("from", toJSON f)
-                                                       , ("to", toJSON t)
-                                                       , ("type", toJSON "change")
+summarize :: [[(String, String)]] -> [PatchChange] -> [[(String, String)]]
+summarize a [] = nub a
+summarize a (FileChange n FileRemoved:cs) = summarize (a ++ [[("removed", n)]]) cs
+summarize a (FileChange n FileAdded:cs) = summarize (a ++ [[("added", n)]]) cs
+summarize a (FileChange n _:cs) = summarize (a ++ [[("modified", n)]]) cs
+summarize a (PrefChange n f t:cs) = summarize (a ++ [[ ("preference", n)
+                                                       , ("from", f)
+                                                       , ("to", t)
+                                                       , ("type", "change")
                                                        ]]) cs
 summarize a (_:cs) = summarize a cs
 
