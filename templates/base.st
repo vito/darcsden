@@ -7,6 +7,7 @@
 	<script src="/public/js/jquery.js" type="text/javascript"></script>
 	<script src="/public/js/relatize.js" type="text/javascript"></script>
 	<script src="/public/js/main.js" type="text/javascript"></script>
+	$extrahead$
   </head>
   <body>
 	<ul class="links nav">
