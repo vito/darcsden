@@ -135,9 +135,9 @@ repoAtomFeed un rn s _ = do
   Just r <- query (GetRepository (un, rn))
   (patches, _) <- getChanges (repoDir un rn) 1
   doPage "repo-changes-atom" [ var "user" u
-                     , var "repo" r
-                     , var "patches" patches
-                     ] s
+                             , var "repo" r
+                             , var "patches" patches
+                             ] s
 
 repoPatch :: String -> String -> String -> Page
 repoPatch un rn p s _ = do
