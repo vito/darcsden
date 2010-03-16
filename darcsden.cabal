@@ -42,4 +42,5 @@ executable darcsden
                  random,
                  split,
                  text,
+                 unix,
                  xhtml
