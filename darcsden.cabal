@@ -13,10 +13,12 @@ category:        Web
 
 executable darcsden
   main-is:       Main.hs
+
   if impl(ghc >= 6.12)
-    ghc-options:   -O2 -Wall -fno-warn-unused-do-bind
+    ghc-options:   -O2 -Wall -threaded -fno-warn-unused-do-bind
   else
-    ghc-options:   -O2 -Wall
+    ghc-options:   -O2 -Wall -threaded
+
   build-depends: base >= 4 && < 5,
                  bytestring,
                  containers,
