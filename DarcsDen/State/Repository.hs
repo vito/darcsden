@@ -56,6 +56,9 @@ onRepositories f = asks (\(Repositories rs) -> f rs)
 getRepository :: (String, String) -> Query Repositories (Maybe Repository)
 getRepository key = onRepositories (M.lookup key)
 
+getRepositories :: Query Repositories [Repository]
+getRepositories = onRepositories M.elems
+
 getUserRepositories :: String -> Query Repositories [Repository]
 getUserRepositories n = onRepositories (map snd . M.toList . M.filter (\r -> rOwner r == n || n `elem` rUsers r))
 
@@ -68,7 +71,13 @@ updateRepository = addRepository
 deleteRepository :: (String, String) -> Update Repositories ()
 deleteRepository key = modify (\(Repositories rs) -> Repositories (M.delete key rs))
 
-$(mkMethods ''Repositories ['getRepository, 'getUserRepositories, 'addRepository, 'updateRepository, 'deleteRepository])
+$(mkMethods ''Repositories [ 'getRepository
+                           , 'getRepositories
+                           , 'getUserRepositories
+                           , 'addRepository
+                           , 'updateRepository
+                           , 'deleteRepository
+                           ])
 
 repoDir :: String -> String -> FilePath
 repoDir un rn = userDir un ++ "/" ++ saneName rn
@@ -82,24 +91,37 @@ newRepository r = do update $ AddRepository r
                      groupRes <- system $ "groupadd " ++ group
                      userRes <- system $ "usermod -aG " ++ group ++ " " ++ user
 
-                     u <- getUserEntryForName user
-                     g <- getGroupEntryForName group
-                     recursively (\p -> setOwnerAndGroup p (userID u) (groupID g)) repo
-                     recursively (flip setFileMode modes) repo
-                     recursivelyOnDirs (flip setFileMode (modes `unionFileModes` otherExecuteMode)) repo
+                     setRepoPermissions r
 
                      return (all (== ExitSuccess) [groupRes, userRes])
   where user = saneName (rOwner r)
         group = repoGroup (rOwner r) (rName r)
         repo = repoDir (rOwner r) (rName r)
         defaults = "ALL umask 0007\n"
-        modes = foldl unionFileModes nullFileMode
-                [ setUserIDMode
-                , setGroupIDMode
-                , ownerModes
-                , groupModes
-                , otherReadMode
-                ]
+
+setRepoPermissions :: Repository -> IO ()
+setRepoPermissions r
+  = do u <- getUserEntryForName user
+       g <- getGroupEntryForName group
+       recursively (\p -> setOwnerAndGroup p (userID u) (groupID g)) repo
+       recursivelyOnFiles (flip setFileMode fileModes) repo
+       recursivelyOnDirs (flip setFileMode dirModes) repo
+  where user = saneName (rOwner r)
+        group = repoGroup (rOwner r) (rName r)
+        repo = repoDir (rOwner r) (rName r)
+        dirModes = foldl unionFileModes nullFileMode
+                   [ setGroupIDMode
+                   , ownerModes
+                   , groupModes
+                   , otherReadMode
+                   ]
+        fileModes = foldl unionFileModes nullFileMode
+                    [ ownerReadMode
+                    , ownerWriteMode
+                    , groupReadMode
+                    , groupWriteMode
+                    , otherReadMode
+                    ]
 
 destroyRepository :: (String, String) -> IO ()
 destroyRepository r = do update $ DeleteRepository r

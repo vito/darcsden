@@ -17,6 +17,12 @@ recursivelyOnDirs f p = recursively (\p' -> do dir <- doesDirectoryExist p'
                                                  then f p'
                                                  else return ()) p
 
+recursivelyOnFiles :: (FilePath -> IO ()) -> FilePath -> IO ()
+recursivelyOnFiles f p = recursively (\p' -> do dir <- doesDirectoryExist p'
+                                                if dir
+                                                  then return ()
+                                                  else f p') p
+
 toMaybe :: [a] -> Maybe [a]
 toMaybe [] = Nothing
 toMaybe x = Just x
