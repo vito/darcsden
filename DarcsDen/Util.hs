@@ -26,4 +26,3 @@ recursivelyOnFiles f p = recursively (\p' -> do dir <- doesDirectoryExist p'
 toMaybe :: [a] -> Maybe [a]
 toMaybe [] = Nothing
 toMaybe x = Just x
-

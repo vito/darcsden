@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 module DarcsDen.Handler.Repository where
 
+import Control.Monad.Trans
 import Data.Char (isNumber, isSpace)
 import Data.List (inits)
 import Data.List.Split (wordsBy)
@@ -10,6 +11,7 @@ import Hack
 import Happstack.State
 import System.Time (getClockTime)
 
+import DarcsDen.Dirty
 import DarcsDen.HackUtils
 import DarcsDen.Handler.Repository.Util
 import DarcsDen.Handler.Repository.Browse
@@ -56,18 +58,23 @@ initialize s@(Session { sUser = Just n }) e
     ]
     (\(OK r) -> do
         now <- getClockTime
-        newRepository
-          Repository { rName = r ! "name"
-                     , rDescription = input "description" "" e
-                     , rWebsite = input "website" "" e
-                     , rOwner = n
-                     , rUsers = []
-                     , rCreated = now
-                     }
+        new <- dirty $ do
+                 repo <- newRepository
+                           Repository { rName = r ! "name"
+                                      , rDescription = input "description" "" e
+                                      , rWebsite = input "website" "" e
+                                      , rOwner = n
+                                      , rUsers = []
+                                      , rCreated = now
+                                      }
 
-        success "Repository created." s
+                 return repo
 
-        redirectTo ("/" ++ n ++ "/" ++ (r ! "name")))
+        case new of
+          Alright _ -> do success "Repository created." s
+                          redirectTo ("/" ++ n ++ "/" ++ (r ! "name"))
+          Error m -> do warn m s
+                        redirectTo "/init")
     (\(Invalid f) -> do
         notify Warning s f
         doPage "init" [var "in" (fromList $ getInputs e)] s)
@@ -177,16 +184,19 @@ editRepo un rn s e
         Just r <- query (GetRepository (un, rn))
         ms <- members r
 
-        removeMembers r ms
-        addMembers r (input "add-members" "" e)
+        new <- dirty (do removeMembers r ms
+                         addMembers r (input "add-members" "" e)
+                         rename r (i ! "name"))
 
-        new <- rename r (i ! "name")
+        case new of
+          Error m -> warn m s
+          Alright n -> do
+            update (UpdateRepository (n { rDescription = fromMaybe (rDescription r) (getInput "description" e)
+                                        , rWebsite = fromMaybe (rWebsite r) (getInput "website" e)
+                                        }))
 
-        update (UpdateRepository (new { rDescription = fromMaybe (rDescription r) (getInput "description" e)
-                                      , rWebsite = fromMaybe (rWebsite r) (getInput "website" e)
-                                      }))
+            success "Repository updated." s
 
-        success "Repository updated." s
         redirectTo ("/" ++ un ++ "/" ++ (i ! "name") ++ "/edit"))
     (\(Invalid f) -> do
         notify Warning s f
@@ -196,23 +206,19 @@ editRepo un rn s e
 
         removeMembers r
           = mapM_ (\m -> case getInput ("remove-" ++ m) e of
-                      Nothing -> return False
+                      Nothing -> return ()
                       Just _ -> removeMember m r)
 
         addMembers r as
-          = mapM_ (\m -> do c <- query (GetUser m)
+          = mapM_ (\m -> do c <- lift (query (GetUser m))
                             case c of
                               Just _ -> addMember (strip m) r
-                              Nothing -> warn ("Invalid user; cannot add: " ++ m) s >> return False)
+                              Nothing -> lift (warn ("Invalid user; cannot add: " ++ m) s) >> return ())
                   (wordsBy (== ',') as)
 
         rename r n
           = if rName r /= n
-              then do renamed <- renameRepository n r
-                      case renamed of
-                        Left err -> do warn ("Repository renaming failed: " ++ show err) s
-                                       return r
-                        Right r' -> return r'
+              then renameRepository n r
               else return r
 
 deleteRepo :: String -> String -> Page
@@ -229,9 +235,13 @@ deleteRepo un rn s e
   = validate e
     [ io "you do not own this repository" (return $ Just un == sUser s) ]
     (\(OK _) -> do
-        destroyRepository (un, rn)
-        success "Repository deleted." s
-        redirectTo ('/' : un))
+        destroyed <- dirty (destroyRepository (un, rn))
+
+        case destroyed of
+          Error m -> do warn m s
+                        redirectTo ('/' : un ++ "/" ++ rn)
+          Alright _ -> do success "Repository deleted." s
+                          redirectTo ('/' : un))
     (\(Invalid f) -> do
         notify Warning s f
         redirectTo ('/' : un ++ "/" ++ rn))
@@ -244,10 +254,12 @@ forkRepo un rn s@(Session { sUser = Just n }) e
     (\(OK _) -> do
         Just r <- query (GetRepository (un, rn))
 
-        forkRepository n (rName r) r
-
-        success "Repository forked." s
-        redirectTo ("/" ++ n ++ "/" ++ rName r))
+        forked <- dirty (forkRepository n (rName r) r)
+        case forked of
+          Error m -> do warn m s
+                        redirectTo ('/' : un ++ "/" ++ rn ++ "/fork")
+          Alright f -> do success "Repository forked." s
+                          redirectTo ("/" ++ n ++ "/" ++ rName f))
     (\(Invalid _) -> do
         Just r <- query (GetRepository (un, rn))
         doPage "repo-fork" [ var "repo" r
@@ -265,10 +277,12 @@ forkRepoAs un rn s@(Session { sUser = Just n }) e
     (\(OK i) -> do
         Just r <- query (GetRepository (un, rn))
 
-        forkRepository n (i ! "name") r
-
-        success "Repository forked." s
-        redirectTo ("/" ++ n ++ "/" ++ (i ! "name")))
+        forked <- dirty (forkRepository n (i ! "name") r)
+        case forked of
+          Error m -> do warn m s
+                        redirectTo ('/' : un ++ "/" ++ rn ++ "/fork")
+          Alright _ -> do success "Repository forked." s
+                          redirectTo ("/" ++ n ++ "/" ++ (i ! "name")))
     (\(Invalid _) -> do
         Just r <- query (GetRepository (un, rn))
         doPage "repo-fork" [ var "repo" r

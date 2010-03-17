@@ -5,6 +5,7 @@ import Hack
 import Happstack.State
 import System.Time (getClockTime)
 
+import DarcsDen.Dirty
 import DarcsDen.HackUtils
 import DarcsDen.State.Repository
 import DarcsDen.State.Session
@@ -14,8 +15,8 @@ import Data.Map ((!), fromList)
 
 
 user :: String -> Page
-user name s e = do m <- query $ GetUser name
-                   rs <- query $ GetUserRepositories name
+user name s e = do m <- query (GetUser name)
+                   rs <- query (GetUserRepositories name)
                    case m of
                      Nothing -> notFound s e
                      Just u -> doPage "user" [var "user" u, var "repositories" rs] s
@@ -35,20 +36,23 @@ register s e = validate e [ when (nonEmpty "name")
                (\(OK r) -> do
                   now <- getClockTime
                   slt <- salt 32
-                  n <- newUser User { uName = r ! "name"
-                                    , uPassword = hashPassword (r ! "password1") slt
-                                    , uSalt = slt
-                                    , uFullName = ""
-                                    , uWebsite = ""
-                                    , uEmail = r ! "email"
-                                    , uPubkeys = []
-                                    , uJoined = now
-                                    }
-                  if n
-                    then setUser (Just (r ! "name")) s
-                         >>= success "You have been successfully registered and logged in."
-                         >> redirectTo "/"
-                    else warn "User creation failed." s >> doPage "register" [] s)
+                  new <- dirty (newUser
+                                  User { uName = r ! "name"
+                                       , uPassword = hashPassword (r ! "password1") slt
+                                       , uSalt = slt
+                                       , uFullName = ""
+                                       , uWebsite = ""
+                                       , uEmail = r ! "email"
+                                       , uPubkeys = []
+                                       , uJoined = now
+                                       })
+                  case new of
+                    Error m -> do warn "User creation failed." s
+                                  warn m s
+                                  doPage "register" [] s
+                    Alright u -> do setUser (Just (uName u)) s
+                                      >>= success "You have been successfully registered and logged in."
+                                    redirectTo "/")
                (\(Invalid failed) -> do
                    notify Warning s failed
                    doPage "register" [var "in" (fromList $ getInputs e)] s)

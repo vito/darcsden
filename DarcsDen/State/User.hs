@@ -11,12 +11,11 @@ import Data.Digest.SHA512
 import Data.Typeable (Typeable)
 import Happstack.State
 import Happstack.State.ClockTime
-import System.Cmd (system)
-import System.Exit
 import System.Directory (createDirectoryIfMissing, doesFileExist)
 import System.Random
 import qualified Data.Map as M
 
+import DarcsDen.Dirty
 import qualified DarcsDen.State.Old.User0 as Old
 
 
@@ -90,18 +89,14 @@ merge a b = concat (zipWith (\ x y -> [x, y]) a b) ++ leftover
                                then drop (length a) b
                                else drop (length b) a
 
-newUser :: User -> IO Bool
-newUser u = do update $ AddUser u
-               addRes <- system $ "useradd -G darcsden " ++ name
+newUser :: User -> Dirty IO User
+newUser u = do shell_ ["useradd -G darcsden " ++ name]
 
-               if addRes == ExitSuccess
-                 then do createDirectoryIfMissing True $ userDir name
-                         chownRes <- system $ "chown " ++ name ++ ":" ++ name ++ " " ++ userDir name
+               lift (createDirectoryIfMissing True $ userDir name)
+               shell_ ["chown " ++ name ++ ":" ++ name ++ " " ++ userDir name]
 
-                         if chownRes == ExitSuccess
-                           then return True
-                           else update (DeleteUser (uName u)) >> return False
-                 else update (DeleteUser (uName u)) >> return False
+               lift (update (AddUser u))
+               return u
   where name = saneName (uName u)
 
 getPubkeys :: String -> IO String

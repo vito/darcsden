@@ -12,9 +12,7 @@ import Data.List (intercalate)
 import Data.Typeable (Typeable)
 import Happstack.State
 import Happstack.State.ClockTime
-import System.Cmd (system)
 import System.Directory
-import System.Exit (ExitCode(ExitSuccess))
 import System.Posix.User
 import System.Posix.Files
 import Text.StringTemplate (ToSElem(toSElem))
@@ -23,6 +21,7 @@ import qualified Darcs.Repository as R
 import qualified Data.ByteString as BS
 import qualified Data.Map as M
 
+import DarcsDen.Dirty
 import DarcsDen.State.User
 import DarcsDen.Util
 
@@ -82,18 +81,18 @@ $(mkMethods ''Repositories [ 'getRepository
 repoDir :: String -> String -> FilePath
 repoDir un rn = userDir un ++ "/" ++ saneName rn
 
-newRepository :: Repository -> IO Bool
-newRepository r = do update $ AddRepository r
-                     createDirectoryIfMissing True repo
-                     withCurrentDirectory repo (R.createRepository [])
-                     writeFile (repo ++ "/_darcs/prefs/defaults") defaults
+newRepository :: Repository -> Dirty IO Repository
+newRepository r = shell [ "groupadd " ++ group
+                        , "usermod -aG " ++ group ++ " " ++ user
+                        ] $ do
+                    update (AddRepository r)
+                    createDirectoryIfMissing True repo
+                    withCurrentDirectory repo (R.createRepository [])
+                    writeFile (repo ++ "/_darcs/prefs/defaults") defaults
 
-                     groupRes <- system $ "groupadd " ++ group
-                     userRes <- system $ "usermod -aG " ++ group ++ " " ++ user
+                    setRepoPermissions r
 
-                     setRepoPermissions r
-
-                     return (all (== ExitSuccess) [groupRes, userRes])
+                    return r
   where user = saneName (rOwner r)
         group = repoGroup (rOwner r) (rName r)
         repo = repoDir (rOwner r) (rName r)
@@ -124,31 +123,32 @@ setRepoPermissions r
                     , otherReadMode
                     ]
 
-destroyRepository :: (String, String) -> IO ()
-destroyRepository r = do update $ DeleteRepository r
-                         system $ "groupdel " ++ group
-                         removeDirectoryRecursive (uncurry repoDir r)
+destroyRepository :: (String, String) -> Dirty IO ()
+destroyRepository r = shell ["groupdel " ++ group] $ do
+                        update (DeleteRepository r)
+                        removeDirectoryRecursive (uncurry repoDir r)
   where group = uncurry repoGroup r
 
-forkRepository :: String -> String -> Repository -> IO Bool
-forkRepository un rn r = do newRepository (r { rOwner = saneName un
-                                             , rName = saneName rn
-                                             })
-                            forkRes <- system $ "su " ++ name ++ " -c 'darcs pull -aq " ++ orig ++ " --repodir " ++ fork ++ "'"
-                            return (forkRes == ExitSuccess)
-  where name = saneName un
-        orig = repoDir (rOwner r) (rName r)
-        fork = repoDir name (saneName rn)
 
-renameRepository :: String -> Repository -> IO (Either ExitCode Repository)
-renameRepository n r = do renameRes <- system $ "groupmod -n " ++ newGroup ++ " " ++ oldGroup
-                          if renameRes /= ExitSuccess
-                            then return (Left renameRes)
-                            else do
-                          renameDirectory (repoDir (rOwner r) (rName r)) (repoDir (rOwner r) n)
-                          update (DeleteRepository (rOwner r, rName r)) -- can't update; new key
-                          update (AddRepository (r { rName = n }))
-                          return (Right (r { rName = n }))
+bootstrapRepository :: Repository -> String-> Dirty IO ()
+bootstrapRepository r url
+  = shell_ ["su " ++ saneName (rOwner r) ++ " -c 'darcs pull -aq " ++ url ++ " --repodir " ++ dest ++ "'"]
+  where dest = repoDir (rOwner r) (rName r)
+
+forkRepository :: String -> String -> Repository -> Dirty IO Repository
+forkRepository un rn r = do new <- newRepository (r { rOwner = saneName un
+                                                    , rName = saneName rn
+                                                    })
+                            bootstrapRepository new orig
+                            return new
+  where orig = repoDir (rOwner r) (rName r)
+
+renameRepository :: String -> Repository -> Dirty IO Repository
+renameRepository n r = shell ["groupmod -n " ++ newGroup ++ " " ++ oldGroup] $ do
+                         renameDirectory (repoDir (rOwner r) (rName r)) (repoDir (rOwner r) n)
+                         update (DeleteRepository (rOwner r, rName r)) -- can't update; new key
+                         update (AddRepository (r { rName = n }))
+                         return (r { rName = n })
   where newGroup = repoGroup (rOwner r) n
         oldGroup = repoGroup (rOwner r) (rName r)
 
@@ -159,16 +159,14 @@ members r = do groups <- getAllGroupEntries
                  _ -> return []
   where group = repoGroup (rOwner r) (rName r)
 
-addMember :: String -> Repository -> IO Bool
-addMember m r = do addRes <- system $ "usermod -aG " ++ group ++ " " ++ user
-                   return (addRes == ExitSuccess)
+addMember :: String -> Repository -> Dirty IO ()
+addMember m r = shell_ ["usermod -aG " ++ group ++ " " ++ user]
   where user = saneName m
         group = repoGroup (rOwner r) (rName r)
 
-removeMember :: String -> Repository -> IO Bool
-removeMember m r = do gs <- getAllGroupEntries
-                      removeRes <- system $ "usermod -G " ++ intercalate "," (groups gs) ++ " " ++ user
-                      return (removeRes == ExitSuccess)
+removeMember :: String -> Repository -> Dirty IO ()
+removeMember m r = do gs <- lift getAllGroupEntries
+                      shell_ ["usermod -G " ++ intercalate "," (groups gs) ++ " " ++ user]
   where user = saneName m
         group = repoGroup (rOwner r) (rName r)
         groups gs = map groupName $ filter (\g -> user `elem` groupMembers g && groupName g /= group) gs
