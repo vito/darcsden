@@ -114,6 +114,7 @@ setRepoPermissions r
                    , ownerModes
                    , groupModes
                    , otherReadMode
+                   , otherExecuteMode
                    ]
         fileModes = foldl unionFileModes nullFileMode
                     [ ownerReadMode
