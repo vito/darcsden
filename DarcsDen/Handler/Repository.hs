@@ -68,6 +68,10 @@ initialize s@(Session { sUser = Just n }) e
                                       , rCreated = now
                                       }
 
+                 case getInput "bootstrap" e of
+                   Just url | length url > 0 -> bootstrapRepository repo url
+                   _ -> return ()
+
                  return repo
 
         case new of
