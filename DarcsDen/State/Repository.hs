@@ -26,6 +26,7 @@ import qualified Data.Map as M
 import DarcsDen.State.User
 import DarcsDen.Util
 
+instance ToSElem ClockTime where toSElem = toSElem . show
 
 data Repository = Repository { rName :: String
                              , rDescription :: String
