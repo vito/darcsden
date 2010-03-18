@@ -6,7 +6,7 @@ import Data.Char (isNumber, isSpace)
 import Data.List (inits, sortBy)
 import Data.List.Split (wordsBy)
 import Data.Map ((!), fromList)
-import Data.Maybe (fromMaybe)
+import Data.Ord (comparing)
 import Hack
 import Happstack.State
 import System.Time (getClockTime)
@@ -84,9 +84,9 @@ initialize s@(Session { sUser = Just n }) e
         doPage "init" [var "in" (fromList $ getInputs e)] s)
 
 browse :: Int -> Page
-browse p s e = do rs <- query GetRepositories
-                  let totalPages = ceiling (fromIntegral (length rs) / 50)
-                  doPage "browse" [ var "repos" (paginate 50 p (sortBy (\a b -> compare (rName a) (rName b)) rs))
+browse p s _ = do rs <- query GetRepositories
+                  let totalPages = ceiling ((fromIntegral (length rs) :: Double) / 50)
+                  doPage "browse" [ var "repos" (paginate 50 p (sortBy (comparing rName) rs))
                                   , var "page" p
                                   , var "totalPages" totalPages
                                   , var "nextPage" (p + 1)
@@ -296,7 +296,7 @@ forkRepoAs un rn s@(Session { sUser = Just n }) e
         forked <- dirty (forkRepository n (i ! "name") r)
         perhaps forked
           (\f -> do success "Repository forked." s
-                    redirectTo ("/" ++ n ++ "/" ++ (i ! "name")))
+                    redirectTo ("/" ++ n ++ "/" ++ rName f))
           (\m -> do warn ("Repository forking failed: " ++ m) s
                     redirectTo ('/' : un ++ "/" ++ rn ++ "/fork")))
     (\(Invalid _) -> do

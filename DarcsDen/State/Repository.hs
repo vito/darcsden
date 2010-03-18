@@ -103,8 +103,8 @@ setRepoPermissions r
   = do u <- getUserEntryForName (rOwner r)
        g <- getGroupEntryForName (repoGroup (rOwner r) (rName r))
        recursively (\p -> setOwnerAndGroup p (userID u) (groupID g)) repo
-       recursivelyOnFiles (flip setFileMode fileModes) repo
-       recursivelyOnDirs (flip setFileMode dirModes) repo
+       recursivelyOnFiles (`setFileMode` fileModes) repo
+       recursivelyOnDirs (`setFileMode` dirModes) repo
   where repo = repoDir (rOwner r) (rName r)
         dirModes = foldl unionFileModes nullFileMode
                    [ setGroupIDMode
@@ -160,7 +160,7 @@ members :: Repository -> IO [String]
 members r = do groups <- readFile "/etc/group"
                let find = map (wordsBy (== ':')) $ filter (\l -> takeWhile (/= ':') l == group) (lines groups)
                case find of
-                 [(_:_:_:ms:_)] -> return (wordsBy (== ',') ms)
+                 [_:_:_:ms:_] -> return (wordsBy (== ',') ms)
                  _ -> return []
   where group = repoGroup (rOwner r) (rName r)
 

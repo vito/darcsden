@@ -1,6 +1,7 @@
 module DarcsDen.Util where
 
 import System.Directory
+import Control.Monad (unless, when)
 
 
 recursively :: (FilePath -> IO ()) -> FilePath -> IO ()
@@ -12,16 +13,12 @@ recursively f p = do dir <- doesDirectoryExist p
                        else f p
 
 recursivelyOnDirs :: (FilePath -> IO ()) -> FilePath -> IO ()
-recursivelyOnDirs f p = recursively (\p' -> do dir <- doesDirectoryExist p'
-                                               if dir
-                                                 then f p'
-                                                 else return ()) p
+recursivelyOnDirs f = recursively (\p -> do dir <- doesDirectoryExist p
+                                            when dir (f p))
 
 recursivelyOnFiles :: (FilePath -> IO ()) -> FilePath -> IO ()
-recursivelyOnFiles f p = recursively (\p' -> do dir <- doesDirectoryExist p'
-                                                if dir
-                                                  then return ()
-                                                  else f p') p
+recursivelyOnFiles f = recursively (\p -> do dir <- doesDirectoryExist p
+                                             unless dir (f p))
 
 toMaybe :: [a] -> Maybe [a]
 toMaybe [] = Nothing

@@ -20,7 +20,7 @@ instance Monad m => Monad (Dirty m) where
                          Alright a -> dirty (f a)
 
 instance MonadTrans Dirty where
-  lift = Dirty . (liftM Alright)
+  lift = Dirty . liftM Alright
 
 instance Functor Perhaps where
   fmap f (Alright x) = Alright (f x)
@@ -48,4 +48,4 @@ shell c as = do res <- lift (rawSystem c as)
                   ExitFailure n -> fail (c ++ " failed with exit code " ++ show n)
 
 io :: IO a -> Dirty IO a
-io i = Dirty $ (fmap Alright i) `catch` (return . Error . show)
+io i = Dirty $ fmap Alright i `catch` (return . Error . show)
