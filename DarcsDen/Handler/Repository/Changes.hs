@@ -16,6 +16,7 @@ import qualified Data.Map as M
 
 import DarcsDen.Handler.Repository.Util
 import DarcsDen.State.User
+import DarcsDen.Util
 
 
 data PatchLog = PatchLog { pID :: String
@@ -107,12 +108,11 @@ fromFP (Binary _ _) = FileBinary
 fromFP a = error ("fromFP not supported for " ++ show a)
 
 getChanges :: String -> Int -> IO ([PatchLog], Int)
-getChanges dir  page = R.withRepositoryDirectory [] dir $ \dr ->
+getChanges dir page = R.withRepositoryDirectory [] dir $ \dr ->
   do pset <- R.read_repo dr
      let ps = fromPS pset
-     ls <- mapM (toLog . P.patch2patchinfo) . paginate $ ps
+     ls <- mapM (toLog . P.patch2patchinfo) . paginate 30 page $ ps
      return (ls, ceiling ((fromIntegral (length ps) :: Double) / 30))
-  where paginate = take 30 . drop (30 * (page - 1))
 
 getPatch :: String -> String -> IO PatchChanges
 getPatch dir patch = R.withRepositoryDirectory [] dir $ \dr ->

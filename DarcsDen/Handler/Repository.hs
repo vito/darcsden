@@ -83,6 +83,18 @@ initialize s@(Session { sUser = Just n }) e
         notify Warning s f
         doPage "init" [var "in" (fromList $ getInputs e)] s)
 
+browse :: Int -> Page
+browse p s e = do rs <- query GetRepositories
+                  let totalPages = ceiling (fromIntegral (length rs) / 50)
+                  doPage "browse" [ var "repos" (paginate 50 p rs)
+                                  , var "page" p
+                                  , var "totalPages" totalPages
+                                  , var "nextPage" (p + 1)
+                                  , var "prevPage" (p - 1)
+                                  , var "notFirst" (p /= 1)
+                                  , var "notLast" (p /= totalPages)
+                                  ] s
+
 browseRepo :: String -> String -> [String] -> Page
 browseRepo un rn f s e = do
   Just u <- query (GetUser un)

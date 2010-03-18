@@ -1,5 +1,6 @@
 module DarcsDen.Handler where
 
+import Data.Char (isNumber)
 import Data.List.Split (wordsBy)
 import Hack
 import Happstack.State
@@ -33,6 +34,8 @@ pageFor ["login"] = login
 pageFor ["logout"] = logout
 pageFor ["settings"] = settings
 pageFor ["init"] = initialize
+pageFor ["browse"] = browse 1
+pageFor ["browse", "page", p] | all isNumber p = browse (read p)
 pageFor ("public":unsafe) = \s e -> do
   dir <- getCurrentDirectory
   serveDirectory (dir ++ "/public/") unsafe s e

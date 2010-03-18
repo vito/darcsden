@@ -26,3 +26,6 @@ recursivelyOnFiles f p = recursively (\p' -> do dir <- doesDirectoryExist p'
 toMaybe :: [a] -> Maybe [a]
 toMaybe [] = Nothing
 toMaybe x = Just x
+
+paginate :: Int -> Int -> [a] -> [a]
+paginate perpage page = take perpage . drop (perpage * (page - 1))

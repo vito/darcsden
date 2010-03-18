@@ -349,6 +349,24 @@ div.readme h3 {
 	color: #000;
 }
 
+.repo-list {
+	margin-top: 1em;
+}
+.repo-list li {
+	margin-bottom: 2em;
+}
+.repo-list li .title {
+	font-family: monospace;
+	font-size: 1.5em;
+	line-height: 2em;
+}
+.repo-list li .title .repo-name {
+	font-weight: bold;
+}
+.repo-list li .repo-desc {
+	margin-bottom: 0;
+}
+
 .user-repos li {
 	padding: .5em 0;
 }
