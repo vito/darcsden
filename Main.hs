@@ -1,6 +1,6 @@
 module Main where
 
-import Control.Concurrent (forkIO)
+import Control.Concurrent (forkIO, killThread)
 import Hack.Handler.Happstack (run)
 import Happstack.State
 import System.Environment (getArgs, withProgName)
@@ -28,8 +28,9 @@ main = withProgName "darcsden" $ do
          state <- startSystemState (Proxy :: Proxy State)
          if not (null args)
             then fixRepos
-            else do forkIO (run handler)
+            else do t <- forkIO (run handler)
                     waitForTermination
+                    killThread t
 
          putStrLn "Shutting down..."
          createCheckpoint state
