@@ -165,7 +165,7 @@ removeMember :: String -> Repository -> Dirty IO ()
 removeMember m r = do gs <- lift getAllGroupEntries
                       shell "usermod" ["-G", intercalate "," (groups gs), m]
   where group = repoGroup (rOwner r) (rName r)
-        groups gs = map groupName $ filter (\g -> user `elem` groupMembers g && groupName g /= group) gs
+        groups gs = map groupName $ filter (\g -> m `elem` groupMembers g && groupName g /= group) gs
 
 repoGroup :: String -> String -> String
 repoGroup un rn = md5sum . BS.pack . map (fromIntegral . ord) $ un ++ "/" ++ rn
