@@ -9,6 +9,7 @@ import Data.Char (ord)
 import Data.Data (Data)
 import Data.Digest.OpenSSL.MD5 (md5sum)
 import Data.List (intercalate)
+import Data.List.Split (wordsBy)
 import Data.Typeable (Typeable)
 import Happstack.State
 import Happstack.State.ClockTime
@@ -151,9 +152,15 @@ renameRepository n r = do shell "groupmod" ["-n", newGroup, oldGroup]
         oldGroup = repoGroup (rOwner r) (rName r)
 
 members :: Repository -> IO [String]
-members r = do groups <- getAllGroupEntries
-               case filter ((== group) . groupName) groups of
-                 [g] -> return (groupMembers g)
+-- This is preferable, but GHC bug #3816 prevents.
+-- members r = do groups <- getAllGroupEntries
+               -- case filter ((== group) . groupName) groups of
+                 -- [g] -> return (groupMembers g)
+                 -- _ -> return []
+members r = do groups <- readFile "/etc/group"
+               let find = map (wordsBy (== ':')) $ filter (\l -> takeWhile (/= ':') l == group) (lines groups)
+               case find of
+                 [(_:_:_:ms:_)] -> return (wordsBy (== ',') ms)
                  _ -> return []
   where group = repoGroup (rOwner r) (rName r)
 
