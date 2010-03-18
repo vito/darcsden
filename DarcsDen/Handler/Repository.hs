@@ -2,7 +2,7 @@
 module DarcsDen.Handler.Repository where
 
 import Control.Monad.Trans
-import Data.Char (isNumber, isSpace)
+import Data.Char (isNumber, isSpace, toLower)
 import Data.List (inits, sortBy)
 import Data.List.Split (wordsBy)
 import Data.Map ((!), fromList)
@@ -86,7 +86,7 @@ initialize s@(Session { sUser = Just n }) e
 browse :: Int -> Page
 browse p s _ = do rs <- query GetRepositories
                   let totalPages = ceiling ((fromIntegral (length rs) :: Double) / 50)
-                  doPage "browse" [ var "repos" (paginate 50 p (sortBy (comparing rName) rs))
+                  doPage "browse" [ var "repos" (paginate 50 p (sortBy (comparing (map toLower . rName)) rs))
                                   , var "page" p
                                   , var "totalPages" totalPages
                                   , var "nextPage" (p + 1)
