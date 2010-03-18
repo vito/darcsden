@@ -5,7 +5,7 @@ import Hack
 import Happstack.State
 import System.Time (getClockTime)
 
-import DarcsDen.Dirty
+import DarcsDen.Dirty (dirty, perhaps)
 import DarcsDen.HackUtils
 import DarcsDen.State.Repository
 import DarcsDen.State.Session
@@ -46,13 +46,14 @@ register s e = validate e [ when (nonEmpty "name")
                                        , uPubkeys = []
                                        , uJoined = now
                                        })
-                  case new of
-                    Error m -> do warn "User creation failed." s
-                                  warn m s
-                                  doPage "register" [] s
-                    Alright u -> do setUser (Just (uName u)) s
-                                      >>= success "You have been successfully registered and logged in."
-                                    redirectTo "/")
+
+                  perhaps new
+                    (\u -> do setUser (Just (uName u)) s
+                                >>= success "You have been successfully registered and logged in."
+                              redirectTo "/")
+                    (\m -> do warn "User creation failed." s
+                              warn m s
+                              doPage "register" [] s))
                (\(Invalid failed) -> do
                    notify Warning s failed
                    doPage "register" [var "in" (fromList $ getInputs e)] s)

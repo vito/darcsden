@@ -90,14 +90,15 @@ merge a b = concat (zipWith (\ x y -> [x, y]) a b) ++ leftover
                                else drop (length b) a
 
 newUser :: User -> Dirty IO User
-newUser u = do shell_ ["useradd -G darcsden " ++ name]
+newUser u = do shell "useradd" ["-G", "darcsden", name]
 
-               lift (createDirectoryIfMissing True $ userDir name)
-               shell_ ["chown " ++ name ++ ":" ++ name ++ " " ++ userDir name]
+               io (createDirectoryIfMissing True $ userDir name)
+               shell "chown" [name, userDir name]
+               shell "chgrp" [name, userDir name]
 
-               lift (update (AddUser u))
+               io (update (AddUser u))
                return u
-  where name = saneName (uName u)
+  where name = uName u
 
 getPubkeys :: String -> IO String
 getPubkeys un = do check <- doesFileExist key

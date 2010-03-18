@@ -11,7 +11,7 @@ import Hack
 import Happstack.State
 import System.Time (getClockTime)
 
-import DarcsDen.Dirty
+import DarcsDen.Dirty (dirty, perhaps)
 import DarcsDen.HackUtils
 import DarcsDen.Handler.Repository.Util
 import DarcsDen.Handler.Repository.Browse
@@ -74,11 +74,11 @@ initialize s@(Session { sUser = Just n }) e
 
                  return repo
 
-        case new of
-          Alright _ -> do success "Repository created." s
-                          redirectTo ("/" ++ n ++ "/" ++ (r ! "name"))
-          Error m -> do warn m s
-                        redirectTo "/init")
+        perhaps new
+          (\_ -> do success "Repository created." s
+                    redirectTo ("/" ++ n ++ "/" ++ (r ! "name")))
+          (\m -> do warn ("Repository creation failed: " ++ m) s
+                    redirectTo "/init"))
     (\(Invalid f) -> do
         notify Warning s f
         doPage "init" [var "in" (fromList $ getInputs e)] s)
@@ -192,14 +192,14 @@ editRepo un rn s e
                          addMembers r (input "add-members" "" e)
                          rename r (i ! "name"))
 
-        case new of
-          Error m -> warn m s
-          Alright n -> do
-            update (UpdateRepository (n { rDescription = fromMaybe (rDescription r) (getInput "description" e)
-                                        , rWebsite = fromMaybe (rWebsite r) (getInput "website" e)
-                                        }))
+        perhaps new
+          (\n -> do update (UpdateRepository
+                              n { rDescription = input "description" (rDescription r) e
+                                , rWebsite = input "website" (rWebsite r) e
+                                })
 
-            success "Repository updated." s
+                    success "Repository updated." s)
+          (\m -> warn ("Repository editing failed: " ++ m) s)
 
         redirectTo ("/" ++ un ++ "/" ++ (i ! "name") ++ "/edit"))
     (\(Invalid f) -> do
@@ -241,11 +241,11 @@ deleteRepo un rn s e
     (\(OK _) -> do
         destroyed <- dirty (destroyRepository (un, rn))
 
-        case destroyed of
-          Error m -> do warn m s
-                        redirectTo ('/' : un ++ "/" ++ rn)
-          Alright _ -> do success "Repository deleted." s
-                          redirectTo ('/' : un))
+        perhaps destroyed
+          (\_ -> do success "Repository deleted." s
+                    redirectTo ('/' : un))
+          (\m -> do warn ("Repository deletion failed: " ++ m) s
+                    redirectTo ('/' : un ++ "/" ++ rn)))
     (\(Invalid f) -> do
         notify Warning s f
         redirectTo ('/' : un ++ "/" ++ rn))
@@ -259,11 +259,11 @@ forkRepo un rn s@(Session { sUser = Just n }) e
         Just r <- query (GetRepository (un, rn))
 
         forked <- dirty (forkRepository n (rName r) r)
-        case forked of
-          Error m -> do warn m s
-                        redirectTo ('/' : un ++ "/" ++ rn ++ "/fork")
-          Alright f -> do success "Repository forked." s
-                          redirectTo ("/" ++ n ++ "/" ++ rName f))
+        perhaps forked
+          (\f -> do success "Repository forked." s
+                    redirectTo ("/" ++ n ++ "/" ++ rName f))
+          (\m -> do warn ("Repository forking failed: " ++ m) s
+                    redirectTo ('/' : un ++ "/" ++ rn ++ "/fork")))
     (\(Invalid _) -> do
         Just r <- query (GetRepository (un, rn))
         doPage "repo-fork" [ var "repo" r
@@ -282,11 +282,11 @@ forkRepoAs un rn s@(Session { sUser = Just n }) e
         Just r <- query (GetRepository (un, rn))
 
         forked <- dirty (forkRepository n (i ! "name") r)
-        case forked of
-          Error m -> do warn m s
-                        redirectTo ('/' : un ++ "/" ++ rn ++ "/fork")
-          Alright _ -> do success "Repository forked." s
-                          redirectTo ("/" ++ n ++ "/" ++ (i ! "name")))
+        perhaps forked
+          (\f -> do success "Repository forked." s
+                    redirectTo ("/" ++ n ++ "/" ++ (i ! "name")))
+          (\m -> do warn ("Repository forking failed: " ++ m) s
+                    redirectTo ('/' : un ++ "/" ++ rn ++ "/fork")))
     (\(Invalid _) -> do
         Just r <- query (GetRepository (un, rn))
         doPage "repo-fork" [ var "repo" r

@@ -2,14 +2,14 @@ module DarcsDen.Dirty where
 
 import Control.Monad
 import Control.Monad.Trans
-import System.Cmd (system)
+import System.Cmd (rawSystem)
 import System.Exit
 
 
 data Perhaps a = Error String | Alright a
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Show)
 
-newtype (Monad m) => Dirty m a = Dirty { dirty :: m (Perhaps a) }
+newtype Monad m => Dirty m a = Dirty { dirty :: m (Perhaps a) }
 
 instance Monad m => Monad (Dirty m) where
   return = Dirty . return . Alright
@@ -37,13 +37,15 @@ instance Monad Perhaps where
   fail = Error
 
 
-shell :: [String] -> IO a -> Dirty IO a
-shell [] a = lift a
-shell (c:cs) a = do res <- lift (system c)
-                    case res of
-                      ExitSuccess -> shell cs a
-                      ExitFailure n -> fail (command c ++ " failed with exit code " ++ show n)
-  where command = head . words
+perhaps :: Perhaps a -> (a -> b) -> (String -> b) -> b
+perhaps (Alright a) f _ = f a
+perhaps (Error e) _ f   = f e
 
-shell_ :: [String] -> Dirty IO ()
-shell_ = flip shell (return ())
+shell :: String -> [String] -> Dirty IO ()
+shell c as = do res <- lift (rawSystem c as)
+                case res of
+                  ExitSuccess -> return ()
+                  ExitFailure n -> fail (c ++ " failed with exit code " ++ show n)
+
+io :: IO a -> Dirty IO a
+io i = Dirty $ (fmap Alright i) `catch` (return . Error . show)

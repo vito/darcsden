@@ -82,32 +82,29 @@ repoDir :: String -> String -> FilePath
 repoDir un rn = userDir un ++ "/" ++ saneName rn
 
 newRepository :: Repository -> Dirty IO Repository
-newRepository r = shell [ "groupadd " ++ group
-                        , "usermod -aG " ++ group ++ " " ++ user
-                        ] $ do
-                    update (AddRepository r)
-                    createDirectoryIfMissing True repo
-                    withCurrentDirectory repo (R.createRepository [])
-                    writeFile (repo ++ "/_darcs/prefs/defaults") defaults
+newRepository r = do shell "groupadd" [group]
+                     shell "usermod" ["-aG", group, rOwner r]
 
-                    setRepoPermissions r
+                     io $ do update (AddRepository r)
+                             createDirectoryIfMissing True repo
+                             withCurrentDirectory repo (R.createRepository [])
+                             writeFile (repo ++ "/_darcs/prefs/defaults") defaults
 
-                    return r
-  where user = saneName (rOwner r)
-        group = repoGroup (rOwner r) (rName r)
+                             setRepoPermissions r
+
+                     return r
+  where group = repoGroup (rOwner r) (rName r)
         repo = repoDir (rOwner r) (rName r)
         defaults = "ALL umask 0007\n"
 
 setRepoPermissions :: Repository -> IO ()
 setRepoPermissions r
-  = do u <- getUserEntryForName user
-       g <- getGroupEntryForName group
+  = do u <- getUserEntryForName (rOwner r)
+       g <- getGroupEntryForName (repoGroup (rOwner r) (rName r))
        recursively (\p -> setOwnerAndGroup p (userID u) (groupID g)) repo
        recursivelyOnFiles (flip setFileMode fileModes) repo
        recursivelyOnDirs (flip setFileMode dirModes) repo
-  where user = saneName (rOwner r)
-        group = repoGroup (rOwner r) (rName r)
-        repo = repoDir (rOwner r) (rName r)
+  where repo = repoDir (rOwner r) (rName r)
         dirModes = foldl unionFileModes nullFileMode
                    [ setGroupIDMode
                    , ownerModes
@@ -124,31 +121,32 @@ setRepoPermissions r
                     ]
 
 destroyRepository :: (String, String) -> Dirty IO ()
-destroyRepository r = shell ["groupdel " ++ group] $ do
-                        update (DeleteRepository r)
-                        removeDirectoryRecursive (uncurry repoDir r)
+destroyRepository r = do shell "groupdel" [group]
+                         io $ do update (DeleteRepository r)
+                                 removeDirectoryRecursive (uncurry repoDir r)
   where group = uncurry repoGroup r
 
 
-bootstrapRepository :: Repository -> String-> Dirty IO ()
+bootstrapRepository :: Repository -> String -> Dirty IO ()
 bootstrapRepository r url
-  = shell_ ["su " ++ saneName (rOwner r) ++ " -c 'darcs pull -aq " ++ url ++ " --repodir " ++ dest ++ "'"]
+  = do shell "darcs" ["pull", "-aq", url, "--repodir", dest]
+       io (setRepoPermissions r)
   where dest = repoDir (rOwner r) (rName r)
 
 forkRepository :: String -> String -> Repository -> Dirty IO Repository
-forkRepository un rn r = do new <- newRepository (r { rOwner = saneName un
-                                                    , rName = saneName rn
+forkRepository un rn r = do new <- newRepository (r { rOwner = un
+                                                    , rName = rn
                                                     })
                             bootstrapRepository new orig
                             return new
   where orig = repoDir (rOwner r) (rName r)
 
 renameRepository :: String -> Repository -> Dirty IO Repository
-renameRepository n r = shell ["groupmod -n " ++ newGroup ++ " " ++ oldGroup] $ do
-                         renameDirectory (repoDir (rOwner r) (rName r)) (repoDir (rOwner r) n)
-                         update (DeleteRepository (rOwner r, rName r)) -- can't update; new key
-                         update (AddRepository (r { rName = n }))
-                         return (r { rName = n })
+renameRepository n r = do shell "groupmod" ["-n", newGroup, oldGroup]
+                          io (do renameDirectory (repoDir (rOwner r) (rName r)) (repoDir (rOwner r) n)
+                                 update (DeleteRepository (rOwner r, rName r))
+                                 update (AddRepository (r { rName = n })))
+                          return (r { rName = n })
   where newGroup = repoGroup (rOwner r) n
         oldGroup = repoGroup (rOwner r) (rName r)
 
@@ -160,19 +158,17 @@ members r = do groups <- getAllGroupEntries
   where group = repoGroup (rOwner r) (rName r)
 
 addMember :: String -> Repository -> Dirty IO ()
-addMember m r = shell_ ["usermod -aG " ++ group ++ " " ++ user]
-  where user = saneName m
-        group = repoGroup (rOwner r) (rName r)
+addMember m r = shell "usermod" ["-aG", group, m]
+  where group = repoGroup (rOwner r) (rName r)
 
 removeMember :: String -> Repository -> Dirty IO ()
 removeMember m r = do gs <- lift getAllGroupEntries
-                      shell_ ["usermod -G " ++ intercalate "," (groups gs) ++ " " ++ user]
-  where user = saneName m
-        group = repoGroup (rOwner r) (rName r)
+                      shell "usermod" ["-G", intercalate "," (groups gs), m]
+  where group = repoGroup (rOwner r) (rName r)
         groups gs = map groupName $ filter (\g -> user `elem` groupMembers g && groupName g /= group) gs
 
 repoGroup :: String -> String -> String
-repoGroup un rn = md5sum . BS.pack . map (fromIntegral . ord) $ saneName un ++ "/" ++ saneName rn
+repoGroup un rn = md5sum . BS.pack . map (fromIntegral . ord) $ un ++ "/" ++ rn
 
 instance ToSElem Repository where
   toSElem r = SM (M.fromList [ ("name", toSElem $ rName r)
