@@ -19,6 +19,7 @@ import DarcsDen.Handler.Repository.Changes
 import DarcsDen.State.Repository
 import DarcsDen.State.Session
 import DarcsDen.State.User
+import DarcsDen.State.Util
 import DarcsDen.Util
 import DarcsDen.Validate
 

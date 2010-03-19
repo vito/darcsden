@@ -10,6 +10,7 @@ import DarcsDen.HackUtils
 import DarcsDen.State.Repository
 import DarcsDen.State.Session
 import DarcsDen.State.User
+import DarcsDen.State.Util
 import DarcsDen.Validate
 import Data.Map ((!), fromList)
 

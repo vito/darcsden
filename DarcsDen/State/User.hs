@@ -16,6 +16,8 @@ import System.Random
 import qualified Data.Map as M
 
 import DarcsDen.Dirty
+import DarcsDen.State.Repository
+import DarcsDen.State.Util
 import qualified DarcsDen.State.Old.User1 as Old
 
 
@@ -67,9 +69,6 @@ deleteUser name = modify (\(Users us) -> Users (M.delete name us))
 
 $(mkMethods ''Users ['getUser, 'getUserByEmail, 'addUser, 'updateUser, 'deleteUser])
 
-userDir :: String -> String
-userDir un = "/jail/home/" ++ saneName un
-
 salt :: Int -> IO [Octet]
 salt num = do r <- replicateM num (randomRIO (0 :: Int, 255))
               return (map (\x -> fromIntegral x :: Octet) r)
@@ -94,6 +93,12 @@ newUser u = do shell "useradd" ["-G", "darcsden", name]
                return u
   where name = uName u
 
+destroyUser :: String -> Dirty IO ()
+destroyUser un = do shell "userdel" [un]
+                    repos <- query (GetUserRepositories un)
+                    mapM_ (\r -> destroyRepository (rOwner r, rName r)) repos
+                    update (DeleteUser un)
+
 getPubkeys :: String -> IO String
 getPubkeys un = do check <- doesFileExist key
                    if check
@@ -103,12 +108,3 @@ getPubkeys un = do check <- doesFileExist key
 
 updatePubkeys :: String -> String -> IO ()
 updatePubkeys un = writeFile ("/keys/" ++ saneName un)
-
-charIsSane :: Char -> Bool
-charIsSane = flip elem (['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ "-_")
-
-isSane :: String -> Bool
-isSane = all charIsSane
-
-saneName :: String -> String
-saneName = filter charIsSane

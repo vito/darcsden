@@ -23,7 +23,7 @@ import qualified Data.ByteString as BS
 import qualified Data.Map as M
 
 import DarcsDen.Dirty
-import DarcsDen.State.User
+import DarcsDen.State.Util
 import DarcsDen.Util
 import qualified DarcsDen.State.Old.Repository0 as Old
 
@@ -85,9 +85,6 @@ $(mkMethods ''Repositories [ 'getRepository
                            , 'updateRepository
                            , 'deleteRepository
                            ])
-
-repoDir :: String -> String -> FilePath
-repoDir un rn = userDir un ++ "/" ++ saneName rn
 
 newRepository :: Repository -> Dirty IO Repository
 newRepository r = do shell "groupadd" [group]
