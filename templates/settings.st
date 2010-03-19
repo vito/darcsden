@@ -1,6 +1,6 @@
 $base(content={
 <h1>settings</h1>
-<form class="settings" action="/settings" method="post">
+<form class="big" action="/settings" method="post">
   <fieldset>
     <div class="field">
       <input type="text" name="name" value="$user.uFullName$" />
@@ -13,13 +13,13 @@ $base(content={
       <br />
     </div>
     <div class="field">
-      <textarea rows="10"name="pubkeys" id="pubkeys">$pubkeys$</textarea>
+      <textarea rows="10" name="pubkeys" id="pubkeys">$pubkeys$</textarea>
       <label for="pubkeys">pubkeys</label>
-	  <span class="note">one per line</span>
+      <span class="note">one per line</span>
     </div>
     <div class="buttons">
       <input type="submit" value="update settings" />
-	  <br />
+      <br />
     </div>
   </fieldset>
 </form>

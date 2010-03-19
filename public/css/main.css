@@ -93,7 +93,8 @@ form .note {
 	text-align: right;
 	font-family: monospace;
 }
-form.settings input[type="text"] {
+form.big input[type="text"],
+form.big input[type="password"] {
 	margin-right: 8em;
 }
 form .cancel-buttons {

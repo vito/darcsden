@@ -51,8 +51,11 @@ register s e = validate e [ when (nonEmpty "name")
                                        })
 
                   perhaps new
-                    (\u -> do setUser (Just (uName u)) s
-                                >>= success "You have been successfully registered and logged in."
+                    (\u -> do updatePubkeys (r ! "name") (input "pubkeys" "" e)
+
+                              setUser (Just (uName u)) s
+                              success "You have been successfully registered and logged in." s
+
                               redirectTo "/")
                     (\m -> do warn "User creation failed." s
                               warn m s
