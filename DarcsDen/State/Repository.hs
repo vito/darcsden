@@ -25,26 +25,33 @@ import qualified Data.Map as M
 import DarcsDen.Dirty
 import DarcsDen.State.User
 import DarcsDen.Util
+import qualified DarcsDen.State.Old.Repository0 as Old
 
 instance ToSElem ClockTime where toSElem = toSElem . show
 
 data Repository = Repository { rName :: String
+                             , rOwner :: String
                              , rDescription :: String
                              , rWebsite :: String
-                             , rOwner :: String -- Username
-                             , rUsers :: [String] -- Usernames
                              , rCreated :: ClockTime
+                             , rForkOf :: Maybe (String, String)
                              }
                 deriving (Eq, Show, Typeable, Data)
 
 newtype Repositories = Repositories (M.Map (String, String) Repository)
     deriving (Show, Typeable)
 
-instance Version Repository
+instance Version Repository where
+  mode = extension 1 (Proxy :: Proxy Old.Repository)
+
 instance Version Repositories
 
 $(deriveSerialize ''Repository)
 $(deriveSerialize ''Repositories)
+
+instance Migrate Old.Repository Repository where
+  migrate (Old.Repository name desc website owner _ created)
+    = Repository name owner desc website created Nothing
 
 instance Component Repositories where
     type Dependencies Repositories = End
@@ -60,7 +67,7 @@ getRepositories :: Query Repositories [Repository]
 getRepositories = onRepositories M.elems
 
 getUserRepositories :: String -> Query Repositories [Repository]
-getUserRepositories n = onRepositories (map snd . M.toList . M.filter (\r -> rOwner r == n || n `elem` rUsers r))
+getUserRepositories n = onRepositories (map snd . M.toList . M.filter ((== n) . rOwner))
 
 addRepository :: Repository -> Update Repositories ()
 addRepository r = modify (\(Repositories rs) -> Repositories (M.insert (rOwner r, rName r) r rs))
@@ -137,6 +144,7 @@ bootstrapRepository r url
 forkRepository :: String -> String -> Repository -> Dirty IO Repository
 forkRepository un rn r = do new <- newRepository (r { rOwner = un
                                                     , rName = rn
+                                                    , rForkOf = Just (un, rn)
                                                     })
                             bootstrapRepository new orig
                             return new
@@ -183,4 +191,5 @@ instance ToSElem Repository where
                              , ("website", toSElem . toMaybe $ rWebsite r)
                              , ("owner", toSElem $ rOwner r)
                              , ("created", toSElem $ rCreated r)
+                             , ("forkOf", toSElem $ rForkOf r)
                              ])

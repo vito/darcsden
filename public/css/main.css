@@ -198,6 +198,12 @@ form .cancel-buttons a.cancel {
 	font-size: 1.4em;
 	margin-bottom: 2em;
 }
+.repo-desc .repo-fork {
+	color: #aaa;
+}
+.repo-desc .repo-fork a {
+	color: #777;
+}
 .repo-empty code {
 	color: #000;
 	font-size: 1.2em;

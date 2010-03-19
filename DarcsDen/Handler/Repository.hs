@@ -61,11 +61,11 @@ initialize s@(Session { sUser = Just n }) e
         new <- dirty $ do
                  repo <- newRepository
                            Repository { rName = r ! "name"
+                                      , rOwner = n
                                       , rDescription = input "description" "" e
                                       , rWebsite = input "website" "" e
-                                      , rOwner = n
-                                      , rUsers = []
                                       , rCreated = now
+                                      , rForkOf = Nothing
                                       }
 
                  case getInput "bootstrap" e of

@@ -46,7 +46,6 @@ register s e = validate e [ when (nonEmpty "name")
                                        , uFullName = ""
                                        , uWebsite = ""
                                        , uEmail = r ! "email"
-                                       , uPubkeys = []
                                        , uJoined = now
                                        })
 

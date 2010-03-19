@@ -16,7 +16,7 @@ import System.Random
 import qualified Data.Map as M
 
 import DarcsDen.Dirty
-import qualified DarcsDen.State.Old.User0 as Old
+import qualified DarcsDen.State.Old.User1 as Old
 
 
 data User = User { uName :: String
@@ -25,7 +25,6 @@ data User = User { uName :: String
                  , uFullName :: String
                  , uWebsite :: String
                  , uEmail :: String
-                 , uPubkeys :: [String]
                  , uJoined :: ClockTime
                  }
           deriving (Eq, Show, Typeable, Data)
@@ -34,7 +33,7 @@ newtype Users = Users (M.Map String User)
               deriving (Show, Typeable)
 
 instance Version User where
-  mode = extension 1 (Proxy :: Proxy Old.User)
+  mode = extension 2 (Proxy :: Proxy Old.User)
 
 instance Version Users
 
@@ -42,13 +41,8 @@ $(deriveSerialize ''User)
 $(deriveSerialize ''Users)
 
 instance Migrate Old.User User where
-    migrate (Old.User { Old.uName = name
-                      , Old.uFullName = fullName
-                      , Old.uWebsite = website
-                      , Old.uEmail = email
-                      , Old.uPubkeys = pubkeys
-                      , Old.uJoined = joined
-                      }) = User name [] [] fullName website email pubkeys joined
+  migrate (Old.User name password salt fullName website email _ joined)
+    = User name password salt fullName website email joined
 
 instance Component Users where
     type Dependencies Users = End

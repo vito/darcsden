@@ -13,7 +13,15 @@ content={
 </ul>
 
 <p class="repo-desc">
-  $repo.description$$if(repo.website)$ &mdash; <a href="$repo.website$">$repo.website$</a>$endif$
+  $repo.description$
+  $if(repo.forkOf)$
+  <span class="repo-fork">
+	(fork of <a href="/$repo.forkOf.0$">$repo.forkOf.0$</a>'s <a href="/$repo.forkOf.0$/$repo.forkOf.1$">$repo.forkOf.1$</a>)
+  </span>
+  $endif$
+  $if(repo.website)$
+  &mdash; <a href="$repo.website$">$repo.website$</a>
+  $endif$
 </p>
 
 $content$
