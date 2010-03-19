@@ -19,7 +19,10 @@ user name s e = do m <- query (GetUser name)
                    rs <- query (GetUserRepositories name)
                    case m of
                      Nothing -> notFound s e
-                     Just u -> doPage "user" [var "user" u, var "repositories" rs] s
+                     Just u -> doPage "user" [ var "user" u
+                                             , var "hasRepositories" (not (null rs))
+                                             , var "repositories" rs
+                                             ] s
 
 register :: Page
 register s (Env { requestMethod = GET }) = doPage "register" [] s

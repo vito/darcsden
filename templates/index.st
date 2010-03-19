@@ -2,7 +2,7 @@ $base(content={
 $if(visitor)$
 <h1><a href="/init">create a repository -></a></h1>
 
-$if(repositories)$
+$if(hasRepositories)$
 <br />
 <h1>your repositories</h1>
 <ul class="user-repos">

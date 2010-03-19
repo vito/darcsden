@@ -3,6 +3,7 @@ $base(
   crumb={<a href="/$user.uName$">$user.uName$</a>};
   content={
 <h1>$user.uName$'s repositories</h1>
+$if(hasRepositories)$
 <ul class="user-repos">
   $repositories:{ repo |
   <li>
@@ -16,4 +17,7 @@ $base(
   </li>
   }$
 </ul>
+$else$
+<p class="blurb">nothing to see here! move along!</p>
+$endif$
 })$
