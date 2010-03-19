@@ -138,8 +138,8 @@ runCommand ["unset", "user", name, what]
              "website" -> update (UpdateUser (u { uWebsite = "" }))
              "email" -> update (UpdateUser (u { uEmail = "" }))
              _ -> outputStrLn ("Can't unset user's " ++ what ++ ".")
-runCommand ["unset", "repo", user, name, what]
-  = do repo <- query (GetRepository (user, name))
+runCommand ["unset", "repo", owner, name, what]
+  = do repo <- query (GetRepository (owner, name))
        case repo of
          Nothing -> outputStrLn "Repository not found."
          Just r ->
