@@ -99,6 +99,13 @@ destroyUser un = do shell "userdel" [un]
                     mapM_ (\r -> destroyRepository (rOwner r, rName r)) repos
                     update (DeleteUser un)
 
+renameUser :: String -> User -> Dirty IO User
+renameUser n u = do new <- newUser (u { uName = n })
+                    repos <- query (GetUserRepositories n)
+                    mapM_ (changeRepositoryOwner n) repos
+                    destroyUser n
+                    return new
+
 getPubkeys :: String -> IO String
 getPubkeys un = do check <- doesFileExist key
                    if check

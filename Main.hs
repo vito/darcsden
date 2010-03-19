@@ -91,6 +91,33 @@ runCommand ["destroy", "repo", user, name]
          Just "y" -> do lift (dirty (destroyRepository (user, name)))
                         outputStrLn "Repository destroyed."
          _ -> return ()
+runCommand ["set", "user", name, what, value]
+  = do user <- query (GetUser name)
+       case user of
+         Nothing -> outputStrLn "User not found."
+         Just u ->
+           case what of
+             "name" -> lift (dirty (renameUser value u)) >> return ()
+             "fullname" -> update (UpdateUser (u { uFullName = value }))
+             "website" -> update (UpdateUser (u { uWebsite = value }))
+             "email" -> update (UpdateUser (u { uEmail = value }))
+             _ -> outputStrLn ("Don't know how to update user's " ++ what ++ ".")
+runCommand ["set", "repo", user, name, what, value]
+  = do repo <- query (GetRepository (user, name))
+       case repo of
+         Nothing -> outputStrLn "Repository not found."
+         Just r ->
+           case what of
+             "name" -> lift (dirty (renameRepository value r)) >> return ()
+             "owner" -> lift (dirty (changeRepositoryOwner value r)) >> return ()
+             "descrpition" -> update (UpdateRepository (r { rDescription = value }))
+             "website" -> update (UpdateRepository (r { rWebsite = value }))
+             "fork" ->
+               let fork = if value == "_"
+                            then Nothing
+                            else Just (read value)
+               in update (UpdateRepository (r { rForkOf = fork }))
+             _ -> outputStrLn ("Don't know how to update user's " ++ what ++ ".")
 runCommand _ = runCommand ["help"]
 
 admin :: InputT IO ()

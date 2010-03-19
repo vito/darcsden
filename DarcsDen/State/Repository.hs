@@ -147,14 +147,20 @@ forkRepository un rn r = do new <- newRepository (r { rOwner = un
                             return new
   where orig = repoDir (rOwner r) (rName r)
 
-renameRepository :: String -> Repository -> Dirty IO Repository
-renameRepository n r = do shell "groupmod" ["-n", newGroup, oldGroup]
-                          io (do renameDirectory (repoDir (rOwner r) (rName r)) (repoDir (rOwner r) n)
-                                 update (DeleteRepository (rOwner r, rName r))
-                                 update (AddRepository (r { rName = n })))
-                          return (r { rName = n })
-  where newGroup = repoGroup (rOwner r) n
+moveRepository :: (String, String) -> Repository -> Dirty IO Repository
+moveRepository (o, n) r = do shell "groupmod" ["-n", newGroup, oldGroup]
+                             io (do renameDirectory (repoDir (rOwner r) (rName r)) (repoDir o n)
+                                    update (DeleteRepository (rOwner r, rName r))
+                                    update (AddRepository (r { rName = n, rOwner = o })))
+                             return (r { rName = n, rOwner = o })
+  where newGroup = repoGroup o n
         oldGroup = repoGroup (rOwner r) (rName r)
+
+renameRepository :: String -> Repository -> Dirty IO Repository
+renameRepository n r = moveRepository (rOwner r, n) r
+
+changeRepositoryOwner :: String -> Repository -> Dirty IO Repository
+changeRepositoryOwner o r = moveRepository (o, rName r) r
 
 members :: Repository -> IO [String]
 -- This is preferable, but GHC bug #3816 prevents.
