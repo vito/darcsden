@@ -22,6 +22,9 @@ instance Monad m => Monad (Dirty m) where
 instance MonadTrans Dirty where
   lift = Dirty . liftM Alright
 
+instance MonadIO m => MonadIO (Dirty m) where
+  liftIO = lift . liftIO
+
 instance Functor Perhaps where
   fmap f (Alright x) = Alright (f x)
   fmap _ (Error e) = Error e
