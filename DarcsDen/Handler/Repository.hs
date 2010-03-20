@@ -3,7 +3,7 @@ module DarcsDen.Handler.Repository where
 
 import Control.Monad.Trans
 import Data.Char (isNumber, isSpace, toLower)
-import Data.List (inits, sortBy)
+import Data.List (groupBy, inits, isPrefixOf, sortBy)
 import Data.List.Split (wordsBy)
 import Data.Map ((!), fromList)
 import Data.Ord (comparing)
@@ -16,6 +16,7 @@ import DarcsDen.HackUtils
 import DarcsDen.Handler.Repository.Util
 import DarcsDen.Handler.Repository.Browse
 import DarcsDen.Handler.Repository.Changes
+import DarcsDen.Handler.Repository.Forks
 import DarcsDen.State.Repository
 import DarcsDen.State.Session
 import DarcsDen.State.User
@@ -43,6 +44,8 @@ handleRepo un rn action s e
         ["patch", patch] -> repoPatch name repo patch s e
         ["fork"] -> forkRepo name repo s e
         ["fork-as"] -> forkRepoAs name repo s e
+        ["forks"] -> repoForks name repo s e
+        ["merge"] -> mergeForks name repo s e
         _ -> notFound s e)
     (\(Invalid f) -> notify Warning s f >> redirectTo "/")
   where name = saneName un
@@ -304,3 +307,37 @@ forkRepoAs un rn s@(Session { sUser = Just n }) e
         doPage "repo-fork" [ var "repo" r
                            , var "name" (input "name" (rName r) e)
                            ] s)
+
+repoForks :: String -> String -> Page
+repoForks un rn s _
+  = do Just r <- query (GetRepository (un, rn))
+       rs <- query GetRepositories
+       let fs = filter (\f -> rForkOf f == Just (un, rn)) rs
+
+       forks <- mapM getForkChanges fs
+
+       doPage "repo-forks" [ var "repo" r
+                           , var "forks" forks
+                           , var "isAdmin" (sUser s == Just un)
+                           ] s
+
+mergeForks :: String -> String -> Page
+mergeForks un rn s e
+  = validate e
+    [ io "you do not own this repository" (return $ Just un == sUser s) ]
+    (\(OK _) -> do
+        let ps = map (\(n, _) ->
+                       let split = wordsBy (== ':') n
+                       in (split !! 1, split !! 2, split !! 3))
+                     (filter (\(n, _) -> "merge:" `isPrefixOf` n) (getInputs e))
+            gps = groupBy (\a b -> fst a == fst b) (map (\(o, n, p) -> ((o, n), p)) ps)
+            groupedPatches = map (\r@((k, _):_) -> (k, map snd r)) gps
+
+        mapM (\(r, ps') -> do
+                 Just f <- query (GetRepository r)
+                 mergePatches f ps') groupedPatches
+
+        success "Patches merged!" s
+
+        redirectTo ('/' : un ++ "/" ++ rn ++ "/forks"))
+   (\(Invalid f) -> notify Warning s f >> redirectTo "/")
