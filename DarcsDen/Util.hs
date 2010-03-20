@@ -5,6 +5,10 @@ import Control.Monad (unless, when)
 
 -- some instance settings, defined here for now:
 
+-- | Developer mode. When this is True, darcsden will not add users or groups to the system.
+devmode :: Bool
+devmode = False
+
 -- | Base url for the darcsden instance, used when absolute urls are required. Should end with /.
 baseurl :: String
 baseurl = "http://darcsden.com/"

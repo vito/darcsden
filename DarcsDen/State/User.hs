@@ -19,6 +19,7 @@ import DarcsDen.Dirty
 import DarcsDen.State.Repository
 import DarcsDen.State.Util
 import qualified DarcsDen.State.Old.User1 as Old
+import DarcsDen.Util (devmode)
 
 
 data User = User { uName :: String
@@ -83,12 +84,10 @@ merge a b = concat (zipWith (\ x y -> [x, y]) a b) ++ leftover
                                else drop (length b) a
 
 newUser :: User -> Dirty IO User
-newUser u = do shell "useradd" ["-G", "darcsden", name]
-
+newUser u = do unless devmode $ shell "useradd" ["-G", "darcsden", name]
                io (createDirectoryIfMissing True $ userDir name)
-               shell "chown" [name, userDir name]
-               shell "chgrp" [name, userDir name]
-
+               unless devmode $ shell "chown" [name, userDir name]
+               unless devmode $ shell "chgrp" [name, userDir name]
                io (update (AddUser u))
                return u
   where name = uName u

@@ -87,16 +87,13 @@ $(mkMethods ''Repositories [ 'getRepository
                            ])
 
 newRepository :: Repository -> Dirty IO Repository
-newRepository r = do shell "groupadd" [group]
-                     shell "usermod" ["-aG", group, rOwner r]
-
+newRepository r = do unless devmode $ shell "groupadd" [group]
+                     unless devmode $ shell "usermod" ["-aG", group, rOwner r]
                      io $ do update (AddRepository r)
                              createDirectoryIfMissing True repo
                              withCurrentDirectory repo (R.createRepository [])
                              writeFile (repo ++ "/_darcs/prefs/defaults") defaults
-
                              setRepoPermissions r
-
                      return r
   where group = repoGroup (rOwner r) (rName r)
         repo = repoDir (rOwner r) (rName r)
