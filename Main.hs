@@ -65,7 +65,7 @@ runCommand ["get", "user", name]
   = do user <- query (GetUser name)
        case user of
          Nothing -> outputStrLn "No user found."
-         Just u -> do
+         Just u ->
            cols [ ("name", uName u)
                 , ("full name", uFullName u)
                 , ("website", uWebsite u)
@@ -77,18 +77,20 @@ runCommand ["get", "repo", user, name]
        case repo of
          Nothing -> outputStrLn "No repository found."
          Just r -> do
+           ms <- lift (members r)
            cols [ ("name", rName r)
                 , ("owner", rOwner r)
                 , ("description", rDescription r)
                 , ("website", rWebsite r)
                 , ("created", show $ rCreated r)
                 , ("fork of", show $ rForkOf r)
+                , ("members", show $ ms)
                 ]
 runCommand ["get", "session", sid]
   = do sess <- query (GetSession sid)
        case sess of
          Nothing -> outputStrLn "No session found."
-         Just s -> do
+         Just s ->
            cols [ ("id", sID s)
                 , ("user", show $ sUser s)
                 , ("notifications", show $ sNotifications s)
@@ -155,10 +157,11 @@ admin = do input <- getInputLine "> "
            case input of
              Nothing -> return ()
              Just "quit" -> return ()
+             Just "" -> admin
              Just cmd -> do runCommand (words cmd)
                             admin
 
 cols :: [(String, String)] -> InputT IO ()
-cols cs = let longest = (+ 1) . head . reverse . sort . map (\(n, _) -> length n) $ cs
+cols cs = let longest = (+ 1) . last . sort . map (\(n, _) -> length n) $ cs
               pad n = n ++ replicate (longest - length n) ' '
           in mapM_ (\(n, v) -> outputStrLn (pad n ++ ": " ++ v)) cs
