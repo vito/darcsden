@@ -162,7 +162,6 @@ repoAtomFeed un rn s _ = do
                              , var "patches" patches
                              , var "baseurl" baseurl
                              ] s
-      where baseurl = "http://darcsden.com/"
 
 repoPatch :: String -> String -> String -> Page
 repoPatch un rn p s _ = do

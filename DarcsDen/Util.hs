@@ -3,6 +3,13 @@ module DarcsDen.Util where
 import System.Directory
 import Control.Monad (unless, when)
 
+-- some instance settings, defined here for now:
+
+-- | Base url for the darcsden instance, used when absolute urls are required. Should end with /.
+baseurl :: String
+baseurl = "http://darcsden.com/"
+
+--
 
 recursively :: (FilePath -> IO ()) -> FilePath -> IO ()
 recursively f p = do dir <- doesDirectoryExist p
