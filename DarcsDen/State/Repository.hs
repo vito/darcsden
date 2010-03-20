@@ -136,7 +136,7 @@ bootstrapRepository r url
 forkRepository :: String -> String -> Repository -> Dirty IO Repository
 forkRepository un rn r = do new <- newRepository (r { rOwner = un
                                                     , rName = rn
-                                                    , rForkOf = Just (un, rn)
+                                                    , rForkOf = Just (rOwner r, rName r)
                                                     })
                             bootstrapRepository new orig
                             return new

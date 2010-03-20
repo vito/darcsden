@@ -43,7 +43,7 @@ main = withProgName "darcsden" $ do
          shutdownSystem state
 
 runCommand :: [String] -> InputT IO ()
-runCommand ["help"] = cols [ ("exit", "shut down darcsden")
+runCommand ["help"] = cols [ ("quit", "shut down darcsden")
                            , ("help", "show this message")
                            , ("get user (name)", "print user (name)")
                            , ("get repo (owner) (name)", "print (owner)'s (name) repository")
