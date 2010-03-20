@@ -27,8 +27,6 @@ import DarcsDen.State.Util
 import DarcsDen.Util
 import qualified DarcsDen.State.Old.Repository0 as Old
 
-instance ToSElem ClockTime where toSElem = toSElem . show
-
 data Repository = Repository { rName :: String
                              , rOwner :: String
                              , rDescription :: String
@@ -184,6 +182,8 @@ removeMember m r = do gs <- lift getAllGroupEntries
 
 repoGroup :: String -> String -> String
 repoGroup un rn = md5sum . BS.pack . map (fromIntegral . ord) $ un ++ "/" ++ rn
+
+instance ToSElem ClockTime where toSElem = toSElem . show
 
 instance ToSElem Repository where
   toSElem r = SM (M.fromList [ ("name", toSElem $ rName r)
