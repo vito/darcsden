@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 module DarcsDen.Handler.Repository where
 
+import Control.Monad (when)
 import Control.Monad.Trans
 import Data.Char (isNumber, isSpace, toLower)
 import Data.List (groupBy, inits, isPrefixOf, sortBy)
@@ -333,11 +334,11 @@ mergeForks un rn s e
             gps = groupBy (\a b -> fst a == fst b) (map (\(o, n, p) -> ((o, n), p)) ps)
             groupedPatches = map (\r@((k, _):_) -> (k, map snd r)) gps
 
-        mapM (\(r, ps') -> do
-                 Just f <- query (GetRepository r)
-                 mergePatches f ps') groupedPatches
+        merge <- mapM (\(r, ps') -> do
+                          Just f <- query (GetRepository r)
+                          mergePatches f ps' s) groupedPatches
 
-        success "Patches merged!" s
+        when (and merge) (success "Patches merged!" s)
 
         redirectTo ('/' : un ++ "/" ++ rn ++ "/forks"))
    (\(Invalid f) -> notify Warning s f >> redirectTo "/")

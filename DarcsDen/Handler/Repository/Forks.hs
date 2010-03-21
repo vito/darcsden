@@ -2,10 +2,12 @@
 module DarcsDen.Handler.Repository.Forks where
 
 import Darcs.CommandsAux (check_paths)
-import Darcs.Hopefully (hopefully)
+import Darcs.Flags (DarcsFlag(SkipConflicts))
+import Darcs.Hopefully (hopefully, info)
 import Darcs.Patch (patch2patchinfo)
 import Darcs.Patch.Depends (get_common_and_uncommon)
 import Darcs.Patch.Info (make_filename)
+import Darcs.Patch.Permutations (partitionFL)
 import Darcs.Repository
   ( ($-)
   , applyToWorking
@@ -17,6 +19,7 @@ import Darcs.Repository
   , withGutsOf
   , withRepoLock
   )
+import Darcs.SelectChanges (filterOutConflicts)
 import Darcs.Utils (withCurrentDirectory)
 import Darcs.Witnesses.Ordered
 import Darcs.Witnesses.Sealed
@@ -31,6 +34,7 @@ import qualified Data.Map as M
 import DarcsDen.Handler.Repository.Changes
 import DarcsDen.Handler.Repository.Util
 import DarcsDen.State.Repository
+import DarcsDen.State.Session
 import DarcsDen.State.Util
 
 data Fork = Fork Repository [PatchLog]
@@ -59,27 +63,37 @@ getForkChanges r = do Just rParent <- query (GetRepository (fromJust (rForkOf r)
 
                       return $ Fork r cs
 
-mergePatches :: Repository -> [String] -> IO ()
-mergePatches r ps
-  = do Just rParent <- query (GetRepository (fromJust (rForkOf r)))
+mergePatches :: Repository -> [String] -> Session -> IO Bool
+mergePatches r ps s
+  = withCurrentDirectory orig $ withRepoLock [] $- \pr -> do
+      cr <- identifyRepositoryFor pr fork
 
-       let pdir = repoDir (rOwner rParent) (rName rParent)
-           cdir = repoDir (rOwner r) (rName r)
+      pps <- read_repo pr
+      cps <- read_repo cr
 
-       withCurrentDirectory pdir $ withRepoLock [] $- \pr -> do
-         cr <- identifyRepositoryFor pr cdir
+      let (_, us :\/: them) = get_common_and_uncommon (pps, cps)
+          -- to include dependencies:
+          -- { (_ :> revChosen) = partitionRL (\p -> ... `notElem` ps) them; chosen = reverseRL revChosen }
+          (chosen :> _) = partitionFL (\p -> take 20 (make_filename (info p)) `elem` ps) (reverseRL them)
 
-         pps <- read_repo pr
-         cps <- read_repo cr
+      (conflicts, Sealed merge) <- filterOutConflicts [SkipConflicts] us pr chosen
 
-         let (_, us :\/: them) = get_common_and_uncommon (pps, cps)
-             chosen = filterFL (\p -> if take 20 (make_filename (patch2patchinfo (hopefully p))) `elem` ps
-                                         then NotEq
-                                         else IsEq) (reverseRL them)
+      if conflicts
+         then do warn ("Patches for fork \"" ++ rOwner r ++ "/" ++ rName r ++ "\" could not be applied cleanly and have been skipped.") s
+                 return False
+         else do
+      check_paths [] merge
 
-         check_paths [] chosen
+      Sealed pw <- tentativelyMergePatches pr "pull" [] (reverseRL us) merge
+      invalidateIndex pr
+      withGutsOf pr $ do finalizeRepositoryChanges pr
+                         applyToWorking pr [] pw
 
-         Sealed pw <- tentativelyMergePatches pr "pull" [] (reverseRL us) chosen
-         invalidateIndex pr
-         withGutsOf pr $ do finalizeRepositoryChanges pr
-                            applyToWorking pr [] pw
+      Just p <- query (GetRepository parent)
+      setRepoPermissions p
+      setRepoPermissions r
+
+      return True
+  where parent = fromJust (rForkOf r)
+        orig = uncurry repoDir parent
+        fork = repoDir (rOwner r) (rName r)
