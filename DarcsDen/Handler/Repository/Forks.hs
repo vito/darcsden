@@ -3,11 +3,10 @@ module DarcsDen.Handler.Repository.Forks where
 
 import Darcs.CommandsAux (check_paths)
 import Darcs.Flags (DarcsFlag(SkipConflicts))
-import Darcs.Hopefully (hopefully, info)
-import Darcs.Patch (patch2patchinfo)
 import Darcs.Patch.Depends (get_common_and_uncommon)
+import Darcs.Hopefully (hopefully, info)
 import Darcs.Patch.Info (make_filename)
-import Darcs.Patch.Permutations (partitionFL)
+import Darcs.Patch.Permutations
 import Darcs.Repository
   ( ($-)
   , applyToWorking
@@ -57,9 +56,13 @@ getForkChanges r = do Just rParent <- query (GetRepository (fromJust (rForkOf r)
                       cps <- read_repo cr
 
                       let (_, _ :\/: them) = get_common_and_uncommon (pps, cps)
-                          new = mapRL hopefully them
+                          depends = findAllDeps (reverseRL them)
 
-                      cs <- mapM (toLog . patch2patchinfo) new
+                      cs <- mapM (\p -> do
+                                     l <- toLog (hopefully p)
+                                     case lookup (make_filename (info p)) depends of
+                                       Just ds -> return l { pDepends = map (take 20 . make_filename . info) ds }
+                                       Nothing -> return l) (unsafeUnRL them)
 
                       return $ Fork r cs
 
@@ -72,13 +75,12 @@ mergePatches r ps s
       cps <- read_repo cr
 
       let (_, us :\/: them) = get_common_and_uncommon (pps, cps)
-          -- to include dependencies:
-          -- { (_ :> revChosen) = partitionRL (\p -> ... `notElem` ps) them; chosen = reverseRL revChosen }
-          (chosen :> _) = partitionFL (\p -> take 20 (make_filename (info p)) `elem` ps) (reverseRL them)
+          (chosen :> _) = partitionFL ((`elem` ps) . take 20 . make_filename . info)
+                                      (reverseRL them)
 
       (conflicts, Sealed merge) <- filterOutConflicts [SkipConflicts] us pr chosen
 
-      if conflicts
+      if conflicts || lengthFL merge < length ps
          then do warn ("Patches for fork \"" ++ rOwner r ++ "/" ++ rName r ++ "\" could not be applied cleanly and have been skipped.") s
                  return False
          else do

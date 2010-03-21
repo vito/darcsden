@@ -1,9 +1,12 @@
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable, GADTs #-}
 module DarcsDen.Handler.Repository.Changes where
 
-import Darcs.Patch.Info (PatchInfo, pi_date, pi_name, pi_author, pi_log, make_filename)
+import Darcs.Patch.Info (pi_date, pi_name, pi_author, pi_log, make_filename)
 import Darcs.Patch.FileName (fn2fp)
+import Darcs.Patch.Patchy (Commute(..))
 import Darcs.Patch.Prim (Prim(..), DirPatchType(..), FilePatchType(..))
+import Darcs.Hopefully (PatchInfoAnd, info)
+import Darcs.Witnesses.Ordered
 import Data.Data (Data)
 import Data.List (nub)
 import Data.Typeable (Typeable)
@@ -25,6 +28,7 @@ data PatchLog = PatchLog { pID :: String
                          , pAuthor :: String
                          , pIsUser :: Bool
                          , pLog :: [String]
+                         , pDepends :: [String]
                          }
                 deriving (Eq, Show, Data, Typeable)
 
@@ -62,18 +66,25 @@ data PatchChanges = PatchChanges { pPatch :: PatchLog
                     deriving (Eq, Show, Data, Typeable)
 
 
-toLog :: PatchInfo -> IO PatchLog
-toLog p = do mu <- query $ GetUserByEmail (emailFrom (pi_author p))
+toLog :: P.Named p -> IO PatchLog
+toLog p = do mu <- query $ GetUserByEmail (emailFrom (pi_author i))
 
              let (author, isUser) = case mu of
-                   Nothing -> (pi_author p, False)
+                   Nothing -> (pi_author i, False)
                    Just u -> (uName u, True)
 
-             return $ PatchLog (take 20 $ make_filename p) (calendarTimeToString $ pi_date p) (pi_name p) author isUser (pi_log p)
+             return $ PatchLog (take 20 $ make_filename i)
+                               (calendarTimeToString $ pi_date i)
+                               (pi_name i)
+                               author
+                               isUser
+                               (pi_log i)
+                               (map (take 20 . make_filename) (P.getdeps p))
   where emailFrom = reverse . takeWhile (/= '<') . tail . reverse
+        i = P.patch2patchinfo p
 
 toChanges :: P.Effect p => P.Named p -> IO PatchChanges
-toChanges p = do l <- toLog (P.patch2patchinfo p)
+toChanges p = do l <- toLog p
                  return . PatchChanges l . simplify [] . map primToChange . WO.unsafeUnFL $ P.effect p
   where simplify a [] = reverse a
         simplify a (c@(FileChange n t):cs) | t `elem` [FileAdded, FileRemoved, FileBinary]
@@ -111,7 +122,7 @@ getChanges :: String -> Int -> IO ([PatchLog], Int)
 getChanges dir page = R.withRepositoryDirectory [] dir $ \dr ->
   do pset <- R.read_repo dr
      let ps = fromPS pset
-     ls <- mapM (toLog . P.patch2patchinfo) . paginate 30 page $ ps
+     ls <- mapM toLog . paginate 30 page $ ps
      return (ls, ceiling ((fromIntegral (length ps) :: Double) / 30))
 
 getPatch :: String -> String -> IO PatchChanges
@@ -140,3 +151,34 @@ summarize a (_:cs) = summarize a cs
 isModification :: PatchChange -> Bool
 isModification (FileChange _ (FileHunk _ _ _)) = True
 isModification _ = False
+
+-- The following is ported over from Camp.
+findAllDeps :: Commute p => FL (PatchInfoAnd p) -> [(String, [PatchInfoAnd p])]
+findAllDeps = f NilRL
+    where f :: Commute p => RL (PatchInfoAnd p) -> FL (PatchInfoAnd p) -> [(String, [PatchInfoAnd p])]
+          f _ NilFL = []
+          f past (p :>: ps) = (make_filename (info p), findDeps past p) : f (p :<: past) ps
+
+findDeps :: Commute p => RL (PatchInfoAnd p) -> PatchInfoAnd p -> [PatchInfoAnd p]
+findDeps NilRL _ = []
+findDeps (p :<: ps) me = case commute (p :> me) of
+                            Just (me' :> _) -> findDeps ps me'
+                            Nothing ->
+                                case commuteOut ps p of
+                                HiddenFrom ps' ->
+                                    p : findDeps ps' me
+
+data HiddenFrom seq p
+    where HiddenFrom :: seq p -> HiddenFrom seq p
+
+commuteOut :: Commute p => RL (PatchInfoAnd p) -> PatchInfoAnd p -> HiddenFrom RL (PatchInfoAnd p)
+commuteOut NilRL _ = HiddenFrom NilRL
+commuteOut (p :<: ps) me = case commute (p :> me) of
+                              Just (me' :> p') ->
+                                  case commuteOut ps me' of
+                                  HiddenFrom ps' ->
+                                      HiddenFrom (p' :<: ps')
+                              Nothing ->
+                                  case commuteOut ps p of
+                                  HiddenFrom ps' ->
+                                      commuteOut ps' me
