@@ -11,6 +11,8 @@ $repobase(content={
 	  :: <span class="relatize date">$log.pDate$</span>
 	</h2>
 	<p>$log.pName$</p>
+	$if(log.pLog)$<p>$log.pLog;separator="
+"$</p>$endif$
   </li>
 </ul>
 
