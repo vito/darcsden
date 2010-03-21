@@ -28,8 +28,8 @@ import DarcsDen.Validate
 handleRepo :: String -> String -> [String] -> Page
 handleRepo un rn action s e
   = validate e [ io "user does not exist" $ fmap (/= Nothing) (query (GetUser un))
-               , when (io "repository does not exist" $ fmap (/= Nothing) (query (GetRepository (un, rn))))
-                      (\(OK _) -> io "repository invalid" $ fmap (either (const False) (const True)) $ getRepo (repoDir name repo))
+               , iff (io "repository does not exist" $ fmap (/= Nothing) (query (GetRepository (un, rn))))
+                     (\(OK _) -> io "repository invalid" $ fmap (either (const False) (const True)) $ getRepo (repoDir name repo))
                ]
     (\(OK _) ->
       case action of
@@ -56,8 +56,8 @@ initialize s@(Session { sUser = Nothing }) _ = warn "You must be logged in to cr
 initialize s (Env { requestMethod = GET }) = doPage "init" [] s
 initialize s@(Session { sUser = Just n }) e
   = validate e
-    [ when (nonEmpty "name" `And` predicate "name" isSane "contain only alphanumeric characters, underscores, and hyphens")
-           (\(OK i) -> io "destination repository already exists" $ fmap (== Nothing) (query (GetRepository (n, i ! "name"))))
+    [ iff (nonEmpty "name" `And` predicate "name" isSane "contain only alphanumeric characters, underscores, and hyphens")
+          (\(OK i) -> io "destination repository already exists" $ fmap (== Nothing) (query (GetRepository (n, i ! "name"))))
     , io "user is not valid" (fmap (/= Nothing) (query (GetUser n)))
     ]
     (\(OK r) -> do
@@ -290,8 +290,8 @@ forkRepoAs :: String -> String -> Page
 forkRepoAs _ _ s@(Session { sUser = Nothing }) _ = warn "You must be logged in to fork a repository." s >> redirectTo "/"
 forkRepoAs un rn s@(Session { sUser = Just n }) e
   = validate e
-    [ when (nonEmpty "name")
-           (\(OK i) -> io "destination repository already exists" $ fmap (== Nothing) (query (GetRepository (n, i ! "name"))))
+    [ iff (nonEmpty "name")
+          (\(OK i) -> io "destination repository already exists" $ fmap (== Nothing) (query (GetRepository (n, i ! "name"))))
     ]
     (\(OK i) -> do
         Just r <- query (GetRepository (un, rn))

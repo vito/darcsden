@@ -27,14 +27,14 @@ user name s e = do m <- query (GetUser name)
 
 register :: Page
 register s (Env { requestMethod = GET }) = doPage "register" [] s
-register s e = validate e [ when (nonEmpty "name")
-                                 (\(OK r) -> io "name is already in use" $ do
-                                     u <- query (GetUser (r ! "name"))
-                                     return (u == Nothing))
+register s e = validate e [ iff (nonEmpty "name")
+                                (\(OK r) -> io "name is already in use" $ do
+                                    u <- query (GetUser (r ! "name"))
+                                    return (u == Nothing))
                           , predicate "name" isSane "contain only alphanumeric characters, underscores, and hyphens"
                           , nonEmpty "email"
-                          , when (nonEmpty "password1" `And` nonEmpty "password2")
-                                 (const $ equal "password1" "password2")
+                          , iff (nonEmpty "password1" `And` nonEmpty "password2")
+                                (const $ equal "password1" "password2")
                           , predicate "email" (const True) "be a valid email"
                           ]
                (\(OK r) -> do
@@ -68,14 +68,14 @@ login :: Page
 login s (Env { requestMethod = GET }) = doPage "login" [] s
 login s e
   = validate e
-    [ when (nonEmpty "name" `And` nonEmpty "password")
-           (\(OK r) ->
-             io "invalid username or password" $ do
-               c <- query $ GetUser (r ! "name")
-               case c of
-                 Nothing -> return False
-                 Just u -> let hashed = hashPassword (r ! "password") (uSalt u)
-                           in return $ uPassword u == hashed)
+    [ iff (nonEmpty "name" `And` nonEmpty "password")
+          (\(OK r) ->
+            io "invalid username or password" $ do
+              c <- query $ GetUser (r ! "name")
+              case c of
+                Nothing -> return False
+                Just u -> let hashed = hashPassword (r ! "password") (uSalt u)
+                          in return $ uPassword u == hashed)
     ]
     (\(OK r) -> setUser (Just $ r ! "name") s
                   >>= success "Logged in!"

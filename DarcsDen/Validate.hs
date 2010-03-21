@@ -106,8 +106,8 @@ validate e ts p f = check e ts >>= either f p
 predicate :: String -> (String -> Bool) -> String -> Valid
 predicate = Predicate
 
-when :: Valid -> (OK -> Valid) -> Valid
-when = If
+iff :: Valid -> (OK -> Valid) -> Valid
+iff = If
 
 io :: String -> IO Bool -> Valid
 io = IOPred
