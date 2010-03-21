@@ -7,7 +7,6 @@ content={
     <h1><a href="/$fork.repo.owner$/$fork.repo.name$">$fork.repo.name$</a> :: $fork.repo.owner$</h1>
     <table class="fork-log">
       $fork.changes:{ log |
-      $log.pDepends$
       <tr id="change-$log.pID$" class="change$log.pDepends:{d| depends-on-$d$}$">
         $if(isAdmin)$
         <td class="merge">
