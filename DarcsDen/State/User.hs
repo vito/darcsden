@@ -76,12 +76,9 @@ salt num = do r <- replicateM num (randomRIO (0 :: Int, 255))
 
 hashPassword :: String -> [Octet] -> [Octet]
 hashPassword p s = hash (merge (map (fromIntegral . ord) p) s)
-
-merge :: [a] -> [a] -> [a]
-merge a b = concat (zipWith (\ x y -> [x, y]) a b) ++ leftover
-            where leftover = if length a < length b
-                               then drop (length a) b
-                               else drop (length b) a
+  where merge a b = concat (zipWith (\ x y -> [x, y]) a b) ++ (if length a < length b
+                                                                  then drop (length a) b
+                                                                  else drop (length b) a)
 
 newUser :: User -> Dirty IO User
 newUser u = do unless devmode $ shell "useradd" ["-G", "darcsden", name]
