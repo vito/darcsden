@@ -53,16 +53,15 @@ setUser :: Maybe String -> Session -> IO Session
 setUser n s = let new = s { sUser = n }
               in update (UpdateSession new) >> return new
 
-notice :: (String -> Notification) -> String -> Session -> IO Session
+notice :: (String -> Notification) -> String -> Session -> IO ()
 notice n m s = do Just s' <- query (GetSession (sID s))
-                  let new = s' { sNotifications = sNotifications s' ++ [n m] }
-                  update (UpdateSession new) >> return new
+                  update (UpdateSession s' { sNotifications = sNotifications s' ++ [n m] })
 
-warn :: String -> Session -> IO Session
+warn :: String -> Session -> IO ()
 warn = notice Warning
 
-success :: String -> Session -> IO Session
+success :: String -> Session -> IO ()
 success = notice Success
 
-message :: String -> Session -> IO Session
+message :: String -> Session -> IO ()
 message = notice Message
