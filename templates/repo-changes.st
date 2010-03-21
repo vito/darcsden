@@ -14,6 +14,8 @@ $repobase(
       :: <span class="relatize date">$log.pDate$</span>
     </h2>
     <p><a href="/$user.uName$/$repo.name$/patch/$log.pID$">$log.pName$</a></p>
+    $if(log.pLog)$<p>$log.pLog;separator="
+"$</p>$endif$
   </li>
   }$
 </ul>
