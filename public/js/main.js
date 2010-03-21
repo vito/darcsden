@@ -1,6 +1,61 @@
 $(function(){
-	$(".relatize").each(function(){
-		$(this).attr("title", $(this).text());
-		$(this).relatizeDate();
-	});
-});
+        $(".relatize").each(function(){
+                $(this).attr("title", $(this).text());
+                $(this).relatizeDate();
+            });
+
+        $(document.createElement("canvas")).attr("id", "depends_canvas").prependTo("form.subtle");
+        $("#depends_canvas").css({
+                float: "left",
+                    marginLeft: -300,
+                    marginTop: $("form.subtle h1").height() + parseInt($("form.subtle h1").css("margin-bottom"), 10),
+                    }).attr({
+                            width: 300,
+                            height: $(".fork-log").height()
+                                }); //.attr({ width: $(document).width(), height: $(document).height() });
+
+        var canvas = document.getElementById("depends_canvas").getContext("2d");
+        var dependency_displayed = [];
+
+        $(".fork-log .change").each(function(){
+                var change = $(this);
+                var depends = $(this).attr("class").split(" ").slice(1).map(function(c) { return c.replace(/depends-on-/, "") });
+                $(this).find(":checkbox").click(function(){
+                        var checked = $(this).attr("checked");
+                        $(depends).each(function(i, dep){
+                                $("#change-"+ dep +" :checkbox").trigger("click");
+                            });
+                    });
+
+                canvas.fillStyle = "#000";
+                canvas.strokeStyle = "#ccc";
+                canvas.lineWidth = 2;
+
+                $(depends).each(function(i, dep){
+                        var depend = $("#change-"+ dep);
+
+                        var line_from_x = 300;
+                        var line_from_y = change.offset().top - $(".fork-log").offset().top + 12;
+
+                        var line_to_x = 299;
+                        var line_to_y = depend.offset().top - $(".fork-log").offset().top + 12;
+
+                        var height = line_to_y - line_from_y;
+                        var width = line_to_x - line_from_x;
+
+                        var median = line_from_y + (line_to_y - line_from_y);
+                        var height = line_to_y - line_from_y;
+                        var curve = line_from_x - 5 - (20 * (height / 50));
+
+                        canvas.beginPath();
+                        canvas.moveTo(line_from_x, line_from_y);
+                        canvas.quadraticCurveTo(curve, median, line_to_x, line_to_y);
+                        canvas.stroke();
+
+                        canvas.lineTo(line_to_x - 4, line_to_y - 4);
+                        canvas.moveTo(line_to_x, line_to_y);
+                        canvas.lineTo(line_to_x - 4, line_to_y + 4);
+                        canvas.stroke();
+                    });
+            });
+    });
