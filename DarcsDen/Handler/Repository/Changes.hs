@@ -58,6 +58,9 @@ data FileChange = FileRemoved
                            , fchAdd :: String
                            }
                 | FileBinary
+                | FileReplace { fchFind :: String
+                              , fchReplace :: String
+                              }
                 deriving (Eq, Show, Data, Typeable)
 
 data PatchChanges = PatchChanges { pPatch :: PatchLog
@@ -89,6 +92,8 @@ toChanges p = do l <- toLog p
   where simplify a [] = reverse a
         simplify a (c@(FileChange n t):cs) | t `elem` [FileAdded, FileRemoved, FileBinary]
           = simplify (c:filter (notFile n) a) (filter (notFile n) cs)
+        simplify a (c@(FileChange _ (FileReplace _ _)):cs)
+          = simplify (c:a) cs
         simplify a (FileChange n (FileHunk l f t):cs)
           = simplify (FileChange n (FileHunk l (hl n f) (hl n t)):a) cs
         simplify a (c@(PrefChange _ _ _):cs) = simplify (c:a) cs
@@ -116,6 +121,7 @@ fromFP RmFile = FileRemoved
 fromFP AddFile = FileAdded
 fromFP (Hunk l rs as) = FileHunk l (unlines $ map fromBS rs) (unlines $ map fromBS as)
 fromFP (Binary _ _) = FileBinary
+fromFP (TokReplace _ f r) = FileReplace f r
 fromFP a = error ("fromFP not supported for " ++ show a)
 
 getChanges :: String -> Int -> IO ([PatchLog], Int)
@@ -140,6 +146,10 @@ summarize :: [[(String, String)]] -> [PatchChange] -> [M.Map String String]
 summarize a [] = map M.fromList $ nub a
 summarize a (FileChange n FileRemoved:cs) = summarize (a ++ [[("removed", n)]]) cs
 summarize a (FileChange n FileAdded:cs) = summarize (a ++ [[("added", n)]]) cs
+summarize a (FileChange n (FileReplace f t):cs) = summarize (a ++ [[ ("replaced", n)
+                                                                   , ("from", f)
+                                                                   , ("to", t)
+                                                                   ]]) cs
 summarize a (FileChange n _:cs) = summarize (a ++ [[("modified", n)]]) cs
 summarize a (PrefChange n f t:cs) = summarize (a ++ [[ ("preference", n)
                                                        , ("from", f)

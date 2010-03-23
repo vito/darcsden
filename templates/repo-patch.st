@@ -28,6 +28,8 @@ $if(summary)$
   <li class="summary-removed">$change.removed$</li>
   $elseif(change.added)$
   <li class="summary-added"><a href="/$repo.owner$/$repo.name$/browse/$change.added$">$change.added$</a></li>
+  $elseif(change.replaced)$
+  <li class="summary-replace"><a href="/$repo.owner$/$repo.name$/browse/$change.replaced$">$change.replaced$</a> replaced <code>$change.from$</code> with <code>$change.to$</code></a></li>
   $endif$
   }$
 </ul>

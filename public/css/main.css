@@ -227,9 +227,14 @@ form .cancel-buttons a.cancel {
 .repo-files li a,
 .patch-summary li a,
 .patch-summary li.summary-preference,
-.patch-summary li.summary-removed {
+.patch-summary li.summary-removed,
+.patch-summary li.summary-replace {
 	display: block;
 	padding: .5em 0 .5em 24px;
+}
+.patch-summary li.summary-replace a {
+  display: inline;
+  padding: 0;
 }
 .repo-files li.up {
 	padding: 0;
