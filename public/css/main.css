@@ -302,6 +302,12 @@ div.readme h2 {
 div.readme h3 {
 	font-size: 1.4em;
 }
+div.readme pre {
+    font-size: 1.2em;
+    background: #000;
+    color: #fff;
+    padding: .6em 1em;
+}
 
 
 .patch-changes {
