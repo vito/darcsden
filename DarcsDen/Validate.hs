@@ -1,6 +1,5 @@
 module DarcsDen.Validate where
 
-import Happstack.State
 import Data.Either (lefts)
 import Hack (Env)
 import qualified Data.Map as M
@@ -113,5 +112,5 @@ io :: String -> IO Bool -> Valid
 io = IOPred
 
 -- Notifications
-notify :: (String -> Notification) -> Session -> [Valid] -> IO ()
-notify n s vs = update $ UpdateSession (s { sNotifications = map (n . explain) vs })
+notify :: (String -> Notification) -> Session -> [Valid] -> IO (Maybe Session)
+notify n s vs = updateSession (s { sNotifications = map (n . explain) vs })

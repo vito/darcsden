@@ -1,25 +1,18 @@
 module DarcsDen.HackUtils where
 
 import Control.Monad.Reader
-import Data.Char (chr, isSpace)
-import Data.List (intercalate, isPrefixOf)
+import Data.Char (isSpace)
+import Data.List (intercalate)
 import Data.List.Split (wordsBy)
 import Data.Maybe (fromMaybe)
+import Database.CouchDB
 import Hack
-import Hack.Contrib.Mime
-import Happstack.State
+import HSP
 import Network.URI (unEscapeString)
-import System.Directory (doesFileExist, canonicalizePath)
-import System.FilePath (takeExtension)
-import System.Random (randomRIO)
 import System.Time
 import System.Locale (defaultTimeLocale)
-import Text.StringTemplate
-import Text.StringTemplate.GenericStandard()
-import qualified Data.ByteString.Lazy as LS
 import qualified Data.ByteString.Lazy.Char8 as LC
 import qualified Data.Map as M
-import qualified Data.Text.Lazy as LT
 
 import DarcsDen.State.Session
 
@@ -28,7 +21,10 @@ type Page = Session -> Application
 
 
 notFound :: Page -- TODO: 404 error code
-notFound _ _ = return $ Response 404 [("Content-type", "text-plain")] (LC.pack "404 not found")
+notFound _ _ = return $ Response 404 [("Content-type", "text/plain")] (LC.pack "404 not found")
+
+errorPage :: String -> Page
+errorPage msg _ _ = return $ Response 500 [("Content-type", "text/plain")] (LC.pack msg)
 
 redirectTo :: String -> IO Response
 redirectTo dest = return $ Response 302 [("Location", dest)] LC.empty
@@ -64,80 +60,30 @@ readCookies e = readCookies' M.empty (fromMaybe "" (lookup "Cookie" (http e)))
                                    (key, val) = span (/= '=') crumb
                                in readCookies' (M.insert key (dropWhile (== '=') val) acc) (dropWhile (\x -> x == ';' || isSpace x) rest)
 
-sessID :: IO String
-sessID = replicateM 32 randomAlphaNum
-  where randomAlphaNum = do which <- randomRIO (0, 2 :: Integer)
-                            random which
-        random 0 = fmap chr $ randomRIO (48, 57)
-        random 1 = fmap chr $ randomRIO (97, 122)
-        random 2 = fmap chr $ randomRIO (65, 90)
-        random _ = error "impossible: invalid random type"
-
 withSession :: Env -> (Session -> IO Response) -> IO Response
 withSession e r = case M.lookup "DarcsDenSession" cookies of
                     Nothing -> newSession r
-                    Just sid -> do ms <- query (GetSession sid)
+                    Just sid -> do ms <- getSession (doc sid)
                                    case ms of
                                      Nothing -> newSession r
                                      Just s -> r s
     where cookies = readCookies e
 
 newSession :: (Session -> IO Response) -> IO Response
-newSession r = do sid <- sessID
-                  update $ AddSession (session sid)
-                  setCookies [("DarcsDenSession", sid)] (r (session sid))
-    where session sid = Session { sID = sid
-                                , sUser = Nothing
-                                , sNotifications = []
-                                }
-
-serveDirectory :: String -> [String] -> Page
-serveDirectory prefix unsafe s e
-  = do safe <- canonicalizePath (prefix ++ intercalate "/" unsafe)
-       exists <- doesFileExist safe
-
-       -- Make sure there's no trickery going on here.
-       if not (prefix `isPrefixOf` safe && exists)
-         then notFound s e
-         else do
-
-       let mime = fromMaybe "text/plain" $ lookup_mime_type (takeExtension safe)
-
-       file <- LS.readFile safe
-       return (Response 200 [("Content-Type", mime)] file)
+newSession r = do s <- addSession (Session { sID = Nothing
+                                           , sRev = Nothing
+                                           , sUser = Nothing
+                                           , sNotifications = []
+                                           })
+                  setCookies [("DarcsDenSession", (show $ sID s))] (r s)
 
 -- Page helpers
-doPage :: String -> [StringTemplate LT.Text -> StringTemplate LT.Text] -> Session -> IO Response
-doPage t c s = do Just sess <- query $ GetSession (sID s) -- Session must be re-grabbed for any new notifications to be shown
-                  g1 <- directoryGroup "templates/" :: IO (STGroup LT.Text)
-                  let g2 = setEncoderGroup escapeHtmlString g1
-                      g3 = groupStringTemplates [("noescape", newSTMP "$it$" :: StringTemplate LT.Text)]
-                      g4 = mergeSTGroups g2 g3
-                  let Just tmpl = getStringTemplate t g4
-                  update $ UpdateSession (sess { sNotifications = [] })
-                  return $ Response 200 [("Content-type", "text/html")] (LC.pack (LT.unpack $ render (foldr ($) tmpl (context sess))))
-  where context sess = var "visitor" (sUser sess) : var "notifications" (map toNotify (sNotifications sess)) : c
-
-        toNotify (Success m) = M.fromList [("type", "success"), ("message", m)]
-        toNotify (Warning m) = M.fromList [("type", "warning"), ("message", m)]
-        toNotify (Message m) = M.fromList [("type", "message"), ("message", m)]
-
-replaceLT :: LT.Text -> LT.Text -> LT.Text -> LT.Text
-replaceLT find repl src
-  | LT.null src = src
-  | otherwise = let l = LT.length find
-                in if LT.take (fromIntegral l) src == find
-                     then LT.append repl (replaceLT find repl (LT.drop (fromIntegral l) src))
-                     else LT.cons (LT.head src) (replaceLT find repl (LT.tail src))
-
-escapeHtmlString :: LT.Text -> LT.Text
-escapeHtmlString = repl "<" "&lt;" .
-                   repl ">" "&gt;" .
-                   repl "\"" "&quot;" .
-                   repl "\'" "&#39;" .
-                   repl "&" "&amp;"
-  where repl x y = replaceLT (LT.pack x) (LT.pack y)
-
-var :: (ToSElem a, Stringable b) => String -> a -> StringTemplate b -> StringTemplate b
-var = setAttribute
+doPage :: HSP XML -> Session -> IO Response
+doPage _ s = case sID s of
+                  Just sid -> do
+                      Just sess <- getSession sid -- Session must be re-grabbed for any new notifications to be shown
+                      updateSession (sess { sNotifications = [] })
+                      return $ Response 200 [("Content-type", "text/html")] (LC.pack "TODO")
+                  Nothing -> do
+                      return $ Response 500 [("Content-type", "text/html")] (LC.pack "<h1>Session Not Created</h1>")
 

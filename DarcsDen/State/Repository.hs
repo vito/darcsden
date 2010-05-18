@@ -1,93 +1,126 @@
-{-# LANGUAGE DeriveDataTypeable, FlexibleInstances, MultiParamTypeClasses,
-  TemplateHaskell, TypeFamilies, UndecidableInstances #-}
 module DarcsDen.State.Repository where
 
 import Darcs.Utils (withCurrentDirectory)
-import Control.Monad.Reader
 import Control.Monad.State
 import Data.Char (ord)
-import Data.Data (Data)
 import Data.Digest.OpenSSL.MD5 (md5sum)
 import Data.List (intercalate)
 import Data.List.Split (wordsBy)
-import Data.Typeable (Typeable)
-import Happstack.State
-import Happstack.State.ClockTime
+import Data.Time (UTCTime, formatTime, readTime)
+import Database.CouchDB
 import System.Directory
 import System.Posix.User
 import System.Posix.Files
-import Text.StringTemplate (ToSElem(toSElem))
-import Text.StringTemplate.Classes (SElem(SM))
+import System.Locale (defaultTimeLocale)
+import Text.JSON
 import qualified Darcs.Repository as R
 import qualified Data.ByteString as BS
-import qualified Data.Map as M
 
 import DarcsDen.Dirty
 import DarcsDen.State.Util
 import DarcsDen.Util
-import qualified DarcsDen.State.Old.Repository0 as Old
 
-data Repository = Repository { rName :: String
+data Repository = Repository { rID :: Maybe Doc
+                             , rRev :: Maybe Rev
+                             , rName :: String
                              , rOwner :: String
                              , rDescription :: String
                              , rWebsite :: String
-                             , rCreated :: ClockTime
-                             , rForkOf :: Maybe (String, String)
+                             , rCreated :: UTCTime
+                             , rForkOf :: Maybe Doc
                              }
-                deriving (Eq, Show, Typeable, Data)
+                deriving (Eq, Show)
 
-newtype Repositories = Repositories (M.Map (String, String) Repository)
-    deriving (Show, Typeable)
+instance JSON Repository where
+    readJSON (JSObject js) = do
+        id' <- getID
+        rev' <- getRev
+        name <- getName
+        owner <- getOwner
+        description <- getDescription
+        website <- getWebsite
+        created <- getCreated
+        forkOf <- getForkOf
+        return (Repository (Just id') (Just rev') name owner description website created forkOf)
+        where
+            as = fromJSObject js
+            getID = case lookup "_id" as of
+                         Just i -> readJSON i
+                         _ -> fail "Unable to read Repository"
+            getRev = case lookup "_rev" as of
+                          Just (JSString s) -> return (rev (fromJSString s))
+                          _ -> fail "Unable to read Repository"
+            getName = case lookup "name" as of
+                           Just (JSString n) -> return (fromJSString n)
+                           _ -> fail "Unable to read Repository"
+            getOwner = case lookup "owner" as of
+                            Just (JSString o) -> return (fromJSString o)
+                            _ -> fail "Unable to read Repository"
+            getDescription = case lookup "description" as of
+                                  Just (JSString d) -> return (fromJSString d)
+                                  _ -> fail "Unable to read Repository"
+            getWebsite = case lookup "website" as of
+                              Just (JSString w) -> return (fromJSString w)
+                              _ -> fail "Unable to read Repository"
+            getCreated = case lookup "created" as of
+                              Just (JSString c) -> return (readTime defaultTimeLocale "%F %T" (fromJSString c))
+                              _ -> fail "Unable to read Repository"
+            getForkOf = case lookup "fork_of" as of
+                             Just f@(JSObject _) -> readJSON f
+                             _ -> fail "Unable to read Repository"
+    readJSON _ = fail "Unable to read Repository"
 
-instance Version Repository where
-  mode = extension 1 (Proxy :: Proxy Old.Repository)
+    showJSON r = JSObject (toJSObject ([ ("name", showJSON (rName r))
+                                       , ("owner", showJSON (rOwner r))
+                                       , ("description", showJSON (rDescription r))
+                                       , ("website", showJSON (rWebsite r))
+                                       , ("created", showJSON (formatTime defaultTimeLocale "%F %T" (rCreated r)))
+                                       , ("fork_of", showJSON (rForkOf r))
+                                       ] ++ id' ++ rev'))
+        where
+            id' = case rID r of
+                       Just id'' -> [("_id", showJSON (show id''))]
+                       Nothing -> []
+            rev' = case rRev r of
+                        Just rev'' -> [("_rev", showJSON (show rev''))]
+                        Nothing -> []
 
-instance Version Repositories
 
-$(deriveSerialize ''Repository)
-$(deriveSerialize ''Repositories)
 
-instance Migrate Old.Repository Repository where
-  migrate (Old.Repository name desc website owner _ created)
-    = Repository name owner desc website created Nothing
 
-instance Component Repositories where
-    type Dependencies Repositories = End
-    initialValue = Repositories M.empty
 
-onRepositories :: (M.Map (String, String) Repository -> a) -> Query Repositories a
-onRepositories f = asks (\(Repositories rs) -> f rs)
+getRepository :: (String, String) -> IO (Maybe Repository)
+getRepository (un, rn) = runDB (getDocByView (db "repositories") (doc "repositories") (doc "by_owner_and_name") [un, rn])
 
-getRepository :: (String, String) -> Query Repositories (Maybe Repository)
-getRepository key = onRepositories (M.lookup key)
+getRepositories :: IO [Repository]
+getRepositories = fmap (map snd) (runDB (getAllDocs (db "repositories") []))
 
-getRepositories :: Query Repositories [Repository]
-getRepositories = onRepositories M.elems
+getUserRepositories :: String -> IO [Repository]
+getUserRepositories un = fmap (map snd) (runDB (queryView (db "repositories") (doc "repositories") (doc "by_owner") [("key", showJSON un)]))
 
-getUserRepositories :: String -> Query Repositories [Repository]
-getUserRepositories n = onRepositories (map snd . M.toList . M.filter ((== n) . rOwner))
+addRepository :: Repository -> IO Repository
+addRepository r = do (id', rev') <- runDB (newDoc (db "repositories") r)
+                     return (r { rID = Just id', rRev = Just rev' })
 
-addRepository :: Repository -> Update Repositories ()
-addRepository r = modify (\(Repositories rs) -> Repositories (M.insert (rOwner r, rName r) r rs))
+updateRepository :: Repository -> IO (Maybe Repository)
+updateRepository r = case (rID r, rRev r) of
+                          (Just id', Just rev') -> do
+                              update <- runDB (updateDoc (db "repositories") (id', rev') (r { rID = Nothing }))
+                              case update of
+                                   Just (id'', rev'') -> return (Just (r { rID = Just id'', rRev = Just rev'' }))
+                                   _ -> return Nothing
+                          _ -> return Nothing
 
-updateRepository :: Repository -> Update Repositories ()
-updateRepository = addRepository
-
-deleteRepository :: (String, String) -> Update Repositories ()
-deleteRepository key = modify (\(Repositories rs) -> Repositories (M.delete key rs))
-
-$(mkMethods ''Repositories [ 'getRepository
-                           , 'getRepositories
-                           , 'getUserRepositories
-                           , 'addRepository
-                           , 'updateRepository
-                           , 'deleteRepository
-                           ])
+deleteRepository :: Repository -> IO Bool
+deleteRepository r = case (rID r, rRev r) of
+                          (Just id', Just rev') ->
+                              runDB (deleteDoc (db "repositories") (id', rev'))
+                          _ -> return False
 
 newRepository :: Repository -> Dirty IO Repository
 newRepository r = do unless devmode $ shell "groupadd" [group]
                      unless devmode $ shell "usermod" ["-aG", group, rOwner r]
-                     io $ do update (AddRepository r)
+                     io $ do addRepository r
                              createDirectoryIfMissing True repo
                              withCurrentDirectory repo (R.createRepository [])
                              writeFile (repo ++ "/_darcs/prefs/defaults") defaults
@@ -120,11 +153,9 @@ setRepoPermissions r
                     , otherReadMode
                     ]
 
-destroyRepository :: (String, String) -> Dirty IO ()
-destroyRepository r = do shell "groupdel" [group]
-                         io $ do update (DeleteRepository r)
-                                 removeDirectoryRecursive (uncurry repoDir r)
-  where group = uncurry repoGroup r
+destroyRepository :: Repository -> IO ()
+destroyRepository r = do deleteRepository r
+                         removeDirectoryRecursive (repoDir (rOwner r) (rName r))
 
 
 bootstrapRepository :: Repository -> String -> Dirty IO ()
@@ -136,26 +167,20 @@ bootstrapRepository r url
 forkRepository :: String -> String -> Repository -> Dirty IO Repository
 forkRepository un rn r = do new <- newRepository (r { rOwner = un
                                                     , rName = rn
-                                                    , rForkOf = Just (rOwner r, rName r)
+                                                    , rForkOf = rID r
                                                     })
                             bootstrapRepository new orig
                             return new
   where orig = repoDir (rOwner r) (rName r)
 
-moveRepository :: (String, String) -> Repository -> Dirty IO Repository
-moveRepository (o, n) r = do shell "groupmod" ["-n", newGroup, oldGroup]
-                             io (do renameDirectory (repoDir (rOwner r) (rName r)) (repoDir o n)
-                                    update (DeleteRepository (rOwner r, rName r))
-                                    update (AddRepository (r { rName = n, rOwner = o })))
-                             return (r { rName = n, rOwner = o })
-  where newGroup = repoGroup o n
-        oldGroup = repoGroup (rOwner r) (rName r)
+moveRepository :: (String, String) -> Repository -> IO ()
+moveRepository (o, n) r = renameDirectory (repoDir (rOwner r) (rName r)) (repoDir o n)
 
-renameRepository :: String -> Repository -> Dirty IO Repository
-renameRepository n r = moveRepository (rOwner r, n) r
-
-changeRepositoryOwner :: String -> Repository -> Dirty IO Repository
-changeRepositoryOwner o r = moveRepository (o, rName r) r
+renameRepository :: String -> Repository -> IO (Maybe Repository)
+renameRepository n r = do update <- updateRepository (r { rName = n })
+                          case update of
+                               Just _ -> moveRepository (rOwner r, n) r >> return update
+                               _ -> return Nothing
 
 members :: Repository -> IO [String]
 -- This is preferable, but GHC bug #3816 prevents.
@@ -182,14 +207,3 @@ removeMember m r = do gs <- lift getAllGroupEntries
 
 repoGroup :: String -> String -> String
 repoGroup un rn = md5sum . BS.pack . map (fromIntegral . ord) $ un ++ "/" ++ rn
-
-instance ToSElem ClockTime where toSElem = toSElem . show
-
-instance ToSElem Repository where
-  toSElem r = SM (M.fromList [ ("name", toSElem $ rName r)
-                             , ("description", toSElem . toMaybe $ rDescription r)
-                             , ("website", toSElem . toMaybe $ rWebsite r)
-                             , ("owner", toSElem $ rOwner r)
-                             , ("created", toSElem $ rCreated r)
-                             , ("forkOf", toSElem $ rForkOf r)
-                             ])
