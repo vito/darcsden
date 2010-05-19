@@ -108,7 +108,7 @@ doPage p s = case sID s of
                         then updateSession (sess { sNotifications = [] })
                         else return Nothing
 
-                      (_, page) <- evalHSP Nothing (p s)
+                      (_, page) <- evalHSP Nothing (p sess)
                       return $ Response Status200 [(ContentType, toBS "text/html")] (toResponse (renderAsHTML page))
                   Nothing -> do
                       return $ Response Status500 [(ContentType, toBS "text/html")] (toResponse "<h1>Session Not Created</h1>")
