@@ -22,7 +22,12 @@ import DarcsDen.State.Session
 import DarcsDen.Util (fromBS, fromLBS, toBS, toLBS)
 
 
-type Page = Session -> Application
+data Env = Env { eInputs :: M.Map String String
+               , eCookies :: M.Map String String
+               , eRequest :: Request
+               }
+
+type Page = Session -> Env -> IO Response
 
 
 toResponse :: String -> Either FilePath Enumerator
@@ -37,20 +42,23 @@ errorPage msg _ _ = return $ Response Status500 [(ContentType, toBS "text/plain"
 redirectTo :: String -> IO Response
 redirectTo dest = return $ Response Status302 [(Location, toBS dest)] (toResponse "")
 
-getInput :: String -> Request -> IO (Maybe String)
-getInput key r = getInputs r >>= return . lookup key
+getInput :: String -> Env -> Maybe String
+getInput key e = M.lookup key (eInputs e)
 
-getInputs :: Request -> IO [(String, String)]
-getInputs r = do body <- E.toLBS . S.toEnumerator $ requestBody r
-                 return (map (keyVal . wordsBy (== '=')) . wordsBy (== '&') . fromLBS $ body)
+input :: String -> String -> Env -> String
+input k d e = fromMaybe d (getInput k e)
+
+getInputs :: Env -> [(String, String)]
+getInputs = M.toList . eInputs
+
+getInputsM :: Request -> IO (M.Map String String)
+getInputsM r = do
+    body <- E.toLBS . S.toEnumerator $ requestBody r
+    return $ M.fromList (map (keyVal . wordsBy (== '=')) . wordsBy (== '&') . fromLBS $ body)
   where sanitize = unEscapeString . intercalate " " . wordsBy (== '+')
         keyVal (k:v:_) = (sanitize k, sanitize v)
         keyVal [k] = (sanitize k, "")
         keyVal _ = ("", "") -- error, but I'd rather not kill the server
-
-input :: String -> String -> Request -> IO String
-input k d e = do i <- getInput k e
-                 return (fromMaybe d i)
 
 setCookies :: [(String, String)] -> IO Response -> IO Response
 setCookies cs r = do o <- r
@@ -70,14 +78,13 @@ readCookies r = readCookies' M.empty (fromBS $ fromMaybe BS.empty (lookup Cookie
                                    (key, val) = span (/= '=') crumb
                                in readCookies' (M.insert key (dropWhile (== '=') val) acc) (dropWhile (\x -> x == ';' || isSpace x) rest)
 
-withSession :: Request -> (Session -> IO Response) -> IO Response
-withSession r p = case M.lookup "DarcsDenSession" cookies of
+withSession :: Env -> (Session -> IO Response) -> IO Response
+withSession e p = case M.lookup "DarcsDenSession" (eCookies e) of
                     Nothing -> newSession p
                     Just sid -> do ms <- getSession (doc sid)
                                    case ms of
                                      Nothing -> newSession p
                                      Just s -> p s
-    where cookies = readCookies r
 
 newSession :: (Session -> IO Response) -> IO Response
 newSession r = do s <- addSession (Session { sID = Nothing

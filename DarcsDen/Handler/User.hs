@@ -22,7 +22,7 @@ user name s e = do m <- getUser name
                      Just u -> doPage (Page.user u rs) s
 
 register :: Page
-register s (Request { requestMethod = GET }) =
+register s (Env { eRequest = Request { requestMethod = GET } }) =
     doPage (Page.register []) s
 register s e = validate e [ iff (nonEmpty "name")
                                 (\(OK r) -> io "name is already in use" $ do
@@ -37,7 +37,6 @@ register s e = validate e [ iff (nonEmpty "name")
                (\(OK r) -> do
                   now <- getCurrentTime
                   slt <- salt 32
-                  keys <- input "pubkeys" "" e
                   new <- newUser
                              User { uID = Nothing
                                   , uRev = Nothing
@@ -47,7 +46,7 @@ register s e = validate e [ iff (nonEmpty "name")
                                   , uFullName = ""
                                   , uWebsite = ""
                                   , uEmail = r ! "email"
-                                  , uKeys = lines keys
+                                  , uKeys = lines (input "pubkeys" "" e)
                                   , uJoined = now
                                   }
 
@@ -56,11 +55,10 @@ register s e = validate e [ iff (nonEmpty "name")
                   redirectTo "/")
                (\(Invalid failed) -> do
                    notify Warning s failed
-                   is <- getInputs e
-                   doPage (Page.register is) s)
+                   doPage (Page.register (getInputs e)) s)
 
 login :: Page
-login s (Request { requestMethod = GET }) = doPage (Page.login []) s
+login s (Env { eRequest = Request { requestMethod = GET } }) = doPage (Page.login []) s
 login s e
   = validate e
     [ iff (nonEmpty "name" `And` nonEmpty "password")
@@ -77,8 +75,7 @@ login s e
                   >> redirectTo "/")
     (\(Invalid failed) -> do
         notify Warning s failed
-        is <- getInputs e
-        doPage (Page.login is) s)
+        doPage (Page.login (getInputs e)) s)
 
 logout :: Page
 logout s _ = setUser Nothing s
@@ -87,7 +84,7 @@ logout s _ = setUser Nothing s
 
 settings :: Page
 settings s@(Session { sUser = Nothing }) _ = warn "You must be logged in to change your settings." s >> redirectTo "/login"
-settings s@(Session { sUser = Just n }) e@(Request { requestMethod = GET }) =
+settings s@(Session { sUser = Just n }) e@(Env { eRequest = Request { requestMethod = GET } }) =
     validate e
     [ io "you do not exist" $ fmap (/= Nothing) (getUser n) ]
     (\(OK _) -> do
@@ -100,12 +97,9 @@ settings s@(Session { sUser = Just n }) e
     (\(OK _) -> do
         Just u <- getUser n
 
-        fullName <- input "full_name" (uFullName u) e
-        website <- input "website" (uWebsite u) e
-        keys <- input "keys" (unlines (uKeys u)) e
-        updateUser (u { uFullName = fullName
-                      , uWebsite = website
-                      , uKeys = lines keys
+        updateUser (u { uFullName = input "full_name" (uFullName u) e
+                      , uWebsite = input "website" (uWebsite u) e
+                      , uKeys = lines (input "keys" (unlines (uKeys u)) e)
                       })
 
         success "Settings updated." s

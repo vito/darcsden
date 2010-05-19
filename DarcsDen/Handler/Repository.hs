@@ -53,7 +53,7 @@ handleRepo un rn action s e
 
 initialize :: Page
 initialize s@(Session { sUser = Nothing }) _ = warn "You must be logged in to create a repository." s >> redirectTo "/login"
-initialize s (Request { requestMethod = GET }) = doPage (Page.init []) s
+initialize s (Env { eRequest = Request { requestMethod = GET } }) = doPage (Page.init []) s
 initialize s@(Session { sUser = Just n }) e
   = validate e
     [ iff (nonEmpty "name" `And` predicate "name" isSane "contain only alphanumeric characters, underscores, and hyphens")
@@ -62,13 +62,13 @@ initialize s@(Session { sUser = Just n }) e
     ]
     (\(OK r) -> do
         now <- getCurrentTime
-        description <- input "description" "" e
-        website <- input "website" "" e
         repo <- newRepository
-                  Repository { rName = r ! "name"
+                  Repository { rID = Nothing
+                             , rRev = Nothing
+                             , rName = r ! "name"
                              , rOwner = n
-                             , rDescription = description
-                             , rWebsite = website
+                             , rDescription = input "description" "" e
+                             , rWebsite = input "website" "" e
                              , rCreated = now
                              , rForkOf = Nothing
                              }
@@ -81,8 +81,7 @@ initialize s@(Session { sUser = Just n }) e
         redirectTo ("/" ++ n ++ "/" ++ (r ! "name")))
     (\(Invalid f) -> do
         notify Warning s f
-        is <- getInputs e
-        doPage (Page.init is) s)
+        doPage (Page.init (getInputs e)) s)
 
 browse :: Int -> Page
 browse p s _ = do
@@ -166,7 +165,7 @@ repoPatch un rn p s _ = do
                       {-] s-}
 
 editRepo :: String -> String -> Page
-editRepo un rn s e@(Request { requestMethod = GET })
+editRepo un rn s e@(Env { eRequest = Request { requestMethod = GET } })
  = validate e
     [ io "you do not own this repository" (return $ Just un == sUser s) ]
     (\(OK _) -> do
@@ -191,11 +190,9 @@ editRepo un rn s e
 
         Just new <- rename r (i ! "name")
 
-        description <- input "description" (rDescription r) e
-        website <- input "website" (rWebsite r) e
         updateRepository
-            new { rDescription = description
-                , rWebsite = website
+            new { rDescription = input "description" (rDescription r) e
+                , rWebsite = input "website" (rWebsite r) e
                 }
 
         success "Repository updated." s
@@ -226,7 +223,7 @@ editRepo un rn s e
               else return (Just r)
 
 deleteRepo :: String -> String -> Page
-deleteRepo un rn s e@(Request { requestMethod = GET })
+deleteRepo un rn s e@(Env { eRequest = Request { requestMethod = GET } })
  = validate e
    [ io "you do not own this repository" (return $ Just un == sUser s) ]
    (\(OK _) -> do
@@ -283,8 +280,7 @@ forkRepoAs un rn s@(Session { sUser = Just n }) e
         redirectTo ("/" ++ n ++ "/" ++ rName forked))
     (\(Invalid _) -> do
         Just r <- getRepository (un, rn)
-        name <- input "name" (rName r) e
-        doPage (Page.fork r name) s)
+        doPage (Page.fork r (input "name" (rName r) e)) s)
 
 repoForks :: String -> String -> Page
 repoForks un rn s _
@@ -301,11 +297,10 @@ mergeForks un rn s e
   = validate e
     [ io "you do not own this repository" (return $ Just un == sUser s) ]
     (\(OK _) -> do
-        inputs <- getInputs e
         let ps = map (\(n, _) ->
                        let split = wordsBy (== ':') n
                        in (split !! 1, split !! 2, split !! 3))
-                     (filter (\(n, _) -> "merge:" `isPrefixOf` n) inputs)
+                     (filter (\(n, _) -> "merge:" `isPrefixOf` n) (getInputs e))
             gps = groupBy (\a b -> fst a == fst b) (map (\(o, n, p) -> ((o, n), p)) ps)
             groupedPatches = map (\r@((k, _):_) -> (k, map snd r)) gps
 
