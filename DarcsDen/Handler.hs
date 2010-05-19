@@ -2,15 +2,13 @@ module DarcsDen.Handler where
 
 import Data.Char (isNumber)
 import Data.List.Split (wordsBy)
-import Data.Time (formatTime, getCurrentTime)
 import Network.Wai
-import System.Locale (defaultTimeLocale)
 
 import DarcsDen.Handler.Repository
 import DarcsDen.Handler.User
 import DarcsDen.State.Session
 import DarcsDen.State.Repository
-import DarcsDen.Util (fromBS, toBS)
+import DarcsDen.Util (fromBS)
 import DarcsDen.WebUtils
 import qualified DarcsDen.Pages.Base as Base
 import qualified DarcsDen.Pages.User as User

@@ -2,21 +2,14 @@ module DarcsDen.State.Repository where
 
 import Darcs.Utils (withCurrentDirectory)
 import Control.Monad.State
-import Data.Char (ord)
-import Data.Digest.OpenSSL.MD5 (md5sum)
-import Data.List (intercalate)
-import Data.List.Split (wordsBy)
 import Data.Time (UTCTime, formatTime, readTime)
 import Database.CouchDB
 import System.Directory
 import System.Locale (defaultTimeLocale)
 import Text.JSON
 import qualified Darcs.Repository as R
-import qualified Data.ByteString as BS
 
-import DarcsDen.Dirty
 import DarcsDen.State.Util
-import DarcsDen.Util
 
 data Repository = Repository { rID :: Maybe Doc
                              , rRev :: Maybe Rev
@@ -125,21 +118,22 @@ newRepository r = do new <- addRepository r
                      return new
   where repo = repoDir (rOwner r) (rName r)
 
-destroyRepository :: Repository -> IO ()
-destroyRepository r = do deleteRepository r
-                         removeDirectoryRecursive (repoDir (rOwner r) (rName r))
+destroyRepository :: Repository -> IO Bool
+destroyRepository r = do success <- deleteRepository r
+                         if success
+                            then removeDirectoryRecursive (repoDir (rOwner r) (rName r)) >> return True
+                            else return False
 
 
-bootstrapRepository :: Repository -> String -> Dirty IO ()
-bootstrapRepository r url = shell "darcs" ["pull", "-aq", url, "--repodir", dest]
-  where dest = repoDir (rOwner r) (rName r)
+bootstrapRepository :: Repository -> String -> IO ()
+bootstrapRepository _ _ = return () -- TODO
 
 forkRepository :: String -> String -> Repository -> IO Repository
 forkRepository un rn r = do new <- newRepository (r { rOwner = un
                                                     , rName = rn
                                                     , rForkOf = rID r
                                                     })
-                            dirty (bootstrapRepository new orig)
+                            bootstrapRepository new orig
                             return new
   where orig = repoDir (rOwner r) (rName r)
 

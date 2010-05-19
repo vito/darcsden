@@ -20,7 +20,7 @@ repoURL :: Repository -> String
 repoURL r = "/" ++ rOwner r ++ "/" ++ rName r
 
 repoBase :: User -> Repository -> String -> HSP XML -> HSP XML -> HTMLPage
-repoBase u r t b c s = base
+repoBase _ r t b c s = base
     t
     <span>
         <a href=(repoOwnerURL r)><% rOwner r %></a> -&gt;
@@ -34,12 +34,12 @@ repoBase u r t b c s = base
             <% rDescription r %>
 
             <% do
-                f <- liftIO (fork r)
+                f <- liftIO (rFork r)
                 case f of
                      Nothing -> <span class="repo-fork" />
-                     Just fork ->
+                     Just f' ->
                          <span class="repo-fork">
-                             (fork of <a href=(repoURL fork)><% rOwner fork %></a>'s <a href=(repoURL fork)><% rName fork %></a>)
+                             (fork of <a href=(repoURL f')><% rOwner f' %></a>'s <a href=(repoURL f')><% rName f' %></a>)
                          </span>
             %>
 
@@ -54,9 +54,9 @@ repoBase u r t b c s = base
     </div>
     s
     where
-        fork :: Repository -> IO (Maybe Repository)
-        fork (Repository { rForkOf = Nothing }) = return Nothing
-        fork (Repository { rForkOf = Just id' }) = getRepositoryByID id'
+        rFork :: Repository -> IO (Maybe Repository)
+        rFork (Repository { rForkOf = Nothing }) = return Nothing
+        rFork (Repository { rForkOf = Just id' }) = getRepositoryByID id'
 
         links :: Bool -> HSP XML
         links True =
@@ -114,7 +114,7 @@ repo u r files up path readme = repoBase u r
                            then <% <li class="up"><a href=(up)>..</a></li> %>
                            else <% "" %>
                     %>
-                    map file files
+                    <% map file files %>
                 </ul>
 
                 <%

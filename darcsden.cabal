@@ -21,10 +21,15 @@ executable darcsden
 
   build-depends: base >= 4 && < 5,
                  bytestring,
+                 Crypto,
+                 CouchDB,
                  containers,
                  darcs >= 2,
                  directory,
-                 hack,
-                 process,
+                 json,
+                 old-locale,
+                 wai,
+                 wai-extra,
                  split,
-                 mtl
+                 time
+--                 mtl

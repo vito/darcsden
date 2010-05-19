@@ -120,7 +120,6 @@ fromFP AddFile = FileAdded
 fromFP (Hunk l rs as) = FileHunk l (unlines $ map fromBS rs) (unlines $ map fromBS as)
 fromFP (Binary _ _) = FileBinary
 fromFP (TokReplace _ f r) = FileReplace f r
-fromFP a = error ("fromFP not supported for " ++ show a)
 
 getChanges :: String -> Int -> IO ([PatchLog], Int)
 getChanges dir page = R.withRepositoryDirectory [] dir $ \dr ->

@@ -22,7 +22,6 @@ import Darcs.Utils (withCurrentDirectory)
 import Darcs.Witnesses.Ordered
 import Darcs.Witnesses.Sealed
 import Data.Maybe (fromJust)
-import qualified Data.Map as M
 
 import DarcsDen.Handler.Repository.Changes
 import DarcsDen.Handler.Repository.Util

@@ -33,17 +33,17 @@ instance Ord RepoItem where
 urlTo :: String -> String -> [String] -> String
 urlTo un rn f = "/" ++ un ++ "/" ++ rn ++ "/browse" ++ (if null f then "" else '/' : intercalate "/" f)
 
-files :: R.Repository P.Patch -> [String] -> IO (Maybe [RepoItem])
-files r f = do tree <- repoTree r f
-               return $ fmap (\t -> sort . map (item t . fst) . onelevel $ t) tree
+getFiles :: R.Repository P.Patch -> [String] -> IO (Maybe [RepoItem])
+getFiles r f = do tree <- repoTree r f
+                  return $ fmap (\t -> sort . map (item t . fst) . onelevel $ t) tree
     where onelevel = filter (\(A.AnchoredPath x, _) -> length x == 1) . T.list
           item t a = RepoItem { iIsDirectory = isJust (T.findTree t a)
                               , iURL = "" -- Filled up there
                               , iName = fromAnchored a
                               }
 
-blob :: R.Repository P.Patch -> [String] -> IO (Maybe String)
-blob dr@(RI.Repo p _ _ _) f
+getBlob :: R.Repository P.Patch -> [String] -> IO (Maybe String)
+getBlob dr@(RI.Repo p _ _ _) f
   = withCurrentDirectory p $ do
        tree <- repoTree dr []
        case tree of
@@ -66,7 +66,7 @@ getReadme dr f = do tree <- repoTree dr f
                       Just t -> let readmes = map (fromAnchored . fst) $ filter (\(a, _) -> "README" `isPrefixOf` fromAnchored a) (T.list t)
                                 in case readmes of
                                   [] -> return Nothing
-                                  (r:_) -> do s <- blob dr (f ++ [r])
+                                  (r:_) -> do s <- getBlob dr (f ++ [r])
                                               if ".markdown" `isSuffixOf` r || ".md" `isSuffixOf` r
                                                 then return $ fmap (writeHtmlString defaultWriterOptions . readMarkdown defaultParserState) s
                                                 else return $ fmap (flip (highlight r) []) s

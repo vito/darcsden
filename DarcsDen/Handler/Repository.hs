@@ -1,8 +1,7 @@
 module DarcsDen.Handler.Repository where
 
 import Control.Monad (when)
-import Control.Monad.Trans
-import Data.Char (isNumber, isSpace, toLower)
+import Data.Char (isNumber, toLower)
 import Data.List (groupBy, inits, isPrefixOf, sortBy)
 import Data.List.Split (wordsBy)
 import Data.Map ((!))
@@ -10,7 +9,6 @@ import Data.Ord (comparing)
 import Data.Time (getCurrentTime)
 import Network.Wai
 
-import DarcsDen.Dirty (dirty, perhaps)
 import DarcsDen.Handler.Repository.Util
 import DarcsDen.Handler.Repository.Browse
 import DarcsDen.Handler.Repository.Changes
@@ -34,7 +32,7 @@ handleRepo un rn action s e
     (\(OK _) ->
       case action of
         [] -> browseRepo name repo [] s e
-        ("_darcs":unsafe) -> errorPage "Please configure static file serving for _darcs directories on your main webserver." s e
+        ("_darcs":_) -> errorPage "Please configure static file serving for _darcs directories on your main webserver." s e
         ("browse":file) -> browseRepo name repo file s e
         ["edit"] -> editRepo name repo s e
         ["delete"] -> deleteRepo name repo s e
@@ -62,16 +60,16 @@ initialize s@(Session { sUser = Just n }) e
     ]
     (\(OK r) -> do
         now <- getCurrentTime
-        repo <- newRepository
-                  Repository { rID = Nothing
-                             , rRev = Nothing
-                             , rName = r ! "name"
-                             , rOwner = n
-                             , rDescription = input "description" "" e
-                             , rWebsite = input "website" "" e
-                             , rCreated = now
-                             , rForkOf = Nothing
-                             }
+        newRepository
+            Repository { rID = Nothing
+                       , rRev = Nothing
+                       , rName = r ! "name"
+                       , rOwner = n
+                       , rDescription = input "description" "" e
+                       , rWebsite = input "website" "" e
+                       , rCreated = now
+                       , rForkOf = Nothing
+                       }
 
         -- TODO: make boostrapping clean?
         {-url <- input "boostrap" "" e-}
@@ -96,8 +94,8 @@ browseRepo un rn f s e = do
   Just r <- getRepository (un, rn)
   Right dr <- getRepo (repoDir un rn)
 
-  fs <- files dr f
-  bl <- blob dr f
+  fs <- getFiles dr f
+  bl <- getBlob dr f
 
   let path = map (\p -> RepoItem { iName = last p
                                  , iURL = urlTo un rn p
@@ -201,23 +199,7 @@ editRepo un rn s e
     (\(Invalid f) -> do
         notify Warning s f
         redirectTo ("/" ++ un ++ "/" ++ rn ++ "/edit"))
-  where strip = strip' . strip'
-        strip' = reverse . dropWhile isSpace
-
-        {-removeMembers r-}
-          {-= mapM_ (\m -> do remove <- getInput ("remove-" ++ m) e-}
-                            {-case remove of-}
-                                 {-Nothing -> return ()-}
-                                 {-Just _ -> removeMember m r)-}
-
-        {-addMembers r as-}
-          {-= mapM_ (\m -> do c <- lift (getUser m)-}
-                            {-case c of-}
-                              {-Just _ -> addMember (strip m) r-}
-                              {-Nothing -> lift (warn ("Invalid user; cannot add: " ++ m) s) >> return ())-}
-                  {-(wordsBy (== ',') as)-}
-
-        rename r n
+  where rename r n
           = if rName r /= n
               then renameRepository n r
               else return (Just r)
@@ -240,8 +222,13 @@ deleteRepo un rn s e
         Just r <- getRepository (un, rn)
         destroyed <- destroyRepository r
 
-        success "Repository deleted." s
-        redirectTo ('/' : un))
+        if destroyed
+           then do
+               success "Repository deleted." s
+               redirectTo ('/' : un)
+           else do
+               warn "Repository deletion failed." s
+               redirectTo ('/' : un ++ "/" ++ rn))
     (\(Invalid f) -> do
         notify Warning s f
         redirectTo ('/' : un ++ "/" ++ rn))
