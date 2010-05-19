@@ -3,6 +3,7 @@ module DarcsDen.Handler where
 import Data.Char (isNumber)
 import Data.List.Split (wordsBy)
 import Network.Wai
+import System.Directory (getCurrentDirectory)
 
 import DarcsDen.Handler.Repository
 import DarcsDen.Handler.User
@@ -43,6 +44,8 @@ pageFor ["settings"] = settings
 pageFor ["init"] = initialize
 pageFor ["browse"] = browse 1
 pageFor ["browse", "page", p] | all isNumber p = browse (read p)
-pageFor ("public":unsafe) = serveDirectory "public" unsafe
+pageFor ("public":unsafe) = \s e -> do
+    dir <- getCurrentDirectory
+    serveDirectory (dir ++ "/public/") unsafe s e
 pageFor [name] = user name
 pageFor (name:repo:action) = handleRepo name repo action
