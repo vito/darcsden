@@ -81,9 +81,6 @@ mergePatches r ps s = do
       withGutsOf pr $ do finalizeRepositoryChanges pr
                          applyToWorking pr [] pw
 
-      setRepoPermissions parent
-      setRepoPermissions r
-
       return True
   where origin p = repoDir (rOwner p) (rName p)
         fork = repoDir (rOwner r) (rName r)

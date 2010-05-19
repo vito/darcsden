@@ -9,8 +9,6 @@ import Data.List.Split (wordsBy)
 import Data.Time (UTCTime, formatTime, readTime)
 import Database.CouchDB
 import System.Directory
-import System.Posix.User
-import System.Posix.Files
 import System.Locale (defaultTimeLocale)
 import Text.JSON
 import qualified Darcs.Repository as R
@@ -125,34 +123,10 @@ newRepository r = do new <- addRepository r
                      createDirectoryIfMissing True repo
                      withCurrentDirectory repo (R.createRepository [])
                      writeFile (repo ++ "/_darcs/prefs/defaults") defaults
-                     setRepoPermissions r
                      return new
   where group = repoGroup (rOwner r) (rName r)
         repo = repoDir (rOwner r) (rName r)
         defaults = "ALL umask 0007\n"
-
-setRepoPermissions :: Repository -> IO ()
-setRepoPermissions r
-  = do u <- getUserEntryForName (rOwner r)
-       g <- getGroupEntryForName (repoGroup (rOwner r) (rName r))
-       recursively (\p -> setOwnerAndGroup p (userID u) (groupID g)) repo
-       recursivelyOnFiles (`setFileMode` fileModes) repo
-       recursivelyOnDirs (`setFileMode` dirModes) repo
-  where repo = repoDir (rOwner r) (rName r)
-        dirModes = foldl unionFileModes nullFileMode
-                   [ setGroupIDMode
-                   , ownerModes
-                   , groupModes
-                   , otherReadMode
-                   , otherExecuteMode
-                   ]
-        fileModes = foldl unionFileModes nullFileMode
-                    [ ownerReadMode
-                    , ownerWriteMode
-                    , groupReadMode
-                    , groupWriteMode
-                    , otherReadMode
-                    ]
 
 destroyRepository :: Repository -> IO ()
 destroyRepository r = do deleteRepository r
@@ -160,9 +134,7 @@ destroyRepository r = do deleteRepository r
 
 
 bootstrapRepository :: Repository -> String -> Dirty IO ()
-bootstrapRepository r url
-  = do shell "darcs" ["pull", "-aq", url, "--repodir", dest]
-       io (setRepoPermissions r)
+bootstrapRepository r url = shell "darcs" ["pull", "-aq", url, "--repodir", dest]
   where dest = repoDir (rOwner r) (rName r)
 
 forkRepository :: String -> String -> Repository -> IO Repository
