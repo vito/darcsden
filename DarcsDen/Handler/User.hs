@@ -46,7 +46,7 @@ register s e = validate e [ iff (nonEmpty "name")
                                   , uFullName = ""
                                   , uWebsite = ""
                                   , uEmail = r ! "email"
-                                  , uKeys = lines (input "pubkeys" "" e)
+                                  , uKeys = lines (input "keys" "" e)
                                   , uJoined = now
                                   }
 
