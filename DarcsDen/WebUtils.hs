@@ -1,7 +1,7 @@
 module DarcsDen.WebUtils where
 
 import Data.Char (isSpace)
-import Data.List (intercalate)
+import Data.List (intercalate, isPrefixOf)
 import Data.List.Split (wordsBy)
 import Data.Maybe (fromMaybe)
 import Data.Time (addUTCTime, formatTime, getCurrentTime)
@@ -10,6 +10,7 @@ import HSP (evalHSP)
 import HSP.HTML (renderAsHTML)
 import Network.URI (unEscapeString)
 import Network.Wai
+import System.Directory (doesFileExist, canonicalizePath)
 import System.Locale (defaultTimeLocale)
 import qualified Data.ByteString as BS
 import qualified Data.Map as M
@@ -96,6 +97,18 @@ newSession r = do s <- addSession (Session { sID = Nothing
                           setCookies [("DarcsDenSession", (show sid))] (r s)
                        Nothing ->
                           return $ Response Status500 [(ContentType, toBS "text/html")] (toResponse "<h1>Session Not Created</h1>")
+
+serveDirectory :: String -> [String] -> Page
+serveDirectory prefix unsafe s e
+  = do safe <- canonicalizePath (prefix ++ intercalate "/" unsafe)
+       exists <- doesFileExist safe
+
+       -- Make sure there's no trickery going on here.
+       if not (prefix `isPrefixOf` safe && exists)
+         then notFound s e
+         else do
+
+       return (Response Status200 [] (Left safe))
 
 -- Page helpers
 doPage :: HTMLPage -> Session -> IO Response

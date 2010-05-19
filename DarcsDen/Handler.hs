@@ -43,6 +43,6 @@ pageFor ["settings"] = settings
 pageFor ["init"] = initialize
 pageFor ["browse"] = browse 1
 pageFor ["browse", "page", p] | all isNumber p = browse (read p)
-pageFor ("public":_) = errorPage "Please configure static file serving for public/ on your main webserver."
+pageFor ("public":unsafe) = serveDirectory "public" unsafe
 pageFor [name] = user name
 pageFor (name:repo:action) = handleRepo name repo action

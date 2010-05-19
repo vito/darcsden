@@ -32,7 +32,7 @@ handleRepo un rn action s e
     (\(OK _) ->
       case action of
         [] -> browseRepo name repo [] s e
-        ("_darcs":_) -> errorPage "Please configure static file serving for _darcs directories on your main webserver." s e
+        ("_darcs":unsafe) -> serveDirectory (repoDir name repo ++ "/_darcs/") unsafe s e
         ("browse":file) -> browseRepo name repo file s e
         ["edit"] -> editRepo name repo s e
         ["delete"] -> deleteRepo name repo s e
