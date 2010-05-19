@@ -1,5 +1,5 @@
 name:            darcsden
-version:         0.0.1
+version:         0.1.0
 synopsis:        Darcs web service
 description:     DarcsDen is a website for hosting Darcs-2 repositories and collaborating with others.
 cabal-version:   >=1.2
