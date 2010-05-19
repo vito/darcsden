@@ -34,7 +34,7 @@ base title crumb content sess =
             <script src="/public/js/main.js" type="text/javascript"></script>
         </head>
         <body>
-            <% nav (sUser sess == Nothing) %>
+            <% nav (sUser sess /= Nothing) %>
 
             <h1 class="head">
                 <a href="/">darcsden</a> ::
