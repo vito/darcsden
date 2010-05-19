@@ -6,8 +6,7 @@ import Data.List.Split (wordsBy)
 import Data.Maybe (fromMaybe)
 import Data.Time (addUTCTime, formatTime, getCurrentTime)
 import Database.CouchDB
-import HSP (evalHSP)
-import HSP.HTML (renderAsHTML)
+import HSP (XML, evalHSP, renderXML, renderAsHTML)
 import Network.URI (unEscapeString)
 import Network.Wai
 import System.Directory (doesFileExist, canonicalizePath)
@@ -17,7 +16,7 @@ import qualified Data.Map as M
 import qualified Network.Wai.Enumerator as E
 import qualified Network.Wai.Source as S
 
-import DarcsDen.Pages.Base (HTMLPage)
+import DarcsDen.Pages.Base (HSPage)
 import DarcsDen.State.Session
 import DarcsDen.Util (fromBS, fromLBS, toBS, toLBS)
 
@@ -111,17 +110,33 @@ serveDirectory prefix unsafe s e
        return (Response Status200 [] (Left safe))
 
 -- Page helpers
-doPage :: HTMLPage -> Session -> IO Response
-doPage p s = case sID s of
-                  Just sid -> do
-                      Just sess <- getSession sid -- Session must be re-grabbed for any new notifications to be shown
+doPage' :: (XML -> String) -> String -> HSPage -> Session -> IO Response
+doPage' _ _ _ (Session { sID = Nothing }) =
+    return Response { status = Status500
+                    , responseHeaders = [(ContentType, toBS "text/html")]
+                    , responseBody = toResponse "<h1>Session Not Created</h1>"
+                    }
+doPage' render contentType p s@(Session { sID = Just sid }) = do
+    getSess <- getSession sid -- Session must be re-grabbed for any new notifications to be shown
 
-                      if not (null (sNotifications sess))
-                        then updateSession (sess { sNotifications = [] })
-                        else return Nothing
+    case getSess of
+         Nothing -> doPage' render contentType p (s { sID = Nothing })
+         Just sess -> doWithSession sess
+    where
+        doWithSession :: Session -> IO Response
+        doWithSession sess = do
+            if not (null (sNotifications sess))
+              then updateSession (sess { sNotifications = [] })
+              else return Nothing
 
-                      (_, page) <- evalHSP Nothing (p sess)
-                      return $ Response Status200 [(ContentType, toBS "text/html")] (toResponse (renderAsHTML page))
-                  Nothing -> do
-                      return $ Response Status500 [(ContentType, toBS "text/html")] (toResponse "<h1>Session Not Created</h1>")
+            (_, page) <- evalHSP Nothing (p sess)
+            return Response { status = Status200
+                            , responseHeaders = [(ContentType, toBS contentType)]
+                            , responseBody = toResponse (render page)
+                            }
 
+doPage :: HSPage -> Session -> IO Response
+doPage = doPage' (("<!DOCTYPE html>\n" ++) . renderAsHTML) "text/html; charset=utf-8"
+
+doAtomPage :: HSPage -> Session -> IO Response
+doAtomPage = doPage' (("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" ++) . renderXML) "application/atom+xml; charset=utf-8"

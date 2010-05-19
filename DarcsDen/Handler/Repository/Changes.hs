@@ -7,11 +7,10 @@ import Darcs.Patch.Patchy (Commute(..))
 import Darcs.Patch.Prim (Prim(..), DirPatchType(..), FilePatchType(..))
 import Darcs.Hopefully (PatchInfoAnd, info)
 import Darcs.Witnesses.Ordered
-import Data.List (nub)
+import System.Time (calendarTimeToString)
 import qualified Darcs.Patch as P
 import qualified Darcs.Repository as R
 import qualified Darcs.Witnesses.Ordered as WO
-import qualified Data.Map as M
 
 import DarcsDen.Handler.Repository.Util
 import DarcsDen.State.User
@@ -77,17 +76,21 @@ toLog p = do mu <- getUserByEmail (emailFrom (pi_author i))
 
              let (author, isUser) =
                      case mu of
-                          Nothing -> (pi_author i, False)
+                          Nothing -> (authorFrom (pi_author i), False)
                           Just u -> (uName u, True)
 
              return $ PatchLog (take 20 $ make_filename i)
-                               (show $ pi_date i) -- TODO: don't use show
+                               (calendarTimeToString $ pi_date i)
                                (pi_name i)
                                author
                                isUser
                                (pi_log i)
                                (map (take 20 . make_filename) (P.getdeps p))
   where emailFrom = reverse . takeWhile (/= '<') . tail . reverse
+        authorFrom a = let name = takeWhile (/= '<') a
+                       in if last name == ' '
+                             then init name
+                             else name
         i = P.patch2patchinfo p
 
 toChanges :: P.Effect p => P.Named p -> IO PatchChanges
@@ -148,6 +151,7 @@ fromPS = WO.unsafeUnRL . WO.reverseFL . R.patchSetToPatches
 summarize :: [PatchChange] -> [Summary]
 summarize = reverse . summarize'
     where
+        summarize' [] = []
         summarize' (FileChange n FileRemoved:cs) = (Removed n) : summarize cs
         summarize' (FileChange n FileAdded:cs) = (Added n) : summarize cs
         summarize' (FileChange n (FileReplace f t):cs) = (Replaced n f t) : summarize cs

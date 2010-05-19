@@ -9,7 +9,7 @@ import DarcsDen.State.Repository
 import DarcsDen.State.User
 
 
-home :: [Repository] -> HTMLPage
+home :: [Repository] -> HSPage
 home rs = base
     "darcsden"
     <span>home</span>
@@ -22,7 +22,7 @@ home rs = base
         </ul>
     </div>
 
-user :: User -> [Repository] -> HTMLPage
+user :: User -> [Repository] -> HSPage
 user u repos = base
     (uName u)
     <span><% uName u %></span>
@@ -51,7 +51,7 @@ repo r =
         %>
     </li>
 
-register :: [(String, String)] -> HTMLPage
+register :: [(String, String)] -> HSPage
 register is = base
     "register"
     <span>register</span>
@@ -69,7 +69,7 @@ register is = base
         </form>
     </div>
 
-login :: [(String, String)] -> HTMLPage
+login :: [(String, String)] -> HSPage
 login is = base
     "login"
     <span>login</span>
@@ -84,7 +84,7 @@ login is = base
         </form>
     </div>
 
-settings :: User -> HTMLPage
+settings :: User -> HSPage
 settings u = base
     "settings"
     <span>settings</span>

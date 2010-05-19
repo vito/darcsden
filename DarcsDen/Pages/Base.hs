@@ -8,9 +8,9 @@ import HSP
 import DarcsDen.State.Session
 
 
-type HTMLPage = Session -> HSP XML
+type HSPage = Session -> HSP XML
 
-index :: HTMLPage
+index :: HSPage
 index =
     base
         "darcsden"
@@ -22,7 +22,7 @@ index =
         </div>
 
  
-base :: String -> HSP XML -> HSP XML -> HTMLPage
+base :: String -> HSP XML -> HSP XML -> HSPage
 base title crumb content sess =
     <html>
         <head>
@@ -48,7 +48,7 @@ base title crumb content sess =
             <div class="clear"></div>
             <div class="footer">
                 <a class="tg" href="http://toogeneric.com/">too generic</a>
-                <p>darcsden &copy; alex suraci 2010</p>
+                <p>darcsden <% cdata "&copy;" %> alex suraci 2010</p>
                 <p>follow me on <a href="http://twitter.com/alexsuraci">twitter</a></p>
             </div>
         </body>
@@ -117,12 +117,12 @@ paginate b p tp =
     <ul class="pagination">
         <%
             if p /= 1
-               then <% <li class="prev"><a href=(b ++ "/page/" ++ show (p - 1))>&lt;- prev</a></li> %>
+               then <% <li class="prev"><a href=(b ++ "/page/" ++ show (p - 1))><% "<-" %> prev</a></li> %>
                else <% "" %>
         %>
         <%
             if p /= tp
-               then <% <li class="next"><a href=(b ++ "/page/" ++ show (p + 1))>next -&gt;</a></li> %>
+               then <% <li class="next"><a href=(b ++ "/page/" ++ show (p + 1))>next <% "->" %></a></li> %>
                else <% "" %>
         %>
         <li>page <% show p %> of <% show tp %></li>

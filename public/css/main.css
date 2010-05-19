@@ -273,6 +273,13 @@ form .cancel-buttons a.cancel {
 	font-size: 1.2em;
 	line-height: 1.4em;
 }
+.repo-log li div.patch-notes {
+    margin-top: 2em;
+}
+.repo-log li div.patch-notes pre {
+    font-size: 1.2em;
+    padding: 1em;
+}
 
 table.sourceCode,
 .patch-changes pre.sourceCode {

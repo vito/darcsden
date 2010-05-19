@@ -21,29 +21,39 @@ import DarcsDen.Util (baseDomain, baseURL)
 
 author :: PatchLog -> HSP XML
 author p | pIsUser p = <a href=("/" ++ pAuthor p)><% pAuthor p %></a>
-         | otherwise = <span class="author">pAuthor p</span>
+         | otherwise = <span class="author"><% pAuthor p %></span>
 
 change :: Repository -> PatchLog -> HSP XML
 change r p =
     <li>
         <h2>
             <% author p %>
-            ::
+            <% cdata " :: " %>
             <span class="relatize date"><% pDate p %></span>
         </h2>
         <p><a href=(repoURL r ++ "/patch/" ++ pID p)><% pName p %></a></p>
+
         <%
             if not (null (pLog p))
-               then <% map (\s -> <p><% s %></p>) (pLog p) %>
+               then
+                   <%
+                       <div class="code patch-notes">
+                           <pre>
+                               <code>
+                                   <% unlines (pLog p) %>
+                               </code>
+                           </pre>
+                       </div>
+                   %>
                else <% "" %>
         %>
     </li>
 
-repoBase :: User -> Repository -> String -> HSP XML -> HSP XML -> HTMLPage
+repoBase :: User -> Repository -> String -> HSP XML -> HSP XML -> HSPage
 repoBase _ r t b c s = base
     t
     <span>
-        <a href=(repoOwnerURL r)><% rOwner r %></a> <% cdata "-&gt;" %>
+        <a href=(repoOwnerURL r)><% rOwner r %></a> ->
         <a href=(repoURL r)><% rName r %></a>
         <% b %>
     </span>
@@ -98,7 +108,7 @@ repoBase _ r t b c s = base
                 <li class="changes"><a href=(repoURL r ++ "/changes")>changes</a></li>
             </ul>
 
-init :: [(String, String)] -> HTMLPage
+init :: [(String, String)] -> HSPage
 init is = base
     "init"
     <span>init</span>
@@ -116,15 +126,11 @@ init is = base
     </div>
 
 
-repo :: User -> Repository -> [RepoItem] -> String -> [RepoItem] -> Maybe String -> HTMLPage
+repo :: User -> Repository -> [RepoItem] -> String -> [RepoItem] -> Maybe String -> HSPage
 repo u r files up path readme = repoBase u r
     (uName u ++ "'s " ++ rName r)
     <span class="path">
-        <% map (\p ->
-            <span class="path-item">
-                <% cdata " -&gt; " %>
-                <a href=(iURL p)><% iName p %></a>
-            </span>) path %>
+        <% map (\p -> <span class="path-item"> -> <a href=(iURL p)><% iName p %></a></span>) path %>
     </span>
     (filesList (null files))
     where
@@ -168,10 +174,10 @@ repo u r files up path readme = repoBase u r
                 <a href=(iURL f)><% iName f %></a>
             </li>
 
-edit :: User -> Repository -> [(String, String)] -> HTMLPage
+edit :: User -> Repository -> [(String, String)] -> HSPage
 edit u r _ = repoBase u r
     "edit"
-    <span><% cdata " -&gt;" %> edit</span>
+    <span> -> edit</span>
     <div class="repo-edit">
         <form action=(repoURL r ++ "/edit") method="post">
             <fieldset>
@@ -183,10 +189,10 @@ edit u r _ = repoBase u r
         </form>
     </div>
 
-delete :: User -> Repository -> HTMLPage
+delete :: User -> Repository -> HSPage
 delete u r = repoBase u r
     "delete"
-    <span><% cdata " -&gt;" %> delete</span>
+    <span> -> delete</span>
     <div class="repo-delete">
         <h1>are you sure you want to delete this repository?</h1>
         <p class="blurb">this action cannot be undone.</p>
@@ -202,10 +208,10 @@ delete u r = repoBase u r
         </form>
     </div>
 
-fork :: User -> Repository -> String -> HTMLPage
+fork :: User -> Repository -> String -> HSPage
 fork u r n = repoBase u r
     "fork"
-    <span><% cdata " -&gt;" %> fork</span>
+    <span> -> fork</span>
     <div class="repo-fork">
         <h1>you already have a repository named "<% n %>"</h1>
         <p class="blurb">please create an alternative name:</p>
@@ -218,10 +224,10 @@ fork u r n = repoBase u r
         </form>
     </div>
 
-forks :: User -> Repository -> [Fork] -> HTMLPage
+forks :: User -> Repository -> [Fork] -> HSPage
 forks u r fs s = repoBase u r
     "forks"
-    <span><% cdata " -&gt;" %> forks</span>
+    <span> -> forks</span>
     <div class="repo-forks">
         <form action=(repoURL r ++ "/merge") class="subtle" method="post">
             <fieldset>
@@ -275,10 +281,10 @@ forks u r fs s = repoBase u r
                 </td>
             </tr>
 
-changes :: User -> Repository -> [PatchLog] -> Int -> Int -> HTMLPage
+changes :: User -> Repository -> [PatchLog] -> Int -> Int -> HSPage
 changes u r cs p tp = repoBase u r
     "changes"
-    <span><% cdata " -&gt;" %> changes</span>
+    <span> -> changes</span>
     <div class="repo-changes">
         <h1>changes</h1>
         <ul class="repo-log">
@@ -289,7 +295,7 @@ changes u r cs p tp = repoBase u r
     </div> 
 
 
-changesAtom :: User -> Repository -> [PatchLog] -> HTMLPage
+changesAtom :: User -> Repository -> [PatchLog] -> HSPage
 changesAtom u r cs _ =
     <feed xmlns="http://www.w3.org/2005/Atom">
         <title><% uName u %>/<% rName r %> changes</title>
@@ -326,10 +332,10 @@ changesAtom u r cs _ =
                 <link href=(baseURL ++ repoURL r ++ "/patch/" ++ pID p) />
             </entry>
 
-blob :: User -> Repository -> [RepoItem] -> String -> HTMLPage
+blob :: User -> Repository -> [RepoItem] -> String -> HSPage
 blob u r fs b = repoBase u r
     (iName file)
-    <span class="path"><% map (\f -> <% <span class="path-item"><% cdata " -&gt;" %> <a href=(iURL f)><% iName f %></a></span> %>) fs %></span>
+    <span class="path"><% map (\f -> <% <span class="path-item">-> <a href=(iURL f)><% iName f %></a></span> %>) fs %></span>
     <div class="repo-blob">
         <h1><a href=(iURL file)><% iName file %></a></h1>
         <div class="code">
@@ -340,10 +346,10 @@ blob u r fs b = repoBase u r
         file :: RepoItem
         file = last fs
 
-browse :: [Repository] -> Int -> Int -> HTMLPage
+browse :: [Repository] -> Int -> Int -> HSPage
 browse rs p tp = base
     "browse"
-    <span><% cdata " -&gt;" %> browse</span>
+    <span> -> browse</span>
     <div class="browse">
         <h1>all repositories</h1>
         <ul class="repo-list">
@@ -363,10 +369,10 @@ browse rs p tp = base
                 </p>
             </li>
 
-patch :: User -> Repository -> PatchLog -> [Summary] -> [PatchChange]-> HTMLPage
+patch :: User -> Repository -> PatchLog -> [Summary] -> [PatchChange]-> HSPage
 patch u r p ss cs = repoBase u r
     "patch"
-    <span><% cdata " -&gt;" %> patch</span>
+    <span> -> patch</span>
     <div class="repo-patch">
         <h1>patch</h1>
         <ul class="repo-log">
