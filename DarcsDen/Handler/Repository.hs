@@ -122,17 +122,6 @@ repoChanges un rn page s _ = do
   (patches, totalPages) <- getChanges (repoDir un rn) page
 
   doPage (Page.changes u r patches page totalPages) s
-  {-doPage "repo-changes" [ var "user" u-}
-                        {-, var "repo" r-}
-                        {-, var "patches" patches-}
-                        {-, var "page" page-}
-                        {-, var "totalPages" totalPages-}
-                        {-, var "nextPage" (page + 1)-}
-                        {-, var "prevPage" (page - 1)-}
-                        {-, var "notFirst" (page /= 1)-}
-                        {-, var "notLast" (page /= totalPages)-}
-                        {-, var "isAdmin" (sUser s == Just (rOwner r))-}
-                        {-] s-}
 
 repoAtomFeed :: String -> String -> Page
 repoAtomFeed un rn s _ = do
@@ -154,13 +143,6 @@ repoPatch un rn p s _ = do
              (pPatch patch)
              (summarize (pChanges patch))
              (filter isModification (pChanges patch))) s
-  {-doPage "repo-patch" [ var "user" u-}
-                      {-, var "repo" r-}
-                      {-, var "log" (pPatch patch)-}
-                      {-, var "summary" (summarize [] (pChanges patch))-}
-                      {-, var "changes" (filter isModification (pChanges patch))-}
-                      {-, var "isAdmin" (sUser s == Just (rOwner r))-}
-                      {-] s-}
 
 editRepo :: String -> String -> Page
 editRepo un rn s e@(Env { eRequest = Request { requestMethod = GET } })
@@ -213,9 +195,6 @@ deleteRepo un rn s e@(Env { eRequest = Request { requestMethod = GET } })
        Just r <- getRepository (un, rn)
        Just u <- getUser un
        doPage (Page.delete u r) s)
-       {-doPage "repo-delete" [ var "repo" r-}
-                            {-, var "isAdmin" True-}
-                            {-] s)-}
    (\(Invalid f) -> notify Warning s f >> redirectTo "/")
 deleteRepo un rn s e
   = validate e
@@ -250,10 +229,6 @@ forkRepo un rn s@(Session { sUser = Just n }) e
         Just r <- getRepository (un, rn)
         Just u <- getUser un
         doPage (Page.fork u r (rName r)) s)
-        {-doPage "repo-fork" [ var "repo" r-}
-                           {-, var "name" (rName r)-}
-                           {-, var "isAdmin" True-}
-                           {-] s)-}
 
 forkRepoAs :: String -> String -> Page
 forkRepoAs _ _ s@(Session { sUser = Nothing }) _ = warn "You must be logged in to fork a repository." s >> redirectTo "/"

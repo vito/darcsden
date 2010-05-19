@@ -43,7 +43,7 @@ repoBase :: User -> Repository -> String -> HSP XML -> HSP XML -> HTMLPage
 repoBase _ r t b c s = base
     t
     <span>
-        <a href=(repoOwnerURL r)><% rOwner r %></a> -&gt;
+        <a href=(repoOwnerURL r)><% rOwner r %></a> <% cdata "-&gt;" %>
         <a href=(repoURL r)><% rName r %></a>
         <% b %>
     </span>
@@ -65,8 +65,14 @@ repoBase _ r t b c s = base
 
             <%
                 if rWebsite r /= ""
-                then <span class="website">&mdash; <a href=(rWebsite r) rel="nofollow"><% rWebsite r %></a></span>
-                else <span class="website" /> -- TODO: Figure out a better "nothingness"
+                then
+                    <%
+                        <span class="website">
+                            <% cdata " &mdash; " %>
+                            <a href=(rWebsite r) rel="nofollow"><% rWebsite r %></a>
+                        </span>
+                    %>
+                else <% "" %>
             %>
         </p>
 
@@ -114,7 +120,11 @@ repo :: User -> Repository -> [RepoItem] -> String -> [RepoItem] -> Maybe String
 repo u r files up path readme = repoBase u r
     (uName u ++ "'s " ++ rName r)
     <span class="path">
-        <% map (\p -> <span class="path-item">-&gt; <a href=(iURL p)><% iName p %></a></span>) path %>
+        <% map (\p ->
+            <span class="path-item">
+                <% cdata " -&gt; " %>
+                <a href=(iURL p)><% iName p %></a>
+            </span>) path %>
     </span>
     (filesList (null files))
     where
@@ -145,7 +155,7 @@ repo u r files up path readme = repoBase u r
                                  <div class="repo-readme">
                                      <h1>readme</h1>
                                      <div class="readme">
-                                         <% s %>
+                                         <% cdata s %>
                                      </div>
                                  </div>
                              %>
@@ -161,7 +171,7 @@ repo u r files up path readme = repoBase u r
 edit :: User -> Repository -> [(String, String)] -> HTMLPage
 edit u r _ = repoBase u r
     "edit"
-    <span>-&gt; edit</span>
+    <span><% cdata " -&gt;" %> edit</span>
     <div class="repo-edit">
         <form action=(repoURL r ++ "/edit") method="post">
             <fieldset>
@@ -176,7 +186,7 @@ edit u r _ = repoBase u r
 delete :: User -> Repository -> HTMLPage
 delete u r = repoBase u r
     "delete"
-    <span>-&gt; delete</span>
+    <span><% cdata " -&gt;" %> delete</span>
     <div class="repo-delete">
         <h1>are you sure you want to delete this repository?</h1>
         <p class="blurb">this action cannot be undone.</p>
@@ -195,7 +205,7 @@ delete u r = repoBase u r
 fork :: User -> Repository -> String -> HTMLPage
 fork u r n = repoBase u r
     "fork"
-    <span>-&gt; fork</span>
+    <span><% cdata " -&gt;" %> fork</span>
     <div class="repo-fork">
         <h1>you already have a repository named "<% n %>"</h1>
         <p class="blurb">please create an alternative name:</p>
@@ -211,7 +221,7 @@ fork u r n = repoBase u r
 forks :: User -> Repository -> [Fork] -> HTMLPage
 forks u r fs s = repoBase u r
     "forks"
-    <span>-&gt; forks</span>
+    <span><% cdata " -&gt;" %> forks</span>
     <div class="repo-forks">
         <form action=(repoURL r ++ "/merge") class="subtle" method="post">
             <fieldset>
@@ -268,7 +278,7 @@ forks u r fs s = repoBase u r
 changes :: User -> Repository -> [PatchLog] -> Int -> Int -> HTMLPage
 changes u r cs p tp = repoBase u r
     "changes"
-    <span>-&gt; changes</span>
+    <span><% cdata " -&gt;" %> changes</span>
     <div class="repo-changes">
         <h1>changes</h1>
         <ul class="repo-log">
@@ -319,11 +329,11 @@ changesAtom u r cs _ =
 blob :: User -> Repository -> [RepoItem] -> String -> HTMLPage
 blob u r fs b = repoBase u r
     (iName file)
-    <span class="path"><% map (\f -> <% <span class="path-item">-&gt; <a href=(iURL f)><% iName f %></a></span> %>) fs %></span>
+    <span class="path"><% map (\f -> <% <span class="path-item"><% cdata " -&gt;" %> <a href=(iURL f)><% iName f %></a></span> %>) fs %></span>
     <div class="repo-blob">
         <h1><a href=(iURL file)><% iName file %></a></h1>
         <div class="code">
-            <% b %>
+            <% cdata b %>
         </div>
     </div>
     where
@@ -333,7 +343,7 @@ blob u r fs b = repoBase u r
 browse :: [Repository] -> Int -> Int -> HTMLPage
 browse rs p tp = base
     "browse"
-    <span>browse</span>
+    <span><% cdata " -&gt;" %> browse</span>
     <div class="browse">
         <h1>all repositories</h1>
         <ul class="repo-list">
@@ -356,7 +366,7 @@ browse rs p tp = base
 patch :: User -> Repository -> PatchLog -> [Summary] -> [PatchChange]-> HTMLPage
 patch u r p ss cs = repoBase u r
     "patch"
-    <span>-&gt; patch</span>
+    <span><% cdata " -&gt;" %> patch</span>
     <div class="repo-patch">
         <h1>patch</h1>
         <ul class="repo-log">
@@ -426,6 +436,6 @@ patch u r p ss cs = repoBase u r
                     ::
                     <span class="line">line <% show (fchLine (cfType c)) %></span>
                 </h2>
-                <div class="removed"><% fchRemove (cfType c) %></div>
-                <div class="added"><% fchAdd (cfType c) %></div>
+                <div class="removed"><% cdata $ fchRemove (cfType c) %></div>
+                <div class="added"><% cdata $ fchAdd (cfType c) %></div>
             </li>

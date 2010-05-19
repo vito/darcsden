@@ -24,8 +24,8 @@ home rs = base
 
 user :: User -> [Repository] -> HTMLPage
 user u repos = base
-    "foo"
-    <a><% uName u %></a>
+    (uName u)
+    <span><% uName u %></span>
     <div class="user">
         <h1><% uName u %>'s repositories</h1>
         <% repositories repos %>
@@ -41,13 +41,13 @@ repo r =
         <a href=(rOwner r ++ "/" ++ rName r)><% rName r %></a>
         <%
             if rDescription r /= ""
-            then "&mdash; " ++ rDescription r
-            else ""
+            then <% <span><% cdata " &mdash; " %><% rDescription r %></span> %>
+            else <% "" %>
         %>
         <%
             if rWebsite r /= ""
-            then <a href=(rWebsite r) rel="nofollow"><% rWebsite r %></a>
-            else <span /> -- TODO: Figure out a better "nothingness"
+            then <% <a href=(rWebsite r) rel="nofollow"><% rWebsite r %></a> %>
+            else <% "" %>
         %>
     </li>
 
