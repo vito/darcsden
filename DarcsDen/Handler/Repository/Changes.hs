@@ -8,7 +8,6 @@ import Darcs.Patch.Prim (Prim(..), DirPatchType(..), FilePatchType(..))
 import Darcs.Hopefully (PatchInfoAnd, info)
 import Darcs.Witnesses.Ordered
 import Data.List (nub)
-import System.Time (calendarTimeToString)
 import qualified Darcs.Patch as P
 import qualified Darcs.Repository as R
 import qualified Darcs.Witnesses.Ordered as WO
@@ -75,7 +74,7 @@ toLog p = do mu <- getUserByEmail (emailFrom (pi_author i))
                           Just u -> (uName u, True)
 
              return $ PatchLog (take 20 $ make_filename i)
-                               (calendarTimeToString $ pi_date i)
+                               (show $ pi_date i) -- TODO: don't use show
                                (pi_name i)
                                author
                                isUser

@@ -1,6 +1,5 @@
 module DarcsDen.WebUtils where
 
-import Control.Monad.Reader
 import Data.Char (isSpace)
 import Data.List (intercalate)
 import Data.List.Split (wordsBy)

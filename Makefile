@@ -1,5 +1,5 @@
 build:
-	cabal build
+	ghc --make -Wall Main.hs -o Main
 
 # "continuous integration" - auto-recompile and restart whenever a module
 # changes. sp is from searchpath.org , you might need the patched version

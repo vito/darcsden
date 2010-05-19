@@ -1,7 +1,7 @@
 module DarcsDen.State.User where
 
 import Codec.Utils (Octet)
-import Control.Monad.State
+import Control.Monad (replicateM)
 import Data.Char (ord)
 import Data.Digest.SHA512
 import Data.Time (UTCTime, formatTime, readTime)

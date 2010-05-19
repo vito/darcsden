@@ -1,7 +1,6 @@
 module DarcsDen.State.Repository where
 
 import Darcs.Utils (withCurrentDirectory)
-import Control.Monad.State
 import Data.Time (UTCTime, formatTime, readTime)
 import Database.CouchDB
 import System.Directory
