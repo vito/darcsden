@@ -103,7 +103,11 @@ doPage :: HTMLPage -> Session -> IO Response
 doPage p s = case sID s of
                   Just sid -> do
                       Just sess <- getSession sid -- Session must be re-grabbed for any new notifications to be shown
-                      updateSession (sess { sNotifications = [] })
+
+                      if not (null (sNotifications sess))
+                        then updateSession (sess { sNotifications = [] })
+                        else return Nothing
+
                       (_, page) <- evalHSP Nothing (p s)
                       return $ Response Status200 [(ContentType, toBS "text/html")] (toResponse (renderAsHTML page))
                   Nothing -> do
