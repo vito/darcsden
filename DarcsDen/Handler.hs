@@ -26,9 +26,9 @@ index s@(Session { sUser = Just n }) _
 
 -- URL handling
 handler :: Application
-handler e = do putStrLn "Handling request..."
-               withSession e (\s -> pageFor path s e)
-    where path = wordsBy (== '/') . tail . fromBS . pathInfo $ e
+handler r = do putStrLn ("Handling request " ++ show (requestMethod r, pathInfo r, urlScheme r, httpVersion r, queryString r) ++ " from " ++ show (remoteHost r))
+               withSession r (\s -> pageFor path s r)
+    where path = wordsBy (== '/') . tail . fromBS . pathInfo $ r
 
 pageFor :: [String] -> Page
 pageFor [] = index
