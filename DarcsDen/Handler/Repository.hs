@@ -139,7 +139,7 @@ repoAtomFeed un rn s _ = do
   Just u <- getUser un
   Just r <- getRepository (un, rn)
   (patches, _) <- getChanges (repoDir un rn) 1
-  doPage (Page.changesAtom u r patches baseurl) s
+  doPage (Page.changesAtom u r patches) s
 
 repoPatch :: String -> String -> String -> Page
 repoPatch un rn p s _ = do
@@ -152,7 +152,7 @@ repoPatch un rn p s _ = do
              u
              r
              (pPatch patch)
-             (summarize [] (pChanges patch))
+             (summarize (pChanges patch))
              (filter isModification (pChanges patch))) s
   {-doPage "repo-patch" [ var "user" u-}
                       {-, var "repo" r-}
@@ -168,8 +168,9 @@ editRepo un rn s e@(Env { eRequest = Request { requestMethod = GET } })
     [ io "you do not own this repository" (return $ Just un == sUser s) ]
     (\(OK _) -> do
         Just r <- getRepository (un, rn)
+        Just u <- getUser un
         {-ms <- members r-}
-        doPage (Page.edit r []) s)
+        doPage (Page.edit u r []) s)
     (\(Invalid f) -> notify Warning s f >> redirectTo "/")
 editRepo un rn s e
   = validate e
@@ -210,7 +211,8 @@ deleteRepo un rn s e@(Env { eRequest = Request { requestMethod = GET } })
    [ io "you do not own this repository" (return $ Just un == sUser s) ]
    (\(OK _) -> do
        Just r <- getRepository (un, rn)
-       doPage (Page.delete r) s)
+       Just u <- getUser un
+       doPage (Page.delete u r) s)
        {-doPage "repo-delete" [ var "repo" r-}
                             {-, var "isAdmin" True-}
                             {-] s)-}
@@ -246,7 +248,8 @@ forkRepo un rn s@(Session { sUser = Just n }) e
         redirectTo ("/" ++ n ++ "/" ++ rName forked))
     (\(Invalid _) -> do
         Just r <- getRepository (un, rn)
-        doPage (Page.fork r (rName r)) s)
+        Just u <- getUser un
+        doPage (Page.fork u r (rName r)) s)
         {-doPage "repo-fork" [ var "repo" r-}
                            {-, var "name" (rName r)-}
                            {-, var "isAdmin" True-}
@@ -267,17 +270,19 @@ forkRepoAs un rn s@(Session { sUser = Just n }) e
         redirectTo ("/" ++ n ++ "/" ++ rName forked))
     (\(Invalid _) -> do
         Just r <- getRepository (un, rn)
-        doPage (Page.fork r (input "name" (rName r) e)) s)
+        Just u <- getUser un
+        doPage (Page.fork u r (input "name" (rName r) e)) s)
 
 repoForks :: String -> String -> Page
 repoForks un rn s _
   = do Just r <- getRepository (un, rn)
+       Just u <- getUser un
        rs <- getRepositories
        let fs = filter (\f -> rForkOf f == rID r) rs
 
        forks <- mapM getForkChanges fs
 
-       doPage (Page.forks r forks) s
+       doPage (Page.forks u r forks) s
 
 mergeForks :: String -> String -> Page
 mergeForks un rn s e

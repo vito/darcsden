@@ -18,6 +18,13 @@ import DarcsDen.State.User
 import DarcsDen.Util
 
 
+data Summary = Removed FilePath
+             | Added FilePath
+             | Replaced FilePath String String
+             | Modified FilePath
+             | Preference String String String
+             deriving (Eq, Show)
+
 data PatchLog = PatchLog { pID :: String
                          , pDate :: String
                          , pName :: String
@@ -138,21 +145,15 @@ getPatch dir patch = R.withRepositoryDirectory [] dir $ \dr ->
 fromPS :: P.RepoPatch p => R.PatchSet p -> [P.Named p]
 fromPS = WO.unsafeUnRL . WO.reverseFL . R.patchSetToPatches
 
-summarize :: [[(String, String)]] -> [PatchChange] -> [M.Map String String]
-summarize a [] = map M.fromList $ nub a
-summarize a (FileChange n FileRemoved:cs) = summarize (a ++ [[("removed", n)]]) cs
-summarize a (FileChange n FileAdded:cs) = summarize (a ++ [[("added", n)]]) cs
-summarize a (FileChange n (FileReplace f t):cs) = summarize (a ++ [[ ("replaced", n)
-                                                                   , ("from", f)
-                                                                   , ("to", t)
-                                                                   ]]) cs
-summarize a (FileChange n _:cs) = summarize (a ++ [[("modified", n)]]) cs
-summarize a (PrefChange n f t:cs) = summarize (a ++ [[ ("preference", n)
-                                                       , ("from", f)
-                                                       , ("to", t)
-                                                       , ("type", "change")
-                                                       ]]) cs
-summarize a (_:cs) = summarize a cs
+summarize :: [PatchChange] -> [Summary]
+summarize = reverse . summarize'
+    where
+        summarize' (FileChange n FileRemoved:cs) = (Removed n) : summarize cs
+        summarize' (FileChange n FileAdded:cs) = (Added n) : summarize cs
+        summarize' (FileChange n (FileReplace f t):cs) = (Replaced n f t) : summarize cs
+        summarize' (FileChange n _:cs) = (Modified n) : summarize cs
+        summarize' (PrefChange n f t:cs) = (Preference n f t) : summarize cs
+        summarize' (_:cs) = summarize cs
 
 isModification :: PatchChange -> Bool
 isModification (FileChange _ (FileHunk _ _ _)) = True

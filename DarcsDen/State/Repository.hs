@@ -76,6 +76,12 @@ instance JSON Repository where
                         Nothing -> []
 
 
+repoOwnerURL :: Repository -> String
+repoOwnerURL = ("/" ++) . rOwner
+
+repoURL :: Repository -> String
+repoURL r = "/" ++ rOwner r ++ "/" ++ rName r
+
 getRepositoryByID :: Doc -> IO (Maybe Repository)
 getRepositoryByID key = do res <- runDB (getDoc (db "repositories") key)
                            case res of
@@ -144,4 +150,3 @@ renameRepository n r = do update <- updateRepository (r { rName = n })
                           case update of
                                Just _ -> moveRepository (rOwner r, n) r >> return update
                                _ -> return Nothing
-

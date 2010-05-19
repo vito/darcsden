@@ -93,6 +93,9 @@ instance JSON User where
                         Nothing -> []
 
 
+userURL :: User -> String
+userURL = ("/" ++) . uName
+
 getUser :: String -> IO (Maybe User)
 getUser un = runDB (getDocByView (db "users") (doc "users") (doc "by_name") un)
 

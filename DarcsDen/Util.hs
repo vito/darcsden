@@ -6,17 +6,12 @@ import System.Directory
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LS
 
--- some instance settings, defined here for now:
 
--- | Developer mode. When this is True, darcsden will not add users or groups to the system.
-devmode :: Bool
-devmode = False
+baseDomain :: String
+baseDomain = "darcsden.com"
 
--- | Base url for the darcsden instance, used when absolute urls are required. Should end with /.
-baseurl :: String
-baseurl = "http://darcsden.com/"
-
---
+baseURL :: String
+baseURL = "http://" ++ baseDomain
 
 recursively :: (FilePath -> IO ()) -> FilePath -> IO ()
 recursively f p = do dir <- doesDirectoryExist p

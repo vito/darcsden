@@ -26,7 +26,7 @@ base :: String -> HSP XML -> HSP XML -> HTMLPage
 base title crumb content sess =
     <html>
         <head>
-            <title><% title %></title>
+            <title><% title %><% if not (null title) then " :: " else "" %>darcsden</title>
             <link rel="stylesheet" href="/public/css/main.css" type="text/css" media="screen" />
             <link rel="stylesheet" href="/public/css/hk-kate.css" />
             <script src="/public/js/jquery.js" type="text/javascript"></script>
@@ -111,3 +111,19 @@ submit l =
         <input type="submit" value=l />
         <br />
     </div>
+
+paginate :: String -> Int -> Int -> HSP XML
+paginate b p tp =
+    <ul class="pagination">
+        <%
+            if p /= 1
+               then <% <li class="prev"><a href=(b ++ "/page/" ++ show (p - 1))>&lt;- prev</a></li> %>
+               else <% "" %>
+        %>
+        <%
+            if p /= tp
+               then <% <li class="next"><a href=(b ++ "/page/" ++ show (p + 1))>next -&gt;</a></li> %>
+               else <% "" %>
+        %>
+        <li>page <% show p %> of <% show tp %></li>
+    </ul>
