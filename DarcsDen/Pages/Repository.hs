@@ -84,6 +84,7 @@ init is = base
                 <% field (input' is "description") "description" "" %>
                 <% field (input' is "website") "website" "" %>
                 <% field (input' is "bootstrap") "bootstrap" "" %>
+                <% submit "create repository" %>
             </fieldset>
         </form>
     </div>
