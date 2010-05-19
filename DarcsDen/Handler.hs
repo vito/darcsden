@@ -25,14 +25,23 @@ index s@(Session { sUser = Just n }) _
 
 -- URL handling
 handler :: Application
-handler r = do putStrLn ("Handling request " ++ show (requestMethod r, pathInfo r, urlScheme r, httpVersion r, queryString r) ++ " from " ++ show (remoteHost r))
-               is <- getInputsM r
-               let e = Env { eInputs = is
-                           , eCookies = readCookies r
-                           , eRequest = r
-                           }
-               withSession e (\s -> pageFor path s e)
-    where path = wordsBy (== '/') . tail . fromBS . pathInfo $ r
+handler r = do
+    putStrLn ("Handling request " ++ info ++ " from " ++ show (remoteHost r))
+    is <- getInputsM r
+    let e = Env { eInputs = is
+                , eCookies = readCookies r
+                , eRequest = r
+                }
+
+    withSession e (\s -> pageFor path s e)
+    where
+        path = wordsBy (== '/') . tail . fromBS . pathInfo $ r
+        info = show ( requestMethod r
+                    , pathInfo r
+                    , urlScheme r
+                    , httpVersion r
+                    , queryString r
+                    )
 
 pageFor :: [String] -> Page
 pageFor [] = index
