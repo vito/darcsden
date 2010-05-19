@@ -5,6 +5,7 @@ import Data.Char (isNumber, toLower)
 import Data.List (groupBy, inits, isPrefixOf, sortBy)
 import Data.List.Split (wordsBy)
 import Data.Map ((!))
+import Data.Maybe (fromJust)
 import Data.Ord (comparing)
 import Data.Time (getCurrentTime)
 import Network.Wai
@@ -252,9 +253,8 @@ repoForks :: String -> String -> Page
 repoForks un rn s _
   = do Just r <- getRepository (un, rn)
        Just u <- getUser un
-       rs <- getRepositories
-       let fs = filter (\f -> rForkOf f == rID r) rs
 
+       fs <- getRepositoryForks (fromJust $ rID r)
        forks <- mapM getForkChanges fs
 
        doPage (Page.forks u r forks) s

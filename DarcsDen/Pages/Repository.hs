@@ -229,25 +229,36 @@ forks u r fs s = repoBase u r
     "forks"
     <span> -> forks</span>
     <div class="repo-forks">
-        <form action=(repoURL r ++ "/merge") class="subtle" method="post">
-            <fieldset>
-                <% map fork' fs %>
-                <%
-                    if Just (rOwner r) == sUser s
-                       then
-                           <%
-                               <div class="merge-button">
-                                   <br />
-                                   <% submit "merge selected" %>
-                               </div>
-                           %>
-                       else <% "" %>
-                %>
-            </fieldset>
-        </form>
+        <%
+            if not (null fs)
+               then forksForm
+               else
+                   <div class="no-forks">
+                       <h1>no forks!</h1>
+                       <p class="blurb">so ronery.</p>
+                   </div>
+        %>
     </div>
     s
     where
+        forksForm :: HSP XML
+        forksForm =
+            <form action=(repoURL r ++ "/merge") class="subtle" method="post">
+                <fieldset>
+                    <% map fork' fs %>
+                    <%
+                        if Just (rOwner r) == sUser s
+                           then
+                               <%
+                                   <div class="merge-button">
+                                       <br />
+                                       <% submit "merge selected" %>
+                                   </div>
+                               %>
+                           else <% "" %>
+                    %>
+                </fieldset>
+            </form>
         fork' :: Fork -> HSP XML
         fork' (Fork f cs) =
             <div class="fork">
@@ -439,7 +450,7 @@ patch u r p ss cs = repoBase u r
             <li id=(cfName c)>
                 <h2>
                     <a href=(repoURL r ++ "/browse/" ++ cfName c)><% cfName c %></a>
-                    ::
+                    <% cdata " :: " %>
                     <span class="line">line <% show (fchLine (cfType c)) %></span>
                 </h2>
                 <div class="removed"><% cdata $ fchRemove (cfType c) %></div>

@@ -37,7 +37,8 @@ base title crumb content sess =
             <% nav (sUser sess /= Nothing) %>
 
             <h1 class="head">
-                <a href="/">darcsden</a> ::
+                <a href="/">darcsden</a>
+                <% cdata " :: " %>
                 <% crumb %>
             </h1>
 

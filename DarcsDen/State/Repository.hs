@@ -91,6 +91,9 @@ getRepositoryByID key = do res <- runDB (getDoc (db "repositories") key)
 getRepository :: (String, String) -> IO (Maybe Repository)
 getRepository (un, rn) = runDB (getDocByView (db "repositories") (doc "repositories") (doc "by_owner_and_name") [un, rn])
 
+getRepositoryForks :: Doc -> IO [Repository]
+getRepositoryForks key = fmap (map snd) (runDB (queryView (db "repositories") (doc "repositories") (doc "by_fork") [("key", showJSON key)]))
+
 getRepositories :: IO [Repository]
 getRepositories = fmap (map snd) (runDB (getAllDocs (db "repositories") []))
 
