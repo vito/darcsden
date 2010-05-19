@@ -10,28 +10,26 @@ import DarcsDen.State.User
 
 
 home :: [Repository] -> HTMLPage
-home rs =
-    base
-        "darcsden"
-        <span>home</span>
-        <div class="home">
-            <h1><a href="/init">create a repository -></a></h1>
-            <br />
-            <h1>your repositories</h1>
-            <ul class="user-repos">
-                <% map repo rs %>
-            </ul>
-        </div>
+home rs = base
+    "darcsden"
+    <span>home</span>
+    <div class="home">
+        <h1><a href="/init">create a repository -></a></h1>
+        <br />
+        <h1>your repositories</h1>
+        <ul class="user-repos">
+            <% map repo rs %>
+        </ul>
+    </div>
 
 user :: User -> [Repository] -> HTMLPage
-user u repos =
-    base
-        "foo"
-        <a><% uName u %></a>
-        <div class="user">
-            <h1><% uName u %>'s repositories</h1>
-            <% repositories repos %>
-        </div>
+user u repos = base
+    "foo"
+    <a><% uName u %></a>
+    <div class="user">
+        <h1><% uName u %>'s repositories</h1>
+        <% repositories repos %>
+    </div>
     where
         repositories :: [Repository] -> HSP XML
         repositories [] = <p class="blurb">nothing to see here, move along!</p>
@@ -54,7 +52,9 @@ repo r =
     </li>
 
 register :: [(String, String)] -> HTMLPage
-register is _ =
+register is = base
+    "register"
+    <span>register</span>
     <div class="register">
         <h1>sign up</h1>
         <form class="big" action="/register" method="post">
@@ -70,7 +70,9 @@ register is _ =
     </div>
 
 login :: [(String, String)] -> HTMLPage
-login is _ =
+login is = base
+    "login"
+    <span>login</span>
     <div class="login">
         <h1>log in</h1>
         <form action="/login" method="post">
@@ -83,7 +85,9 @@ login is _ =
     </div>
 
 settings :: User -> HTMLPage
-settings u _ =
+settings u = base
+    "settings"
+    <span>settings</span>
     <div class="settings">
         <form class="big" action="/settings" method="post">
             <fieldset>
