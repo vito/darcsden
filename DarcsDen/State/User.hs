@@ -75,7 +75,10 @@ instance JSON User where
                              _ -> fail "Unable to read User"
     readJSON _ = fail "Unable to read User"
 
-    showJSON u = JSObject (toJSObject ([ ("fullName", showJSON (uFullName u))
+    showJSON u = JSObject (toJSObject ([ ("name", showJSON (uName u))
+                                       , ("password", showJSON (uPassword u))
+                                       , ("salt", showJSON (uSalt u))
+                                       , ("full_name", showJSON (uFullName u))
                                        , ("website", showJSON (uWebsite u))
                                        , ("email", showJSON (uEmail u))
                                        , ("keys", showJSON (uKeys u))
