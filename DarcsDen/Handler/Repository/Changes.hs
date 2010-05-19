@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable, GADTs #-}
+{-# LANGUAGE GADTs #-}
 module DarcsDen.Handler.Repository.Changes where
 
 import Darcs.Patch.Info (pi_date, pi_name, pi_author, pi_log, make_filename)
@@ -7,10 +7,7 @@ import Darcs.Patch.Patchy (Commute(..))
 import Darcs.Patch.Prim (Prim(..), DirPatchType(..), FilePatchType(..))
 import Darcs.Hopefully (PatchInfoAnd, info)
 import Darcs.Witnesses.Ordered
-import Data.Data (Data)
 import Data.List (nub)
-import Data.Typeable (Typeable)
-import Happstack.State (query)
 import System.Time (calendarTimeToString)
 import qualified Darcs.Patch as P
 import qualified Darcs.Repository as R
@@ -30,7 +27,7 @@ data PatchLog = PatchLog { pID :: String
                          , pLog :: [String]
                          , pDepends :: [String]
                          }
-                deriving (Eq, Show, Data, Typeable)
+                deriving (Eq, Show)
 
 
 data PatchChange = Moved { cmFrom :: FilePath
@@ -46,10 +43,10 @@ data PatchChange = Moved { cmFrom :: FilePath
                               , cpFrom :: String
                               , cpTo :: String
                               }
-                 deriving (Eq, Show, Data, Typeable)
+                 deriving (Eq, Show)
 
 data DirChange = DirRemoved | DirAdded
-               deriving (Eq, Show, Data, Typeable)
+               deriving (Eq, Show)
 
 data FileChange = FileRemoved
                 | FileAdded
@@ -61,20 +58,21 @@ data FileChange = FileRemoved
                 | FileReplace { fchFind :: String
                               , fchReplace :: String
                               }
-                deriving (Eq, Show, Data, Typeable)
+                deriving (Eq, Show)
 
 data PatchChanges = PatchChanges { pPatch :: PatchLog
                                  , pChanges :: [PatchChange]
                                  }
-                    deriving (Eq, Show, Data, Typeable)
+                    deriving (Eq, Show)
 
 
 toLog :: P.Named p -> IO PatchLog
-toLog p = do mu <- query $ GetUserByEmail (emailFrom (pi_author i))
+toLog p = do mu <- getUserByEmail (emailFrom (pi_author i))
 
-             let (author, isUser) = case mu of
-                   Nothing -> (pi_author i, False)
-                   Just u -> (uName u, True)
+             let (author, isUser) =
+                     case mu of
+                          Nothing -> (pi_author i, False)
+                          Just u -> (uName u, True)
 
              return $ PatchLog (take 20 $ make_filename i)
                                (calendarTimeToString $ pi_date i)

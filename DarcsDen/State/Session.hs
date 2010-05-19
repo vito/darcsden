@@ -60,8 +60,7 @@ instance JSON Session where
                                     _ -> fail "Unable to read Session"
     readJSON _ = fail "Unable to read Session"
 
-    showJSON s = JSObject (toJSObject [ ("id", showJSON (sID s))
-                                      , ("user", showJSON (sUser s))
+    showJSON s = JSObject (toJSObject [ ("user", showJSON (sUser s))
                                       , ("notifications", showJSON (sNotifications s))
                                       ])
 

@@ -1,10 +1,10 @@
 module DarcsDen.Validate where
 
 import Data.Either (lefts)
-import Hack (Env)
+import Network.Wai (Request)
 import qualified Data.Map as M
 
-import DarcsDen.HackUtils
+import DarcsDen.WebUtils
 import DarcsDen.State.Session
 
 
@@ -44,13 +44,16 @@ invalid :: [Valid] -> Result
 invalid = Left . Invalid
 
 -- Verify a validation
-verify :: Env -> Valid -> IO Result
-verify e v@(Predicate a p _) = case getInput a e of
-                                 Just x | p x -> return $ ok [(a, x)]
-                                 _ -> return $ invalid [v]
-verify e v@(PredicateOp a b p _) = case (getInput a e,  getInput b e) of
-                                     (Just x, Just y) | p x y -> return $ ok [(a, x), (b, y)]
-                                     _ -> return $ invalid [v]
+verify :: Request -> Valid -> IO Result
+verify e v@(Predicate a p _) = do i <- getInput a e
+                                  case i of
+                                       Just x | p x -> return $ ok [(a, x)]
+                                       _ -> return $ invalid [v]
+verify e v@(PredicateOp a b p _) = do ia <- getInput a e
+                                      ib <- getInput b e
+                                      case (ia, ib) of
+                                           (Just x, Just y) | p x y -> return $ ok [(a, x), (b, y)]
+                                           _ -> return $ invalid [v]
 verify e v@(Not t) = do r <- verify e t
                         return (either (const (ok [])) (const (invalid [v])) r)
 verify e (Or a b) = do x <- verify e a
@@ -77,7 +80,7 @@ verify _ v@(IOPred _ p) = do r <- p
                                else return $ invalid [v]
 
 -- Check a bunch of validations
-check :: Env -> [Valid] -> IO Result
+check :: Request -> [Valid] -> IO Result
 check = check' (ok [])
     where
       check' acc _ [] = return acc
@@ -99,7 +102,7 @@ nonEmpty a = Predicate a (/= "") "not be empty"
 equal :: String -> String -> Valid
 equal a b = PredicateOp a b (==) "be the same"
 
-validate :: Env -> [Valid] -> (OK -> IO a) -> (Invalid -> IO a) -> IO a
+validate :: Request -> [Valid] -> (OK -> IO a) -> (Invalid -> IO a) -> IO a
 validate e ts p f = check e ts >>= either f p
 
 predicate :: String -> (String -> Bool) -> String -> Valid

@@ -86,8 +86,11 @@ instance JSON Repository where
                         Nothing -> []
 
 
-
-
+getRepositoryByID :: Doc -> IO (Maybe Repository)
+getRepositoryByID key = do res <- runDB (getDoc (db "repositories") key)
+                           case res of
+                                Just (_, _, r) -> return r
+                                Nothing -> return Nothing
 
 getRepository :: (String, String) -> IO (Maybe Repository)
 getRepository (un, rn) = runDB (getDocByView (db "repositories") (doc "repositories") (doc "by_owner_and_name") [un, rn])
@@ -117,15 +120,13 @@ deleteRepository r = case (rID r, rRev r) of
                               runDB (deleteDoc (db "repositories") (id', rev'))
                           _ -> return False
 
-newRepository :: Repository -> Dirty IO Repository
-newRepository r = do unless devmode $ shell "groupadd" [group]
-                     unless devmode $ shell "usermod" ["-aG", group, rOwner r]
-                     io $ do addRepository r
-                             createDirectoryIfMissing True repo
-                             withCurrentDirectory repo (R.createRepository [])
-                             writeFile (repo ++ "/_darcs/prefs/defaults") defaults
-                             setRepoPermissions r
-                     return r
+newRepository :: Repository -> IO Repository
+newRepository r = do new <- addRepository r
+                     createDirectoryIfMissing True repo
+                     withCurrentDirectory repo (R.createRepository [])
+                     writeFile (repo ++ "/_darcs/prefs/defaults") defaults
+                     setRepoPermissions r
+                     return new
   where group = repoGroup (rOwner r) (rName r)
         repo = repoDir (rOwner r) (rName r)
         defaults = "ALL umask 0007\n"
@@ -164,12 +165,12 @@ bootstrapRepository r url
        io (setRepoPermissions r)
   where dest = repoDir (rOwner r) (rName r)
 
-forkRepository :: String -> String -> Repository -> Dirty IO Repository
+forkRepository :: String -> String -> Repository -> IO Repository
 forkRepository un rn r = do new <- newRepository (r { rOwner = un
                                                     , rName = rn
                                                     , rForkOf = rID r
                                                     })
-                            bootstrapRepository new orig
+                            dirty (bootstrapRepository new orig)
                             return new
   where orig = repoDir (rOwner r) (rName r)
 
@@ -195,15 +196,15 @@ members r = do groups <- readFile "/etc/group"
                  _ -> return []
   where group = repoGroup (rOwner r) (rName r)
 
-addMember :: String -> Repository -> Dirty IO ()
-addMember m r = shell "usermod" ["-aG", group, m]
-  where group = repoGroup (rOwner r) (rName r)
+{-addMember :: String -> Repository -> Dirty IO ()-}
+{-addMember m r = shell "usermod" ["-aG", group, m]-}
+  {-where group = repoGroup (rOwner r) (rName r)-}
 
-removeMember :: String -> Repository -> Dirty IO ()
-removeMember m r = do gs <- lift getAllGroupEntries
-                      shell "usermod" ["-G", intercalate "," (groups gs), m]
-  where group = repoGroup (rOwner r) (rName r)
-        groups gs = map groupName $ filter (\g -> m `elem` groupMembers g && groupName g /= group) gs
+{-removeMember :: String -> Repository -> Dirty IO ()-}
+{-removeMember m r = do gs <- lift getAllGroupEntries-}
+                      {-shell "usermod" ["-G", intercalate "," (groups gs), m]-}
+  {-where group = repoGroup (rOwner r) (rName r)-}
+        {-groups gs = map groupName $ filter (\g -> m `elem` groupMembers g && groupName g /= group) gs-}
 
 repoGroup :: String -> String -> String
 repoGroup un rn = md5sum . BS.pack . map (fromIntegral . ord) $ un ++ "/" ++ rn

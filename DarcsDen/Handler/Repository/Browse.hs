@@ -14,6 +14,7 @@ import qualified Storage.Hashed.Tree as T
 import qualified Storage.Hashed.AnchoredPath as A
 
 import DarcsDen.Handler.Repository.Util
+import DarcsDen.Util
 
 
 data RepoItem = RepoItem { iName :: String
@@ -49,7 +50,7 @@ blob dr@(RI.Repo p _ _ _) f
          Nothing -> return Nothing
          Just t -> case T.findFile t (toAnchored f) of
            Nothing -> return Nothing
-           Just b -> fmap (Just . fromLS) (T.readBlob b)
+           Just b -> fmap (Just . fromLBS) (T.readBlob b)
 
 repoTree :: R.Repository P.Patch -> [String] -> IO (Maybe (T.Tree IO))
 repoTree r@(RI.Repo p _ _ _) f

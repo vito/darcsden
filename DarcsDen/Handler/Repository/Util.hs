@@ -1,13 +1,10 @@
 module DarcsDen.Handler.Repository.Util where
 
-import Data.Char (chr)
 import System.FilePath (takeExtension)
 import Text.Highlighting.Kate
 import Text.XHtml.Strict (renderHtmlFragment)
 import qualified Darcs.Patch as P
 import qualified Darcs.Repository as R
-import qualified Data.ByteString as BS
-import qualified Data.ByteString.Lazy as LS
 
 
 getRepo :: String -> IO (Either String (R.Repository P.Patch))
@@ -25,10 +22,4 @@ highlight f s os = case hl of
 
 highlightBlob :: String -> String -> String
 highlightBlob f s = highlight f s [OptNumberLines]
-
-fromBS :: BS.ByteString -> String
-fromBS = map (chr . fromIntegral) . BS.unpack
-
-fromLS :: LS.ByteString -> String
-fromLS = map (chr . fromIntegral) . LS.unpack
 

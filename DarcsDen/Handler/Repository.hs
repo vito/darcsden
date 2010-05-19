@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable #-}
 module DarcsDen.Handler.Repository where
 
 import Control.Monad (when)
@@ -6,14 +5,12 @@ import Control.Monad.Trans
 import Data.Char (isNumber, isSpace, toLower)
 import Data.List (groupBy, inits, isPrefixOf, sortBy)
 import Data.List.Split (wordsBy)
-import Data.Map ((!), fromList)
+import Data.Map ((!))
 import Data.Ord (comparing)
-import Hack
-import Happstack.State
-import System.Time (getClockTime)
+import Data.Time (getCurrentTime)
+import Network.Wai
 
 import DarcsDen.Dirty (dirty, perhaps)
-import DarcsDen.HackUtils
 import DarcsDen.Handler.Repository.Util
 import DarcsDen.Handler.Repository.Browse
 import DarcsDen.Handler.Repository.Changes
@@ -24,18 +21,20 @@ import DarcsDen.State.User
 import DarcsDen.State.Util
 import DarcsDen.Util
 import DarcsDen.Validate
+import DarcsDen.WebUtils
+import qualified DarcsDen.Pages.Repository as Page
 
 
 handleRepo :: String -> String -> [String] -> Page
 handleRepo un rn action s e
-  = validate e [ io "user does not exist" $ fmap (/= Nothing) (query (GetUser un))
-               , iff (io "repository does not exist" $ fmap (/= Nothing) (query (GetRepository (un, rn))))
+  = validate e [ io "user does not exist" $ fmap (/= Nothing) (getUser un)
+               , iff (io "repository does not exist" $ fmap (/= Nothing) (getRepository (un, rn)))
                      (\(OK _) -> io "repository invalid" $ fmap (either (const False) (const True)) $ getRepo (repoDir name repo))
                ]
     (\(OK _) ->
       case action of
         [] -> browseRepo name repo [] s e
-        ("_darcs":unsafe) -> serveDirectory (repoDir name repo ++ "/_darcs/") unsafe s e
+        ("_darcs":unsafe) -> errorPage "Please configure static file serving for _darcs directories on your main webserver." s e
         ("browse":file) -> browseRepo name repo file s e
         ["edit"] -> editRepo name repo s e
         ["delete"] -> deleteRepo name repo s e
@@ -54,56 +53,48 @@ handleRepo un rn action s e
 
 initialize :: Page
 initialize s@(Session { sUser = Nothing }) _ = warn "You must be logged in to create a repository." s >> redirectTo "/login"
-initialize s (Env { requestMethod = GET }) = doPage "init" [] s
+initialize s (Request { requestMethod = GET }) = doPage (Page.init []) s
 initialize s@(Session { sUser = Just n }) e
   = validate e
     [ iff (nonEmpty "name" `And` predicate "name" isSane "contain only alphanumeric characters, underscores, and hyphens")
-          (\(OK i) -> io "destination repository already exists" $ fmap (== Nothing) (query (GetRepository (n, i ! "name"))))
-    , io "user is not valid" (fmap (/= Nothing) (query (GetUser n)))
+          (\(OK i) -> io "destination repository already exists" $ fmap (== Nothing) (getRepository (n, i ! "name")))
+    , io "user is not valid" (fmap (/= Nothing) (getUser n))
     ]
     (\(OK r) -> do
-        now <- getClockTime
-        new <- dirty $ do
-                 repo <- newRepository
-                           Repository { rName = r ! "name"
-                                      , rOwner = n
-                                      , rDescription = input "description" "" e
-                                      , rWebsite = input "website" "" e
-                                      , rCreated = now
-                                      , rForkOf = Nothing
-                                      }
+        now <- getCurrentTime
+        description <- input "description" "" e
+        website <- input "website" "" e
+        repo <- newRepository
+                  Repository { rName = r ! "name"
+                             , rOwner = n
+                             , rDescription = description
+                             , rWebsite = website
+                             , rCreated = now
+                             , rForkOf = Nothing
+                             }
 
-                 case getInput "bootstrap" e of
-                   Just url | length url > 0 -> bootstrapRepository repo url
-                   _ -> return ()
+        -- TODO: make boostrapping clean?
+        {-url <- input "boostrap" "" e-}
+        {-when (length url > 0) (dirty (bootstrapRepository repo url))-}
 
-                 return repo
-
-        perhaps new
-          (\_ -> do success "Repository created." s
-                    redirectTo ("/" ++ n ++ "/" ++ (r ! "name")))
-          (\m -> do warn ("Repository creation failed: " ++ m) s
-                    redirectTo "/init"))
+        success "Repository created." s
+        redirectTo ("/" ++ n ++ "/" ++ (r ! "name")))
     (\(Invalid f) -> do
         notify Warning s f
-        doPage "init" [var "in" (fromList $ getInputs e)] s)
+        is <- getInputs e
+        doPage (Page.init is) s)
 
 browse :: Int -> Page
-browse p s _ = do rs <- query GetRepositories
-                  let totalPages = ceiling ((fromIntegral (length rs) :: Double) / 50)
-                  doPage "browse" [ var "repos" (paginate 50 p (sortBy (comparing (map toLower . rName)) rs))
-                                  , var "page" p
-                                  , var "totalPages" totalPages
-                                  , var "nextPage" (p + 1)
-                                  , var "prevPage" (p - 1)
-                                  , var "notFirst" (p /= 1)
-                                  , var "notLast" (p /= totalPages)
-                                  ] s
+browse p s _ = do
+    rs <- getRepositories
+    let totalPages = ceiling ((fromIntegral (length rs) :: Double) / 50)
+    doPage (Page.browse (paginated rs) p totalPages) s
+    where paginated rs = (paginate 50 p (sortBy (comparing (map toLower . rName)) rs))
 
 browseRepo :: String -> String -> [String] -> Page
 browseRepo un rn f s e = do
-  Just u <- query (GetUser un)
-  Just r <- query (GetRepository (un, rn))
+  Just u <- getUser un
+  Just r <- getRepository (un, rn)
   Right dr <- getRepo (repoDir un rn)
 
   fs <- files dr f
@@ -118,81 +109,70 @@ browseRepo un rn f s e = do
     (Nothing, Nothing) -> notFound s e
     (Just fs', _) -> do
       readme <- getReadme dr f
-      doPage "repo" [ var "user" u
-                    , var "repo" r
-                    , var "files" (toMaybe $ map (\i -> i { iURL = urlTo un rn (f ++ [iName i]) }) fs')
-                    , var "up" (if null f
-                                  then ""
-                                  else urlTo un rn (init f))
-                    , var "path" path
-                    , var "readme" readme
-                    , var "isAdmin" (sUser s == Just (rOwner r))
-                    ] s
+      let files = map (\i -> i { iURL = urlTo un rn (f ++ [iName i]) }) fs'
+          up = if null f
+               then ""
+               else urlTo un rn (init f)
+      doPage (Page.repo u r files up path readme) s
     (_, Just source) ->
-      doPage "repo-blob" [ var "user" u
-                         , var "repo" r
-                         , var "file" (last path)
-                         , var "blob" (highlightBlob (last f) source)
-                         , var "path" (init path)
-                         , var "isAdmin" (sUser s == Just (rOwner r))
-                         ] s
+      doPage (Page.blob u r path (highlightBlob (last f) source)) s
 
 repoChanges :: String -> String -> Int -> Page
 repoChanges un rn page s _ = do
-  Just u <- query (GetUser un)
-  Just r <- query (GetRepository (un, rn))
+  Just u <- getUser un
+  Just r <- getRepository (un, rn)
 
   (patches, totalPages) <- getChanges (repoDir un rn) page
 
-  doPage "repo-changes" [ var "user" u
-                        , var "repo" r
-                        , var "patches" patches
-                        , var "page" page
-                        , var "totalPages" totalPages
-                        , var "nextPage" (page + 1)
-                        , var "prevPage" (page - 1)
-                        , var "notFirst" (page /= 1)
-                        , var "notLast" (page /= totalPages)
-                        , var "isAdmin" (sUser s == Just (rOwner r))
-                        ] s
+  doPage (Page.changes u r patches page totalPages) s
+  {-doPage "repo-changes" [ var "user" u-}
+                        {-, var "repo" r-}
+                        {-, var "patches" patches-}
+                        {-, var "page" page-}
+                        {-, var "totalPages" totalPages-}
+                        {-, var "nextPage" (page + 1)-}
+                        {-, var "prevPage" (page - 1)-}
+                        {-, var "notFirst" (page /= 1)-}
+                        {-, var "notLast" (page /= totalPages)-}
+                        {-, var "isAdmin" (sUser s == Just (rOwner r))-}
+                        {-] s-}
 
 repoAtomFeed :: String -> String -> Page
 repoAtomFeed un rn s _ = do
-  Just u <- query (GetUser un)
-  Just r <- query (GetRepository (un, rn))
+  Just u <- getUser un
+  Just r <- getRepository (un, rn)
   (patches, _) <- getChanges (repoDir un rn) 1
-  doPage "repo-changes-atom" [ var "user" u
-                             , var "repo" r
-                             , var "patches" patches
-                             , var "baseurl" baseurl
-                             ] s
+  doPage (Page.changesAtom u r patches baseurl) s
 
 repoPatch :: String -> String -> String -> Page
 repoPatch un rn p s _ = do
-  Just u <- query (GetUser un)
-  Just r <- query (GetRepository (un, rn))
+  Just u <- getUser un
+  Just r <- getRepository (un, rn)
 
   patch <- getPatch (repoDir un rn) p
 
-  doPage "repo-patch" [ var "user" u
-                      , var "repo" r
-                      , var "log" (pPatch patch)
-                      , var "summary" (summarize [] (pChanges patch))
-                      , var "changes" (filter isModification (pChanges patch))
-                      , var "isAdmin" (sUser s == Just (rOwner r))
-                      ] s
+  doPage (Page.patch
+             u
+             r
+             (pPatch patch)
+             (summarize [] (pChanges patch))
+             (filter isModification (pChanges patch))) s
+  {-doPage "repo-patch" [ var "user" u-}
+                      {-, var "repo" r-}
+                      {-, var "log" (pPatch patch)-}
+                      {-, var "summary" (summarize [] (pChanges patch))-}
+                      {-, var "changes" (filter isModification (pChanges patch))-}
+                      {-, var "isAdmin" (sUser s == Just (rOwner r))-}
+                      {-] s-}
 
 editRepo :: String -> String -> Page
-editRepo un rn s e@(Env { requestMethod = GET })
+editRepo un rn s e@(Request { requestMethod = GET })
  = validate e
     [ io "you do not own this repository" (return $ Just un == sUser s) ]
     (\(OK _) -> do
-        Just r <- query (GetRepository (un, rn))
+        Just r <- getRepository (un, rn)
         ms <- members r
-        doPage "repo-edit" [ var "repo" r
-                           , var "members" ms
-                           , var "isAdmin" True
-                           ] s)
+        doPage (Page.edit r []) s)
     (\(Invalid f) -> notify Warning s f >> redirectTo "/")
 editRepo un rn s e
   = validate e
@@ -201,21 +181,24 @@ editRepo un rn s e
     , predicate "name" isSane "contain only alphanumeric characters, underscores, and hyphens"
     ]
     (\(OK i) -> do
-        Just r <- query (GetRepository (un, rn))
+        Just r <- getRepository (un, rn)
         ms <- members r
 
-        new <- dirty (do removeMembers r ms
-                         addMembers r (input "add-members" "" e)
-                         rename r (i ! "name"))
+        -- TODO: clean repo member stuff
+        {-nms <- input "add-members" "" e-}
+        {-dirty (removeMembers r ms-}
+               {->> addMembers r nms)-}
 
-        perhaps new
-          (\n -> do update (UpdateRepository
-                              n { rDescription = input "description" (rDescription r) e
-                                , rWebsite = input "website" (rWebsite r) e
-                                })
+        Just new <- rename r (i ! "name")
 
-                    success "Repository updated." s)
-          (\m -> warn ("Repository editing failed: " ++ m) s)
+        description <- input "description" (rDescription r) e
+        website <- input "website" (rWebsite r) e
+        updateRepository
+            new { rDescription = description
+                , rWebsite = website
+                }
+
+        success "Repository updated." s
 
         redirectTo ("/" ++ un ++ "/" ++ (i ! "name") ++ "/edit"))
     (\(Invalid f) -> do
@@ -224,44 +207,44 @@ editRepo un rn s e
   where strip = strip' . strip'
         strip' = reverse . dropWhile isSpace
 
-        removeMembers r
-          = mapM_ (\m -> case getInput ("remove-" ++ m) e of
-                      Nothing -> return ()
-                      Just _ -> removeMember m r)
+        {-removeMembers r-}
+          {-= mapM_ (\m -> do remove <- getInput ("remove-" ++ m) e-}
+                            {-case remove of-}
+                                 {-Nothing -> return ()-}
+                                 {-Just _ -> removeMember m r)-}
 
-        addMembers r as
-          = mapM_ (\m -> do c <- lift (query (GetUser m))
-                            case c of
-                              Just _ -> addMember (strip m) r
-                              Nothing -> lift (warn ("Invalid user; cannot add: " ++ m) s) >> return ())
-                  (wordsBy (== ',') as)
+        {-addMembers r as-}
+          {-= mapM_ (\m -> do c <- lift (getUser m)-}
+                            {-case c of-}
+                              {-Just _ -> addMember (strip m) r-}
+                              {-Nothing -> lift (warn ("Invalid user; cannot add: " ++ m) s) >> return ())-}
+                  {-(wordsBy (== ',') as)-}
 
         rename r n
           = if rName r /= n
               then renameRepository n r
-              else return r
+              else return (Just r)
 
 deleteRepo :: String -> String -> Page
-deleteRepo un rn s e@(Env { requestMethod = GET })
+deleteRepo un rn s e@(Request { requestMethod = GET })
  = validate e
    [ io "you do not own this repository" (return $ Just un == sUser s) ]
    (\(OK _) -> do
-       Just r <- query (GetRepository (un, rn))
-       doPage "repo-delete" [ var "repo" r
-                            , var "isAdmin" True
-                            ] s)
+       Just r <- getRepository (un, rn)
+       doPage (Page.delete r) s)
+       {-doPage "repo-delete" [ var "repo" r-}
+                            {-, var "isAdmin" True-}
+                            {-] s)-}
    (\(Invalid f) -> notify Warning s f >> redirectTo "/")
 deleteRepo un rn s e
   = validate e
     [ io "you do not own this repository" (return $ Just un == sUser s) ]
     (\(OK _) -> do
-        destroyed <- dirty (destroyRepository (un, rn))
+        Just r <- getRepository (un, rn)
+        destroyed <- destroyRepository r
 
-        perhaps destroyed
-          (\_ -> do success "Repository deleted." s
-                    redirectTo ('/' : un))
-          (\m -> do warn ("Repository deletion failed: " ++ m) s
-                    redirectTo ('/' : un ++ "/" ++ rn)))
+        success "Repository deleted." s
+        redirectTo ('/' : un))
     (\(Invalid f) -> do
         notify Warning s f
         redirectTo ('/' : un ++ "/" ++ rn))
@@ -270,75 +253,67 @@ forkRepo :: String -> String -> Page
 forkRepo _ _ s@(Session { sUser = Nothing }) _ = warn "You must be logged in to fork a repository." s >> redirectTo "/"
 forkRepo un rn s@(Session { sUser = Just n }) e
   = validate e
-    [ io "destination repository already exists" $ fmap (== Nothing) (query (GetRepository (n, rn))) ]
+    [ io "destination repository already exists" $ fmap (== Nothing) (getRepository (n, rn)) ]
     (\(OK _) -> do
-        Just r <- query (GetRepository (un, rn))
+        Just r <- getRepository (un, rn)
 
-        forked <- dirty (forkRepository n (rName r) r)
-        perhaps forked
-          (\f -> do success "Repository forked." s
-                    redirectTo ("/" ++ n ++ "/" ++ rName f))
-          (\m -> do warn ("Repository forking failed: " ++ m) s
-                    redirectTo ('/' : un ++ "/" ++ rn ++ "/fork")))
+        forked <- forkRepository n (rName r) r
+        success "Repository forked." s
+        redirectTo ("/" ++ n ++ "/" ++ rName forked))
     (\(Invalid _) -> do
-        Just r <- query (GetRepository (un, rn))
-        doPage "repo-fork" [ var "repo" r
-                           , var "name" (rName r)
-                           , var "isAdmin" True
-                           ] s)
+        Just r <- getRepository (un, rn)
+        doPage (Page.fork r (rName r)) s)
+        {-doPage "repo-fork" [ var "repo" r-}
+                           {-, var "name" (rName r)-}
+                           {-, var "isAdmin" True-}
+                           {-] s)-}
 
 forkRepoAs :: String -> String -> Page
 forkRepoAs _ _ s@(Session { sUser = Nothing }) _ = warn "You must be logged in to fork a repository." s >> redirectTo "/"
 forkRepoAs un rn s@(Session { sUser = Just n }) e
   = validate e
     [ iff (nonEmpty "name")
-          (\(OK i) -> io "destination repository already exists" $ fmap (== Nothing) (query (GetRepository (n, i ! "name"))))
+          (\(OK i) -> io "destination repository already exists" $ fmap (== Nothing) (getRepository (n, i ! "name")))
     ]
     (\(OK i) -> do
-        Just r <- query (GetRepository (un, rn))
+        Just r <- getRepository (un, rn)
 
-        forked <- dirty (forkRepository n (i ! "name") r)
-        perhaps forked
-          (\f -> do success "Repository forked." s
-                    redirectTo ("/" ++ n ++ "/" ++ rName f))
-          (\m -> do warn ("Repository forking failed: " ++ m) s
-                    redirectTo ('/' : un ++ "/" ++ rn ++ "/fork")))
+        forked <- forkRepository n (i ! "name") r
+        success "Repository forked." s
+        redirectTo ("/" ++ n ++ "/" ++ rName forked))
     (\(Invalid _) -> do
-        Just r <- query (GetRepository (un, rn))
-        doPage "repo-fork" [ var "repo" r
-                           , var "name" (input "name" (rName r) e)
-                           ] s)
+        Just r <- getRepository (un, rn)
+        name <- input "name" (rName r) e
+        doPage (Page.fork r name) s)
 
 repoForks :: String -> String -> Page
 repoForks un rn s _
-  = do Just r <- query (GetRepository (un, rn))
-       rs <- query GetRepositories
-       let fs = filter (\f -> rForkOf f == Just (un, rn)) rs
+  = do Just r <- getRepository (un, rn)
+       rs <- getRepositories
+       let fs = filter (\f -> rForkOf f == rID r) rs
 
        forks <- mapM getForkChanges fs
 
-       doPage "repo-forks" [ var "repo" r
-                           , var "forks" forks
-                           , var "isAdmin" (sUser s == Just un)
-                           ] s
+       doPage (Page.forks r forks) s
 
 mergeForks :: String -> String -> Page
 mergeForks un rn s e
   = validate e
     [ io "you do not own this repository" (return $ Just un == sUser s) ]
     (\(OK _) -> do
+        inputs <- getInputs e
         let ps = map (\(n, _) ->
                        let split = wordsBy (== ':') n
                        in (split !! 1, split !! 2, split !! 3))
-                     (filter (\(n, _) -> "merge:" `isPrefixOf` n) (getInputs e))
+                     (filter (\(n, _) -> "merge:" `isPrefixOf` n) inputs)
             gps = groupBy (\a b -> fst a == fst b) (map (\(o, n, p) -> ((o, n), p)) ps)
             groupedPatches = map (\r@((k, _):_) -> (k, map snd r)) gps
 
         merge <- mapM (\(r, ps') -> do
-                          Just f <- query (GetRepository r)
+                          Just f <- getRepository r
                           mergePatches f ps' s) groupedPatches
 
-        when (and merge) (success "Patches merged!" s)
+        when (and merge) (success "Patches merged!" s >> return ())
 
         redirectTo ('/' : un ++ "/" ++ rn ++ "/forks"))
    (\(Invalid f) -> notify Warning s f >> redirectTo "/")

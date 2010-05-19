@@ -23,6 +23,7 @@ data User = User { uID :: Maybe Doc
                  , uFullName :: String
                  , uWebsite :: String
                  , uEmail :: String
+                 , uKeys :: [String]
                  , uJoined :: UTCTime
                  }
     deriving (Eq, Show)
@@ -37,8 +38,9 @@ instance JSON User where
         fullName <- getFullName
         website <- getWebsite
         email <- getEmail
+        keys <- getKeys
         joined <- getJoined
-        return (User (Just id') (Just rev') name password salt' fullName website email joined)
+        return (User (Just id') (Just rev') name password salt' fullName website email keys joined)
         where
             as = fromJSObject js
             getID = case lookup "_id" as of
@@ -65,6 +67,9 @@ instance JSON User where
             getEmail = case lookup "email" as of
                             Just (JSString e) -> return (fromJSString e)
                             _ -> fail "Unable to read User"
+            getKeys = case lookup "keys" as of
+                           Just a@(JSArray _) -> readJSON a
+                           _ -> fail "Unable to read User"
             getJoined = case lookup "joined" as of
                              Just (JSString j) -> return (readTime defaultTimeLocale "%F %T" (fromJSString j))
                              _ -> fail "Unable to read User"
@@ -73,6 +78,7 @@ instance JSON User where
     showJSON u = JSObject (toJSObject ([ ("fullName", showJSON (uFullName u))
                                        , ("website", showJSON (uWebsite u))
                                        , ("email", showJSON (uEmail u))
+                                       , ("keys", showJSON (uKeys u))
                                        , ("joined", showJSON (formatTime defaultTimeLocale "%F %T" (uJoined u)))
                                        ] ++ id' ++ rev'))
         where

@@ -1,7 +1,10 @@
 module DarcsDen.Util where
 
-import System.Directory
 import Control.Monad (unless, when)
+import Data.Char (chr, ord)
+import System.Directory
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as LS
 
 -- some instance settings, defined here for now:
 
@@ -37,3 +40,16 @@ toMaybe x = Just x
 
 paginate :: Int -> Int -> [a] -> [a]
 paginate perpage page = take perpage . drop (perpage * (page - 1))
+
+toBS :: String -> BS.ByteString
+toBS = BS.pack . map (fromIntegral . ord)
+
+fromBS :: BS.ByteString -> String
+fromBS = map (chr . fromIntegral) . BS.unpack
+
+toLBS :: String -> LS.ByteString
+toLBS = LS.pack . map (fromIntegral . ord)
+
+fromLBS :: LS.ByteString -> String
+fromLBS = map (chr . fromIntegral) . LS.unpack
+
