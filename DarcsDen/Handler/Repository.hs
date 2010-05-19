@@ -170,7 +170,7 @@ editRepo un rn s e@(Env { eRequest = Request { requestMethod = GET } })
     [ io "you do not own this repository" (return $ Just un == sUser s) ]
     (\(OK _) -> do
         Just r <- getRepository (un, rn)
-        ms <- members r
+        {-ms <- members r-}
         doPage (Page.edit r []) s)
     (\(Invalid f) -> notify Warning s f >> redirectTo "/")
 editRepo un rn s e
@@ -181,7 +181,7 @@ editRepo un rn s e
     ]
     (\(OK i) -> do
         Just r <- getRepository (un, rn)
-        ms <- members r
+        {-ms <- members r-}
 
         -- TODO: clean repo member stuff
         {-nms <- input "add-members" "" e-}

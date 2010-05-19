@@ -122,11 +122,8 @@ newRepository :: Repository -> IO Repository
 newRepository r = do new <- addRepository r
                      createDirectoryIfMissing True repo
                      withCurrentDirectory repo (R.createRepository [])
-                     writeFile (repo ++ "/_darcs/prefs/defaults") defaults
                      return new
-  where group = repoGroup (rOwner r) (rName r)
-        repo = repoDir (rOwner r) (rName r)
-        defaults = "ALL umask 0007\n"
+  where repo = repoDir (rOwner r) (rName r)
 
 destroyRepository :: Repository -> IO ()
 destroyRepository r = do deleteRepository r
@@ -155,28 +152,3 @@ renameRepository n r = do update <- updateRepository (r { rName = n })
                                Just _ -> moveRepository (rOwner r, n) r >> return update
                                _ -> return Nothing
 
-members :: Repository -> IO [String]
--- This is preferable, but GHC bug #3816 prevents.
--- members r = do groups <- getAllGroupEntries
-               -- case filter ((== group) . groupName) groups of
-                 -- [g] -> return (groupMembers g)
-                 -- _ -> return []
-members r = do groups <- readFile "/etc/group"
-               let find = map (wordsBy (== ':')) $ filter (\l -> takeWhile (/= ':') l == group) (lines groups)
-               case find of
-                 [_:_:_:ms:_] -> return (wordsBy (== ',') ms)
-                 _ -> return []
-  where group = repoGroup (rOwner r) (rName r)
-
-{-addMember :: String -> Repository -> Dirty IO ()-}
-{-addMember m r = shell "usermod" ["-aG", group, m]-}
-  {-where group = repoGroup (rOwner r) (rName r)-}
-
-{-removeMember :: String -> Repository -> Dirty IO ()-}
-{-removeMember m r = do gs <- lift getAllGroupEntries-}
-                      {-shell "usermod" ["-G", intercalate "," (groups gs), m]-}
-  {-where group = repoGroup (rOwner r) (rName r)-}
-        {-groups gs = map groupName $ filter (\g -> m `elem` groupMembers g && groupName g /= group) gs-}
-
-repoGroup :: String -> String -> String
-repoGroup un rn = md5sum . BS.pack . map (fromIntegral . ord) $ un ++ "/" ++ rn
