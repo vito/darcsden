@@ -166,5 +166,5 @@ portal.registerChecker(CouchDBChecker())
 DarcsFactory.portal = portal
 
 if __name__ == '__main__':
-    reactor.listenTCP(22, DarcsFactory())
+    reactor.listenTCP(5022, DarcsFactory())
     reactor.run()
