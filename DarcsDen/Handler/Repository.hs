@@ -206,7 +206,7 @@ deleteRepo un rn s e
         if destroyed
            then do
                success "Repository deleted." s
-               redirectTo ('/' : un)
+               redirectTo "/"
            else do
                warn "Repository deletion failed." s
                redirectTo ('/' : un ++ "/" ++ rn))
