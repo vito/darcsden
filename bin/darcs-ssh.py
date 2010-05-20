@@ -75,8 +75,8 @@ class CouchDBChecker(SSHPublicKeyDatabase):
 
                 if base64.decodestring(l2[1]) == credentials.blob:
                     return True
-        except Exception as e:
-            print "exception %s occurred during pubkey check: %s\r\n\t%s" % (type(e), e, e.args)
+        except Exception, e:
+            print "exception %s occurred during pubkey check: %s" % (type(e), e)
             return False
 
 
