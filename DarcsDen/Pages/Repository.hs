@@ -3,6 +3,7 @@ module DarcsDen.Pages.Repository where
 
 import Control.Monad.Trans
 import Data.List (sortBy)
+import Data.Maybe (fromJust)
 import Data.Time (UTCTime, formatTime)
 import System.Locale (defaultTimeLocale)
 import HSP
@@ -296,7 +297,7 @@ forks u r fs s = repoBase u r
                        then
                            <%
                                <td class="merge">
-                                   <input type="checkbox" name="merge:<% rOwner f %>:<% rName f %>:<% pID p %>" />
+                                   <input type="checkbox" name=("merge:" ++ show (fromJust (rID f)) ++ ":" ++ pID p) />
                                </td>
                            %>
                        else <% "" %>

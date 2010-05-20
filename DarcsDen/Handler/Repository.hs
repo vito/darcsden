@@ -8,6 +8,7 @@ import Data.Map ((!))
 import Data.Maybe (fromJust)
 import Data.Ord (comparing)
 import Data.Time (getCurrentTime)
+import Database.CouchDB (doc)
 import Network.Wai
 
 import DarcsDen.Handler.Repository.Util
@@ -309,13 +310,13 @@ mergeForks un rn s e
     (\(OK _) -> do
         let ps = map (\(n, _) ->
                        let split = wordsBy (== ':') n
-                       in (split !! 1, split !! 2, split !! 3))
+                       in (doc (split !! 1), split !! 2))
                      (filter (\(n, _) -> "merge:" `isPrefixOf` n) (getInputs e))
-            gps = groupBy (\a b -> fst a == fst b) (map (\(o, n, p) -> ((o, n), p)) ps)
+            gps = groupBy (\a b -> fst a == fst b) ps
             groupedPatches = map (\r@((k, _):_) -> (k, map snd r)) gps
 
         merge <- mapM (\(r, ps') -> do
-                          Just f <- getRepository r
+                          Just f <- getRepositoryByID r
                           mergePatches f ps' s) groupedPatches
 
         when (and merge) (success "Patches merged!" s >> return ())
