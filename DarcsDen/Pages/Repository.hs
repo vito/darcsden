@@ -1,9 +1,12 @@
 {-# OPTIONS_GHC -F -pgmF trhsx #-}
 module DarcsDen.Pages.Repository where
 
+import Control.Monad.Trans
+import Data.List (sortBy)
+import Data.Time (UTCTime, formatTime)
+import System.Locale (defaultTimeLocale)
 import HSP
 
-import Control.Monad.Trans
 import DarcsDen.Handler.Repository.Browse (RepoItem(..))
 import DarcsDen.Handler.Repository.Changes
     ( FileChange(..)
@@ -29,7 +32,7 @@ change r p =
         <h2>
             <% author p %>
             <% cdata " :: " %>
-            <span class="relatize date"><% pDate p %></span>
+            <span class="relatize date"><% formatTime defaultTimeLocale "%c" (pDate p) %></span>
         </h2>
         <p><a href=(repoURL r ++ "/patch/" ++ pID p)><% pName p %></a></p>
 
@@ -305,7 +308,7 @@ forks u r fs s = repoBase u r
                     <% author p %>
                 </td>
                 <td class="date">
-                    <span class="relatize date"><% pDate p %></span>
+                    <span class="relatize date"><% formatTime defaultTimeLocale "%c" (pDate p) %></span>
                 </td>
             </tr>
 
@@ -328,7 +331,14 @@ changesAtom u r cs _ =
     <feed xmlns="http://www.w3.org/2005/Atom">
         <title><% uName u %>/<% rName r %> changes</title>
         <id><% baseURL ++ repoURL r ++ "/changes/atom" %></id>
-        <updated>2010-03-16T00:00:00Z</updated> -- TODO
+        <%
+            if not (null cs)
+               then
+                   <%
+                       <updated><% asAtomDate latest %></updated>
+                   %>
+               else <% "" %>
+        %>
         <author>
             <name><% uName u %></name>
             <uri><% baseURL ++ userURL u %></uri>
@@ -339,12 +349,18 @@ changesAtom u r cs _ =
         <% map entry cs %>
     </feed>
     where
+        asAtomDate :: UTCTime -> String
+        asAtomDate = formatTime defaultTimeLocale "%FT%TZ"
+
+        latest :: UTCTime
+        latest = head . sortBy (flip compare) . map pDate $ cs
+
         entry :: PatchLog -> HSP XML
         entry p =
             <entry>
                 <title><% pName p %></title>
                 <id><% baseURL ++ repoURL r ++ "/patch/" ++ pID p %></id>
-                <updated><% pDate p %></updated>
+                <updated><% asAtomDate (pDate p) %></updated>
                 <author>
                     <name><% pAuthor p %></name>
                     <%

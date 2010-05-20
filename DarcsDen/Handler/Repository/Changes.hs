@@ -7,6 +7,8 @@ import Darcs.Patch.Patchy (Commute(..))
 import Darcs.Patch.Prim (Prim(..), DirPatchType(..), FilePatchType(..))
 import Darcs.Hopefully (PatchInfoAnd, info)
 import Darcs.Witnesses.Ordered
+import Data.Time (UTCTime, readTime)
+import System.Locale (defaultTimeLocale)
 import System.Time (calendarTimeToString)
 import qualified Darcs.Patch as P
 import qualified Darcs.Repository as R
@@ -25,7 +27,7 @@ data Summary = Removed FilePath
              deriving (Eq, Show)
 
 data PatchLog = PatchLog { pID :: String
-                         , pDate :: String
+                         , pDate :: UTCTime
                          , pName :: String
                          , pAuthor :: String
                          , pIsUser :: Bool
@@ -73,7 +75,7 @@ data PatchChanges = PatchChanges { pPatch :: PatchLog
 
 toLog :: P.Named p -> PatchLog
 toLog p = PatchLog (take 20 $ make_filename i)
-                   (calendarTimeToString $ pi_date i)
+                   (readTime defaultTimeLocale "%c" (calendarTimeToString $ pi_date i))
                    (pi_name i)
                    (pi_author i)
                    False
