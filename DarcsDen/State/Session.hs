@@ -39,26 +39,25 @@ instance JSON Notification where
     showJSON (Warning msg) = JSObject (toJSObject [("type", showJSON "warning"), ("message", showJSON msg)])
 
 instance JSON Session where
-    readJSON (JSObject o) = do id' <- getID
-                               rev' <- getRev
-                               user <- getUser
-                               notifications <- getNotifications
-                               return (Session (Just id') (Just rev') user notifications)
+    readJSON (JSObject js) = do
+        id' <- getID
+        rev' <- getRev
+        user <- getUser
+        notifications <- getNotifications
+        return (Session (Just id') (Just rev') user notifications)
         where
-            as = fromJSObject o
-            getID = case lookup "_id" as of
-                         Just i -> readJSON i
-                         _ -> fail "Unable to read Repository"
-            getRev = case lookup "_rev" as of
-                          Just (JSString s) -> return (rev (fromJSString s))
-                          _ -> fail "Unable to read Repository"
-            getUser = case lookup "user" as of
-                           Just u -> readJSON u :: Result (Maybe String)
-                           _ -> fail "Unable to read Session"
-            getNotifications = case lookup "notifications" as of
-                                    Just n -> readJSON n :: Result [Notification]
-                                    _ -> fail "Unable to read Session"
-    readJSON _ = fail "Unable to read Session"
+            as = fromJSObject js
+            getID = maybe
+                (fail $ "session missing `_id': " ++ show js)
+                readJSON
+                (lookup "_id" as)
+            getRev = maybe
+                (fail $ "session missing `_rev': " ++ show js)
+                (fmap rev . readJSON)
+                (lookup "_rev" as)
+            getUser = maybe (Ok Nothing) readJSON (lookup "user" as)
+            getNotifications = maybe (Ok []) readJSON (lookup "notifications" as)
+    readJSON o = fail $ "unable to read Session: " ++ show o
 
     showJSON s = JSObject (toJSObject [ ("user", showJSON (sUser s))
                                       , ("notifications", showJSON (sNotifications s))

@@ -50,36 +50,31 @@ instance JSON Repository where
                        }
         where
             as = fromJSObject js
-            getID =
-                maybe
-                    (fail "repository missing `id'")
-                    readJSON
-                    (lookup "_id" as)
-            getRev =
-                maybe
-                    (fail "repository missing `rev'")
-                    (fmap rev . readJSON)
-                    (lookup "_rev" as)
-            getName =
-                maybe
-                    (fail "repository missing `name'")
-                    readJSON
-                    (lookup "name" as)
-            getOwner =
-                maybe
-                    (fail "repository missing `owner'")
-                    readJSON
-                    (lookup "owner" as)
+            getID = maybe
+                (fail $ "repository missing `_id': " ++ show js)
+                readJSON
+                (lookup "_id" as)
+            getRev = maybe
+                (fail $ "repository missing `_rev': " ++ show js)
+                (fmap rev . readJSON)
+                (lookup "_rev" as)
+            getName = maybe
+                (fail $ "repository missing `name': " ++ show js)
+                readJSON
+                (lookup "name" as)
+            getOwner = maybe
+                (fail $ "repository missing `owner': " ++ show js)
+                readJSON
+                (lookup "owner" as)
             getDescription = maybe (Ok "") readJSON (lookup "description" as)
             getWebsite = maybe (Ok "") readJSON (lookup "website" as)
-            getCreated =
-                maybe
-                    (fail "repository missing `created'")
-                    (fmap (readTime defaultTimeLocale "%F %T") . readJSON)
-                    (lookup "created" as)
+            getCreated = maybe
+                (fail $ "repository missing `created': " ++ show js)
+                (fmap (readTime defaultTimeLocale "%F %T") . readJSON)
+                (lookup "created" as)
             getForkOf = maybe (Ok Nothing) readJSON (lookup "fork_of" as)
             getMembers = maybe (Ok []) readJSON (lookup "members" as)
-    readJSON _ = fail "Unable to read Repository"
+    readJSON o = fail $ "unable to read Repository: " ++ show o
 
     showJSON r = JSObject (toJSObject ([ ("name", showJSON (rName r))
                                        , ("owner", showJSON (rOwner r))

@@ -43,37 +43,35 @@ instance JSON User where
         return (User (Just id') (Just rev') name password salt' fullName website email keys joined)
         where
             as = fromJSObject js
-            getID = case lookup "_id" as of
-                         Just i -> readJSON i
-                         _ -> fail "Unable to read User"
-            getRev = case lookup "_rev" as of
-                          Just (JSString s) -> return (rev (fromJSString s))
-                          _ -> fail "Unable to read User"
-            getName = case lookup "name" as of
-                           Just (JSString n) -> return (fromJSString n)
-                           _ -> fail "Unable to read User"
-            getPassword = case lookup "password" as of
-                               Just p -> readJSON p
-                               _ -> fail "Unable to read User"
-            getSalt = case lookup "salt" as of
-                           Just s -> readJSON s
-                           _ -> fail "Unable to read User"
-            getFullName = case lookup "full_name" as of
-                               Just (JSString fn) -> return (fromJSString fn)
-                               _ -> fail "Unable to read User"
-            getWebsite = case lookup "website" as of
-                              Just (JSString w) -> return (fromJSString w)
-                              _ -> fail "Unable to read User"
-            getEmail = case lookup "email" as of
-                            Just (JSString e) -> return (fromJSString e)
-                            _ -> fail "Unable to read User"
-            getKeys = case lookup "keys" as of
-                           Just a@(JSArray _) -> readJSON a
-                           _ -> fail "Unable to read User"
-            getJoined = case lookup "joined" as of
-                             Just (JSString j) -> return (readTime defaultTimeLocale "%F %T" (fromJSString j))
-                             _ -> fail "Unable to read User"
-    readJSON _ = fail "Unable to read User"
+            getID = maybe
+                (fail $ "user missing `_id': " ++ show js)
+                readJSON
+                (lookup "_id" as)
+            getRev = maybe
+                (fail $ "user missing `_rev': " ++ show js)
+                (fmap rev . readJSON)
+                (lookup "_rev" as)
+            getName = maybe
+                (fail $ "user missing `name': " ++ show js)
+                readJSON
+                (lookup "name" as)
+            getPassword = maybe
+                (fail $ "user missing `password': " ++ show js)
+                readJSON
+                (lookup "password" as)
+            getSalt = maybe
+                (fail $ "user missing `salt': " ++ show js)
+                readJSON
+                (lookup "salt" as)
+            getFullName = maybe (Ok "") readJSON (lookup "full_name" as)
+            getWebsite = maybe (Ok "") readJSON (lookup "website" as)
+            getEmail = maybe (Ok "") readJSON (lookup "email" as)
+            getKeys = maybe (Ok []) readJSON (lookup "keys" as)
+            getJoined = maybe
+                (fail $ "user missing `joined': " ++ show js)
+                (fmap (readTime defaultTimeLocale "%F %T") . readJSON)
+                (lookup "joined" as)
+    readJSON o = fail $ "unable to read User: " ++ show o
 
     showJSON u = JSObject (toJSObject ([ ("name", showJSON (uName u))
                                        , ("password", showJSON (uPassword u))
