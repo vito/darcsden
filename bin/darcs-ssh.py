@@ -27,6 +27,7 @@ log.startLogging(sys.stderr)
 BASE = "/srv/darcs"
 COUCH = couchdb.Server("http://localhost:4895/")
 USERS = COUCH['users']
+BY_NAME = USERS.view("users/by_name")
 
 
 def sane(string):
@@ -65,7 +66,7 @@ class DenyProtocol(protocol.Protocol):
 class CouchDBChecker(SSHPublicKeyDatabase):
     def checkKey(self, credentials):
         try:
-            keys = USERS[credentials.username]['keys']
+            keys = BY_NAME[credentials.username].rows[0].value['keys']
 
             for key in keys:
                 l2 = key.split()
@@ -74,7 +75,8 @@ class CouchDBChecker(SSHPublicKeyDatabase):
 
                 if base64.decodestring(l2[1]) == credentials.blob:
                     return True
-        except:
+        except Exception as e:
+            print "exception %s occurred during pubkey check: %s\r\n\t%s" % (type(e), e, e.args)
             return False
 
 
