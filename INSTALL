@@ -1,0 +1,10 @@
+# cabal install
+# mkdir /srv/darcs
+# adduser --system --home /srv/darcs --no-create-home --shell /bin/bash --group --gecos "DarcsDen" darcsden
+# chown -R darcsden:darcsden /srv/darcs
+
+to start:
+# sudo -i -u darcsden ./bin/darcs-ssh.py
+# sudo -i -u darcsden darcsden
+
+none of these are daemonized or anything, so you probably want to run them in screen
