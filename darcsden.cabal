@@ -35,6 +35,7 @@ executable darcsden
                  mtl,
                  network,
                  old-locale,
+                 old-time,
                  pandoc,
                  wai,
                  wai-extra,

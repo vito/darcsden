@@ -41,12 +41,12 @@ repo r =
         <a href=(rOwner r ++ "/" ++ rName r)><% rName r %></a>
         <%
             if rDescription r /= ""
-            then <% <span><% cdata " &mdash; " %><% rDescription r %></span> %>
+            then <% <span class="repo-description"><% cdata " &mdash; " %><% rDescription r %></span> %>
             else <% "" %>
         %>
         <%
             if rWebsite r /= ""
-            then <% <a href=(rWebsite r) rel="nofollow"><% rWebsite r %></a> %>
+            then <% <span class="repo-website"> <a href=(rWebsite r) rel="nofollow"><% rWebsite r %></a></span> %>
             else <% "" %>
         %>
     </li>

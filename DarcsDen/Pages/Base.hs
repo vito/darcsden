@@ -77,7 +77,7 @@ field :: HSP XML -> String -> String -> HSP XML
 field f l n =
     <div class="field">
         <% f %>
-        <label for=for><% l %></label> -- TODO: for=
+        <label for=for><% l %></label>
         <%
             if n /= ""
             then <span class="note"><% n %></span>
