@@ -90,7 +90,10 @@ setUser :: Maybe String -> Session -> IO (Maybe Session)
 setUser n s = updateSession s { sUser = n }
 
 notice :: (String -> Notification) -> String -> Session -> IO (Maybe Session)
-notice n m s = updateSession s { sNotifications = sNotifications s ++ [n m] }
+notice n m (Session { sID = Just sid }) = do
+    Just latest <- getSession sid
+    updateSession latest { sNotifications = sNotifications latest ++ [n m] }
+notice _ _ _ = return Nothing
 
 warn :: String -> Session -> IO (Maybe Session)
 warn = notice Warning
