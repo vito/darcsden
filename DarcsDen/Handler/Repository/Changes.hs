@@ -150,9 +150,9 @@ getChanges :: String -> Int -> IO ([PatchLog], Int)
 getChanges dir page = R.withRepositoryDirectory [] dir $ \dr ->
   do pset <- R.read_repo dr
      let ps = fromPS pset
-         log = map toLog (paginate 30 page ps)
+         patches = map toLog (paginate 30 page ps)
 
-     prettyLog <- findUsers log
+     prettyLog <- findUsers patches
 
      return (prettyLog, ceiling ((fromIntegral (length ps) :: Double) / 30))
 

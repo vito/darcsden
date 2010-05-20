@@ -33,7 +33,7 @@ handleRepo un rn action s e
     (\(OK _) ->
       case action of
         [] -> browseRepo name repo [] s e
-        ("_darcs":unsafe) -> serveDirectory (repoDir name repo ++ "/_darcs/") unsafe s e
+        ("_darcs":unsafe) -> serveDirectory (repoDir name repo ++ "/_darcs/") unsafe
         ("browse":file) -> browseRepo name repo file s e
         ["edit"] -> editRepo name repo s e
         ["delete"] -> deleteRepo name repo s e
@@ -45,7 +45,7 @@ handleRepo un rn action s e
         ["fork-as"] -> forkRepoAs name repo s e
         ["forks"] -> repoForks name repo s e
         ["merge"] -> mergeForks name repo s e
-        _ -> notFound s e)
+        _ -> notFound)
     (\(Invalid f) -> notify Warning s f >> redirectTo "/")
   where name = saneName un
         repo = saneName rn
@@ -89,7 +89,7 @@ browse p s _ = do
     where paginated rs = (paginate 50 p (sortBy (comparing (map toLower . rName)) rs))
 
 browseRepo :: String -> String -> [String] -> Page
-browseRepo un rn f s e = do
+browseRepo un rn f s _ = do
   Just u <- getUser un
   Just r <- getRepository (un, rn)
   Right dr <- getRepo (repoDir un rn)
@@ -103,7 +103,7 @@ browseRepo un rn f s e = do
                                  }) (tail $ inits f)
 
   case (fs, bl) of
-    (Nothing, Nothing) -> notFound s e
+    (Nothing, Nothing) -> notFound
     (Just fs', _) -> do
       readme <- getReadme dr f
       let files = map (\i -> i { iURL = urlTo un rn (f ++ [iName i]) }) fs'

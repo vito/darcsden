@@ -15,10 +15,10 @@ import qualified DarcsDen.Pages.User as Page
 
 
 user :: String -> Page
-user name s e = do m <- getUser name
+user name s _ = do m <- getUser name
                    rs <- getUserRepositories name
                    case m of
-                     Nothing -> notFound s e
+                     Nothing -> notFound
                      Just u -> doPage (Page.user u rs) s
 
 register :: Page

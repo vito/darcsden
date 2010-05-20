@@ -32,11 +32,11 @@ type Page = Session -> Env -> IO Response
 toResponse :: String -> Either FilePath Enumerator
 toResponse = Right . E.fromLBS . toLBS
 
-notFound :: Page
-notFound _ _ = return $ Response Status404 [(ContentType, toBS "text/plain")] (toResponse "404 not found")
+notFound :: IO Response
+notFound = return $ Response Status404 [(ContentType, toBS "text/plain")] (toResponse "404 not found")
 
-errorPage :: String -> Page
-errorPage msg _ _ = return $ Response Status500 [(ContentType, toBS "text/plain")] (toResponse msg)
+errorPage :: String -> IO Response
+errorPage msg = return $ Response Status500 [(ContentType, toBS "text/plain")] (toResponse msg)
 
 redirectTo :: String -> IO Response
 redirectTo dest = return $ Response Status302 [(Location, toBS dest)] (toResponse "")
@@ -97,14 +97,14 @@ newSession r = do s <- addSession (Session { sID = Nothing
                        Nothing ->
                           return $ Response Status500 [(ContentType, toBS "text/html")] (toResponse "<h1>Session Not Created</h1>")
 
-serveDirectory :: String -> [String] -> Page
-serveDirectory prefix unsafe s e
+serveDirectory :: String -> [String] -> IO Response
+serveDirectory prefix unsafe
   = do safe <- canonicalizePath (prefix ++ intercalate "/" unsafe)
        exists <- doesFileExist safe
 
        -- Make sure there's no trickery going on here.
        if not (prefix `isPrefixOf` safe && exists)
-         then notFound s e
+         then notFound
          else do
 
        return (Response Status200 [] (Left safe))

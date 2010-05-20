@@ -33,7 +33,11 @@ handler r = do
                 , eRequest = r
                 }
 
-    withSession e (\s -> pageFor path s e)
+    if not (null path) && head path == "public"
+       then do
+           dir <- getCurrentDirectory
+           serveDirectory (dir ++ "/public/") (tail path)
+       else withSession e (\s -> pageFor path s e)
     where
         path = wordsBy (== '/') . tail . fromBS . pathInfo $ r
         info = show ( requestMethod r
@@ -53,8 +57,8 @@ pageFor ["settings"] = settings
 pageFor ["init"] = initialize
 pageFor ["browse"] = browse 1
 pageFor ["browse", "page", p] | all isNumber p = browse (read p)
-pageFor ("public":unsafe) = \s e -> do
+pageFor ("public":unsafe) = \_ _ -> do
     dir <- getCurrentDirectory
-    serveDirectory (dir ++ "/public/") unsafe s e
+    serveDirectory (dir ++ "/public/") unsafe
 pageFor [name] = user name
 pageFor (name:repo:action) = handleRepo name repo action
