@@ -61,7 +61,7 @@ initialize s@(Session { sUser = Just n }) e
     ]
     (\(OK r) -> do
         now <- getCurrentTime
-        newRepository
+        new <- newRepository
             Repository { rID = Nothing
                        , rRev = Nothing
                        , rName = r ! "name"
@@ -72,9 +72,8 @@ initialize s@(Session { sUser = Just n }) e
                        , rForkOf = Nothing
                        }
 
-        -- TODO: make boostrapping clean?
-        {-url <- input "boostrap" "" e-}
-        {-when (length url > 0) (dirty (bootstrapRepository repo url))-}
+        let url = input "bootstrap" "" e
+        when (length url > 0) (bootstrapRepository new url)
 
         success "Repository created." s
         redirectTo ("/" ++ n ++ "/" ++ (r ! "name")))

@@ -1,5 +1,7 @@
 module DarcsDen.State.Repository where
 
+import Darcs.Commands (commandCommand)
+import Darcs.Flags (DarcsFlag(All, Quiet))
 import Darcs.Utils (withCurrentDirectory)
 import Data.Time (UTCTime, formatTime, readTime)
 import Database.CouchDB
@@ -7,6 +9,7 @@ import System.Directory
 import System.Locale (defaultTimeLocale)
 import Text.JSON
 import qualified Darcs.Repository as R
+import qualified Darcs.Commands.Pull as DC
 
 import DarcsDen.State.Util
 
@@ -132,9 +135,11 @@ destroyRepository r = do success <- deleteRepository r
                             then removeDirectoryRecursive (repoDir (rOwner r) (rName r)) >> return True
                             else return False
 
-
 bootstrapRepository :: Repository -> String -> IO ()
-bootstrapRepository _ _ = return () -- TODO
+bootstrapRepository r orig = withCurrentDirectory dest (get [All, Quiet] [orig])
+    where
+        get = commandCommand DC.pull
+        dest = repoDir (rOwner r) (rName r)
 
 forkRepository :: String -> String -> Repository -> IO Repository
 forkRepository un rn r = do new <- newRepository (r { rOwner = un
