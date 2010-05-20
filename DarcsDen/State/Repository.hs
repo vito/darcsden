@@ -1,11 +1,12 @@
 module DarcsDen.State.Repository where
 
 import Darcs.Commands (commandCommand)
-import Darcs.Flags (DarcsFlag(All, Quiet))
+import Darcs.Flags (DarcsFlag(All, FixFilePath, Quiet))
+import Darcs.RepoPath (getCurrentDirectory)
 import Darcs.Utils (withCurrentDirectory)
 import Data.Time (UTCTime, formatTime, readTime)
 import Database.CouchDB
-import System.Directory
+import System.Directory hiding (getCurrentDirectory)
 import System.Locale (defaultTimeLocale)
 import Text.JSON
 import qualified Darcs.Repository as R
@@ -59,7 +60,7 @@ instance JSON Repository where
                               Just (JSString c) -> return (readTime defaultTimeLocale "%F %T" (fromJSString c))
                               _ -> fail "Unable to read Repository"
             getForkOf = case lookup "fork_of" as of
-                             Just f@(JSObject _) -> readJSON f
+                             Just f -> readJSON f
                              _ -> fail "Unable to read Repository"
     readJSON _ = fail "Unable to read Repository"
 
@@ -88,7 +89,7 @@ repoURL r = "/" ++ rOwner r ++ "/" ++ rName r
 getRepositoryByID :: Doc -> IO (Maybe Repository)
 getRepositoryByID key = do res <- runDB (getDoc (db "repositories") key)
                            case res of
-                                Just (_, _, r) -> return r
+                                Just (_, _, r) -> return (Just r)
                                 Nothing -> return Nothing
 
 getRepository :: (String, String) -> IO (Maybe Repository)
@@ -136,19 +137,27 @@ destroyRepository r = do success <- deleteRepository r
                             else return False
 
 bootstrapRepository :: Repository -> String -> IO ()
-bootstrapRepository r orig = withCurrentDirectory dest (get [All, Quiet] [orig])
+bootstrapRepository r orig = do
+    cwd <- getCurrentDirectory
+    withCurrentDirectory dest $ do
+        here <- getCurrentDirectory
+        get [All, Quiet, FixFilePath here cwd] [orig]
     where
         get = commandCommand DC.pull
         dest = repoDir (rOwner r) (rName r)
 
 forkRepository :: String -> String -> Repository -> IO Repository
-forkRepository un rn r = do new <- newRepository (r { rOwner = un
-                                                    , rName = rn
-                                                    , rForkOf = rID r
-                                                    })
-                            bootstrapRepository new orig
-                            return new
-  where orig = repoDir (rOwner r) (rName r)
+forkRepository un rn r = do
+    new <- newRepository
+        r { rID = Nothing
+          , rRev = Nothing
+          , rOwner = un
+          , rName = rn
+          , rForkOf = rID r
+          }
+    bootstrapRepository new orig
+    return new
+    where orig = repoDir (rOwner r) (rName r)
 
 moveRepository :: (String, String) -> Repository -> IO ()
 moveRepository (o, n) r = renameDirectory (repoDir (rOwner r) (rName r)) (repoDir o n)

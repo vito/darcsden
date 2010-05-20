@@ -66,11 +66,14 @@ repoBase _ r t b c s = base
             <% do
                 f <- liftIO (rFork r)
                 case f of
-                     Nothing -> <span class="repo-fork" />
                      Just f' ->
-                         <span class="repo-fork">
-                             (fork of <a href=(repoURL f')><% rOwner f' %></a>'s <a href=(repoURL f')><% rName f' %></a>)
-                         </span>
+                         <%
+                             <span class="repo-fork">
+                                 <% cdata " " %>
+                                 (fork of <a href=(repoURL f')><% rOwner f' %></a>'s <a href=(repoURL f')><% rName f' %></a>)
+                             </span>
+                         %>
+                     Nothing -> <% "" %>
             %>
 
             <%
