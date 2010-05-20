@@ -45,12 +45,11 @@ getForkChanges r = do Just rParent <- getRepositoryByID (fromJust (rForkOf r))
 
                       let (_, _ :\/: them) = get_common_and_uncommon (pps, cps)
                           depends = findAllDeps (reverseRL them)
-
-                      cs <- mapM (\p -> do
-                                     l <- toLog (hopefully p)
-                                     case lookup (make_filename (info p)) depends of
-                                       Just ds -> return l { pDepends = map (take 20 . make_filename . info) ds }
-                                       Nothing -> return l) (unsafeUnRL them)
+                          cs = map (\p ->
+                              let l = toLog (hopefully p)
+                              in case lookup (make_filename (info p)) depends of
+                                  Just ds -> l { pDepends = map (take 20 . make_filename . info) ds }
+                                  Nothing -> l) (unsafeUnRL them)
 
                       return $ Fork r cs
 

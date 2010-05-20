@@ -71,31 +71,47 @@ data PatchChanges = PatchChanges { pPatch :: PatchLog
                     deriving (Eq, Show)
 
 
-toLog :: P.Named p -> IO PatchLog
-toLog p = do mu <- getUserByEmail (emailFrom (pi_author i))
+toLog :: P.Named p -> PatchLog
+toLog p = PatchLog (take 20 $ make_filename i)
+                   (calendarTimeToString $ pi_date i)
+                   (pi_name i)
+                   (pi_author i)
+                   False
+                   (pi_log i)
+                   (map (take 20 . make_filename) (P.getdeps p))
+  where i = P.patch2patchinfo p
 
-             let (author, isUser) =
-                     case mu of
-                          Nothing -> (authorFrom (pi_author i), False)
-                          Just u -> (uName u, True)
-
-             return $ PatchLog (take 20 $ make_filename i)
-                               (calendarTimeToString $ pi_date i)
-                               (pi_name i)
-                               author
-                               isUser
-                               (pi_log i)
-                               (map (take 20 . make_filename) (P.getdeps p))
-  where emailFrom = reverse . takeWhile (/= '<') . tail . reverse
+findUsers :: [PatchLog] -> IO [PatchLog]
+findUsers = findUsers' []
+    where
+        emailFrom = reverse . takeWhile (/= '<') . tail . reverse
         authorFrom a = let name = takeWhile (/= '<') a
                        in if last name == ' '
                              then init name
                              else name
-        i = P.patch2patchinfo p
 
-toChanges :: P.Effect p => P.Named p -> IO PatchChanges
-toChanges p = do l <- toLog p
-                 return . PatchChanges l . simplify [] . map primToChange . WO.unsafeUnFL $ P.effect p
+        findUsers' :: [(String, Maybe String)] -> [PatchLog] -> IO [PatchLog]
+        findUsers' _ [] = return []
+        findUsers' checked (p:ps) =
+            case lookup (pAuthor p) checked of
+                 Just (Just n) -> do
+                    rest <- findUsers' checked ps
+                    return (p { pAuthor = n, pIsUser = True } : rest) 
+                 Just Nothing -> do
+                    rest <- findUsers' checked ps
+                    return (p { pAuthor = authorFrom (pAuthor p) } : rest)
+                 Nothing -> do
+                    mu <- getUserByEmail (emailFrom (pAuthor p))
+                    case mu of
+                         Just u -> do
+                             rest <- findUsers' ((pAuthor p, Just (uName u)) : checked) ps
+                             return (p { pAuthor = uName u, pIsUser = True } : rest)
+                         Nothing -> do
+                             rest <- findUsers' ((pAuthor p, Nothing) : checked) ps
+                             return (p { pAuthor = authorFrom (pAuthor p) } : rest)
+
+toChanges :: P.Effect p => P.Named p -> PatchChanges
+toChanges p = PatchChanges (toLog p) . simplify [] . map primToChange . WO.unsafeUnFL $ P.effect p
   where simplify a [] = reverse a
         simplify a (c@(FileChange n t):cs) | t `elem` [FileAdded, FileRemoved, FileBinary]
           = simplify (c:filter (notFile n) a) (filter (notFile n) cs)
@@ -134,8 +150,11 @@ getChanges :: String -> Int -> IO ([PatchLog], Int)
 getChanges dir page = R.withRepositoryDirectory [] dir $ \dr ->
   do pset <- R.read_repo dr
      let ps = fromPS pset
-     ls <- mapM toLog . paginate 30 page $ ps
-     return (ls, ceiling ((fromIntegral (length ps) :: Double) / 30))
+         log = map toLog (paginate 30 page ps)
+
+     prettyLog <- findUsers log
+
+     return (prettyLog, ceiling ((fromIntegral (length ps) :: Double) / 30))
 
 getPatch :: String -> String -> IO PatchChanges
 getPatch dir patch = R.withRepositoryDirectory [] dir $ \dr ->
@@ -143,7 +162,7 @@ getPatch dir patch = R.withRepositoryDirectory [] dir $ \dr ->
      let ps = fromPS pset
          p = head $ filter (\p' -> patch == take 20 (P.patchname p')) ps
 
-     toChanges p
+     return (toChanges p)
 
 fromPS :: P.RepoPatch p => R.PatchSet p -> [P.Named p]
 fromPS = WO.unsafeUnRL . WO.reverseFL . R.patchSetToPatches
