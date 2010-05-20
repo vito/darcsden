@@ -99,6 +99,13 @@ userURL = ("/" ++) . uName
 getUser :: String -> IO (Maybe User)
 getUser un = runDB (getDocByView (db "users") (doc "users") (doc "by_name") un)
 
+getUserByID :: Doc -> IO (Maybe User)
+getUserByID key = do
+    res <- runDB (getDoc (db "users") key)
+    case res of
+         Just (_, _, r) -> return (Just r)
+         Nothing -> return Nothing
+
 getUserByEmail :: String -> IO (Maybe User)
 getUserByEmail email = runDB (getDocByView (db "users") (doc "users") (doc "by_email") email)
 
