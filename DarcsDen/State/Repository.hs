@@ -22,6 +22,7 @@ data Repository = Repository { rID :: Maybe Doc
                              , rWebsite :: String
                              , rCreated :: UTCTime
                              , rForkOf :: Maybe Doc
+                             , rMembers :: [Doc]
                              }
                 deriving (Eq, Show)
 
@@ -35,33 +36,49 @@ instance JSON Repository where
         website <- getWebsite
         created <- getCreated
         forkOf <- getForkOf
-        return (Repository (Just id') (Just rev') name owner description website created forkOf)
+        members <- getMembers
+        return
+            Repository { rID = Just id'
+                       , rRev = Just rev'
+                       , rName = name
+                       , rOwner = owner
+                       , rDescription = description
+                       , rWebsite = website
+                       , rCreated = created
+                       , rForkOf = forkOf
+                       , rMembers = members
+                       }
         where
             as = fromJSObject js
-            getID = case lookup "_id" as of
-                         Just i -> readJSON i
-                         _ -> fail "Unable to read Repository"
-            getRev = case lookup "_rev" as of
-                          Just (JSString s) -> return (rev (fromJSString s))
-                          _ -> fail "Unable to read Repository"
-            getName = case lookup "name" as of
-                           Just (JSString n) -> return (fromJSString n)
-                           _ -> fail "Unable to read Repository"
-            getOwner = case lookup "owner" as of
-                            Just (JSString o) -> return (fromJSString o)
-                            _ -> fail "Unable to read Repository"
-            getDescription = case lookup "description" as of
-                                  Just (JSString d) -> return (fromJSString d)
-                                  _ -> fail "Unable to read Repository"
-            getWebsite = case lookup "website" as of
-                              Just (JSString w) -> return (fromJSString w)
-                              _ -> fail "Unable to read Repository"
-            getCreated = case lookup "created" as of
-                              Just (JSString c) -> return (readTime defaultTimeLocale "%F %T" (fromJSString c))
-                              _ -> fail "Unable to read Repository"
-            getForkOf = case lookup "fork_of" as of
-                             Just f -> readJSON f
-                             _ -> fail "Unable to read Repository"
+            getID =
+                maybe
+                    (fail "repository missing `id'")
+                    readJSON
+                    (lookup "_id" as)
+            getRev =
+                maybe
+                    (fail "repository missing `rev'")
+                    (fmap rev . readJSON)
+                    (lookup "_rev" as)
+            getName =
+                maybe
+                    (fail "repository missing `name'")
+                    readJSON
+                    (lookup "name" as)
+            getOwner =
+                maybe
+                    (fail "repository missing `owner'")
+                    readJSON
+                    (lookup "owner" as)
+            getDescription = maybe (Ok "") readJSON (lookup "description" as)
+            getWebsite = maybe (Ok "") readJSON (lookup "website" as)
+            getCreated =
+                maybe
+                    (fail "repository missing `created'")
+                    (fmap (readTime defaultTimeLocale "%F %T") . readJSON)
+                    (lookup "created" as)
+            getForkOf = maybe (Ok Nothing) readJSON (lookup "fork_of" as)
+            getMembers = maybe (Ok []) readJSON (lookup "members" as)
     readJSON _ = fail "Unable to read Repository"
 
     showJSON r = JSObject (toJSObject ([ ("name", showJSON (rName r))
@@ -70,6 +87,7 @@ instance JSON Repository where
                                        , ("website", showJSON (rWebsite r))
                                        , ("created", showJSON (formatTime defaultTimeLocale "%F %T" (rCreated r)))
                                        , ("fork_of", showJSON (rForkOf r))
+                                       , ("members", showJSON (rMembers r))
                                        ] ++ id' ++ rev'))
         where
             id' = case rID r of
@@ -167,3 +185,9 @@ renameRepository n r = do update <- updateRepository (r { rName = n })
                           case update of
                                Just _ -> moveRepository (rOwner r, n) r >> return update
                                _ -> return Nothing
+
+removeMember :: Repository -> Doc -> IO (Maybe Repository)
+removeMember r m = updateRepository (r { rMembers = filter (/= m) (rMembers r) })
+
+addMember :: Repository -> Doc -> IO (Maybe Repository)
+addMember r m = updateRepository (r { rMembers = filter (/= m) (rMembers r) ++ [m] })

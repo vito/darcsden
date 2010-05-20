@@ -177,8 +177,8 @@ repo u r files up path readme = repoBase u r
                 <a href=(iURL f)><% iName f %></a>
             </li>
 
-edit :: User -> Repository -> [(String, String)] -> HSPage
-edit u r _ = repoBase u r
+edit :: User -> Repository -> [User] -> [(String, String)] -> HSPage
+edit u r ms is = repoBase u r
     "edit"
     <span> -> edit</span>
     <div class="repo-edit">
@@ -187,6 +187,20 @@ edit u r _ = repoBase u r
                 <% field (input "name" (rName r)) "name" "" %>
                 <% field (input "description" (rDescription r)) "description" "" %>
                 <% field (input "website" (rWebsite r)) "website" "" %>
+                <% field (input' is "add-members") "add members" "comma separated" %>
+                <div class="field">
+                    <ul>
+                        <% map (\m@(User { uID = Just uid }) ->
+                            <li>
+                                <input type="checkbox" name=("remove-" ++ show uid) />
+                                <% cdata " " %>
+                                <a href=("/" ++ uName m)><% uName m %></a>
+                            </li>) ms %>
+                    </ul>
+
+                    <label for="remove-members">remove members</label>
+                    <br />
+                </div>
                 <% submit "update repository" %>
             </fieldset>
         </form>

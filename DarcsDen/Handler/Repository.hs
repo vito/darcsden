@@ -1,7 +1,7 @@
 module DarcsDen.Handler.Repository where
 
 import Control.Monad (when)
-import Data.Char (isNumber, toLower)
+import Data.Char (isNumber, isSpace, toLower)
 import Data.List (groupBy, inits, isPrefixOf, sortBy)
 import Data.List.Split (wordsBy)
 import Data.Map ((!))
@@ -70,6 +70,7 @@ initialize s@(Session { sUser = Just n }) e
                        , rWebsite = input "website" "" e
                        , rCreated = now
                        , rForkOf = Nothing
+                       , rMembers = []
                        }
 
         let url = input "bootstrap" "" e
@@ -151,25 +152,23 @@ editRepo un rn s e@(Env { eRequest = Request { requestMethod = GET } })
     (\(OK _) -> do
         Just r <- getRepository (un, rn)
         Just u <- getUser un
-        {-ms <- members r-}
-        doPage (Page.edit u r []) s)
+        ms <- mapM getUserByID (rMembers r)
+
+        let members = map fromJust . filter (/= Nothing) $ ms
+
+        doPage (Page.edit u r members []) s)
     (\(Invalid f) -> notify Warning s f >> redirectTo "/")
-editRepo un rn s e
-  = validate e
+editRepo un rn s e = validate e
     [ io "you do not own this repository" (return $ Just un == sUser s)
     , nonEmpty "name"
     , predicate "name" isSane "contain only alphanumeric characters, underscores, and hyphens"
     ]
     (\(OK i) -> do
         Just r <- getRepository (un, rn)
-        {-ms <- members r-}
 
-        -- TODO: clean repo member stuff
-        {-nms <- input "add-members" "" e-}
-        {-dirty (removeMembers r ms-}
-               {->> addMembers r nms)-}
-
-        Just new <- rename r (i ! "name")
+        removed <- removeMembers r (rMembers r)
+        added <- addMembers removed (map strip . wordsBy (== ',') $ input "add-members" "" e)
+        new <- rename added (i ! "name")
 
         updateRepository
             new { rDescription = input "description" (rDescription r) e
@@ -182,10 +181,55 @@ editRepo un rn s e
     (\(Invalid f) -> do
         notify Warning s f
         redirectTo ("/" ++ un ++ "/" ++ rn ++ "/edit"))
-  where rename r n
-          = if rName r /= n
-              then renameRepository n r
-              else return (Just r)
+    where
+        strip = strip' . strip'
+        strip' = reverse . dropWhile isSpace
+
+        rename r n
+            = if rName r /= n
+                 then do
+                     res <- renameRepository n r
+                     case res of
+                          Nothing -> do
+                              warn "There was an error renaming the repository." s
+                              return r
+                          Just r' -> return r'
+                 else return r
+
+        addMembers r [] = return r
+        addMembers r (m:ms) = do
+            user <- getUser m
+            case user of
+                 Just u@(User { uID = Just uid }) -> do
+                     done <- addMember r uid
+                     case done of
+                          Just r' ->
+                              addMembers r' ms
+                          Nothing -> do
+                              warn ("There was an error adding member " ++ uName u ++ ".") s
+                              return r
+                 _ -> do
+                     warn ("Could not add member " ++ m ++ "; user does not exist.") s
+                     addMembers r ms
+
+        removeMembers r [] = return r
+        removeMembers r (m:ms) =
+            case getInput ("remove-" ++ show m) e of
+                 Just _ -> do
+                     removed <- removeMember r m
+                     case removed of
+                          Just r' ->
+                              removeMembers r' ms
+                          Nothing -> do
+                              user <- getUserByID m
+                              case user of
+                                   Just u -> do
+                                       warn ("There was an error removing member " ++ uName u ++ ".") s
+                                       removeMembers r ms
+                                   Nothing -> do
+                                       warn "There was an error removing a member that doesn't exist. So I can't tell you who it was. Way to go." s
+                                       removeMembers r ms
+                 Nothing -> removeMembers r ms
 
 deleteRepo :: String -> String -> Page
 deleteRepo un rn s e@(Env { eRequest = Request { requestMethod = GET } })
