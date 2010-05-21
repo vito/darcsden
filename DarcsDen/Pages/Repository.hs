@@ -5,8 +5,8 @@ import Control.Monad.Trans
 import Data.List (sortBy)
 import Data.Maybe (fromJust)
 import Data.Time (UTCTime, formatTime)
-import System.Locale (defaultTimeLocale)
 import HSP
+import System.Locale (defaultTimeLocale)
 
 import DarcsDen.Handler.Repository.Browse (RepoItem(..))
 import DarcsDen.Handler.Repository.Changes
@@ -137,7 +137,7 @@ repo :: User -> Repository -> [RepoItem] -> String -> [RepoItem] -> Maybe String
 repo u r files up path readme = repoBase u r
     (uName u ++ "'s " ++ rName r)
     <span class="path">
-        <% map (\p -> <span class="path-item"> -> <a href=(iURL p)><% iName p %></a></span>) path %>
+        <% map (\p -> <span class="path-item"> -> <a href=(repoURL r ++ "/browse" ++ iPath p)><% iName p %></a></span>) path %>
     </span>
     (filesList (null files))
     where
@@ -178,7 +178,7 @@ repo u r files up path readme = repoBase u r
         file :: RepoItem -> HSP XML
         file f =
             <li class=(if iIsDirectory f then "directory" else "file")>
-                <a href=(iURL f)><% iName f %></a>
+                <a href=(repoURL r ++ "/browse" ++ iPath f)><% iName f %></a>
             </li>
 
 edit :: User -> Repository -> [User] -> [(String, String)] -> HSPage
@@ -380,15 +380,21 @@ changesAtom u r cs _ =
                 <link href=(baseURL ++ repoURL r ++ "/patch/" ++ pID p) />
             </entry>
 
-blob :: User -> Repository -> [RepoItem] -> String -> HSPage
+blob :: User -> Repository -> [RepoItem] -> Maybe String -> HSPage
 blob u r fs b = repoBase u r
     (iName file)
-    <span class="path"><% map (\f -> <% <span class="path-item">-> <a href=(iURL f)><% iName f %></a></span> %>) fs %></span>
+    <span class="path"><% map (\f -> <% <span class="path-item"> -> <a href=(repoURL r ++ "/browse" ++ iPath f)><% iName f %></a></span> %>) fs %></span>
     <div class="repo-blob">
-        <h1><a href=(iURL file)><% iName file %></a></h1>
-        <div class="code">
-            <% cdata b %>
-        </div>
+        <h1><a href=(repoURL r ++ "/raw" ++ iPath file)><% iName file %></a></h1>
+        <%
+            case b of
+                 Nothing ->
+                     <p class="blurb">sorry! this file is too gigantic to display. click the filename above to view the source.</p>
+                 Just source ->
+                     <div class="code">
+                         <% cdata source %>
+                     </div>
+        %>
     </div>
     where
         file :: RepoItem

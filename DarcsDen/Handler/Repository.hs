@@ -10,6 +10,7 @@ import Data.Ord (comparing)
 import Data.Time (getCurrentTime)
 import Database.CouchDB (doc)
 import Network.Wai
+import qualified Data.ByteString.Lazy as LBS
 
 import DarcsDen.Handler.Repository.Util
 import DarcsDen.Handler.Repository.Browse
@@ -35,6 +36,7 @@ handleRepo un rn action s e
       case action of
         [] -> browseRepo name repo [] s e
         ("_darcs":unsafe) -> serveDirectory (repoDir name repo ++ "/_darcs/") unsafe
+        ("raw":unsafe) -> serveDirectory (repoDir name repo ++ "/") unsafe
         ("browse":file) -> browseRepo name repo file s e
         ["edit"] -> editRepo name repo s e
         ["delete"] -> deleteRepo name repo s e
@@ -100,7 +102,7 @@ browseRepo un rn f s _ = do
   bl <- getBlob dr f
 
   let path = map (\p -> RepoItem { iName = last p
-                                 , iURL = urlTo un rn p
+                                 , iPath = pathToFile p
                                  , iIsDirectory = True
                                  }) (tail $ inits f)
 
@@ -108,13 +110,15 @@ browseRepo un rn f s _ = do
     (Nothing, Nothing) -> notFound
     (Just fs', _) -> do
       readme <- getReadme dr f
-      let files = map (\i -> i { iURL = urlTo un rn (f ++ [iName i]) }) fs'
+      let files = map (\i -> i { iPath = pathToFile (f ++ [iName i]) }) fs'
           up = if null f
                then ""
-               else urlTo un rn (init f)
+               else pathToFile (init f)
       doPage (Page.repo u r files up path readme) s
     (_, Just source) ->
-      doPage (Page.blob u r path (highlightBlob (last f) source)) s
+        if LBS.length source > (1024 * 1024) -- 1 MiB
+           then doPage (Page.blob u r path Nothing) s
+           else doPage (Page.blob u r path (Just $ highlightBlob (last f) (fromLBS source))) s
 
 repoChanges :: String -> String -> Int -> Page
 repoChanges un rn page s _ = do
