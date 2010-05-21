@@ -12,7 +12,7 @@ type HSPage = Session -> HSP XML
 
 index :: HSPage
 index = base
-    "darcsden"
+    ""
     <span>home</span>
     <div class="index">
         <p class="blurb">darcsden is a place to share your <a href="http://darcs.net/">darcs</a> projects and collaborate with others.</p>
