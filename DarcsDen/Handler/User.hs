@@ -3,7 +3,6 @@ module DarcsDen.Handler.User where
 import Data.Time (getCurrentTime)
 import Data.Map ((!))
 import Network.Wai
-import qualified Data.Map as M
 
 import DarcsDen.State.Repository
 import DarcsDen.State.Session

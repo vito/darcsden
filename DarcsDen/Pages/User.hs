@@ -2,7 +2,7 @@
 module DarcsDen.Pages.User where
 
 import HSP
-import HSP.XML
+import HSP.XML ()
 
 import DarcsDen.Pages.Base
 import DarcsDen.State.Repository
