@@ -4,7 +4,7 @@ module DarcsDen.Handler.Repository.Browse where
 import Darcs.Utils (withCurrentDirectory)
 import Data.Data (Data)
 import Data.List (intercalate, isPrefixOf, isSuffixOf, sort)
-import Data.Maybe (isJust)
+import Data.Maybe (isJust, listToMaybe)
 import Data.Typeable (Typeable)
 import Text.Pandoc
 import qualified Darcs.Patch as P
@@ -53,6 +53,9 @@ getBlob dr@(RI.Repo p _ _ _) f
            Nothing -> return Nothing
            Just b -> fmap Just (T.readBlob b)
 
+isTooLarge :: LBS.ByteString -> Bool
+isTooLarge = (> (1024 * 1024)) . LBS.length
+
 repoTree :: R.Repository P.Patch -> [String] -> IO (Maybe (T.Tree IO))
 repoTree r@(RI.Repo p _ _ _) f
   = do root <- withCurrentDirectory p (R.readRecorded r >>= T.expand)
@@ -63,15 +66,22 @@ repoTree r@(RI.Repo p _ _ _) f
 getReadme :: R.Repository P.Patch -> [String] -> IO (Maybe String)
 getReadme dr f = do
     tree <- repoTree dr f
-    case tree of
+    case findReadmes tree of
       Nothing -> return Nothing
-      Just t -> let readmes = map (fromAnchored . fst) $ filter (\(a, _) -> "README" `isPrefixOf` fromAnchored a) (T.list t)
-                in case readmes of
-                  [] -> return Nothing
-                  (r:_) -> do s <- getBlob dr (f ++ [r])
-                              if ".markdown" `isSuffixOf` r || ".md" `isSuffixOf` r
-                                then return $ fmap (writeHtmlString defaultWriterOptions . readMarkdown defaultParserState . fromLBS) s
-                                else return $ fmap (flip (highlight r) [] . fromLBS) s
+      Just r -> do
+          s <- getBlob dr (f ++ [r])
+          case s of
+               Nothing -> return Nothing
+               Just big | isTooLarge big -> return (Just "README file too large. Sorry.")
+               Just md | isMarkdown r ->
+                   return . Just . doMarkdown . fromLBS $ md
+               Just source ->
+                   return . Just . flip (highlight r) [] . fromLBS $ source
+    where
+        findReadmes = maybe Nothing listToMaybe . fmap (filter isReadme . map (fromAnchored . fst) . T.list)
+        doMarkdown = writeHtmlString defaultWriterOptions . readMarkdown defaultParserState
+        isReadme s = "README" `isPrefixOf` s || "readme" `isPrefixOf` s
+        isMarkdown s = ".markdown" `isSuffixOf` s || ".md" `isSuffixOf` s
 
 toAnchored :: [String] -> A.AnchoredPath
 toAnchored = A.AnchoredPath . map A.makeName

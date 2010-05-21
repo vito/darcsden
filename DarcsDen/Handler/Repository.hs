@@ -10,7 +10,6 @@ import Data.Ord (comparing)
 import Data.Time (getCurrentTime)
 import Database.CouchDB (doc)
 import Network.Wai
-import qualified Data.ByteString.Lazy as LBS
 
 import DarcsDen.Handler.Repository.Util
 import DarcsDen.Handler.Repository.Browse
@@ -116,7 +115,7 @@ browseRepo un rn f s _ = do
                else pathToFile (init f)
       doPage (Page.repo u r files up path readme) s
     (_, Just source) ->
-        if LBS.length source > (1024 * 1024) -- 1 MiB
+        if isTooLarge source
            then doPage (Page.blob u r path Nothing) s
            else doPage (Page.blob u r path (Just $ highlightBlob (last f) (fromLBS source))) s
 
