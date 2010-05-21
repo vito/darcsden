@@ -280,14 +280,17 @@ forks u r fs s = repoBase u r
                     %>
                 </fieldset>
             </form>
-        fork' :: Fork -> HSP XML
+
+        fork' (Fork _ []) = <% "" %>
         fork' (Fork f cs) =
-            <div class="fork">
-                <h1><a href=(repoURL f)><% rName f %></a> :: <% rOwner f %></h1>
-                <table class="fork-log">
-                    <% map (change' f) cs %>
-                </table>
-            </div>
+            <%
+                <div class="fork">
+                    <h1><a href=(repoURL f)><% rName f %></a> :: <% rOwner f %></h1>
+                    <table class="fork-log">
+                        <% map (change' f) cs %>
+                    </table>
+                </div>
+            %>
 
         change' :: Repository -> PatchLog -> HSP XML
         change' f p =

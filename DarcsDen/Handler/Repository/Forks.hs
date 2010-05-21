@@ -51,7 +51,9 @@ getForkChanges r = do Just rParent <- getRepositoryByID (fromJust (rForkOf r))
                                   Just ds -> l { pDepends = map (take 20 . make_filename . info) ds }
                                   Nothing -> l) (unsafeUnRL them)
 
-                      return $ Fork r cs
+                      changes <- findUsers cs
+
+                      return $ Fork r changes
 
 mergePatches :: Repository -> [String] -> Session -> IO Bool
 mergePatches r ps s = do

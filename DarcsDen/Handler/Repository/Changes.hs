@@ -163,8 +163,10 @@ getPatch dir patch = R.withRepositoryDirectory [] dir $ \dr ->
   do pset <- R.read_repo dr
      let ps = fromPS pset
          p = head $ filter (\p' -> patch == take 20 (P.patchname p')) ps
+         cs = toChanges p
 
-     return (toChanges p)
+     [l] <- findUsers [pPatch cs]
+     return cs { pPatch = l }
 
 fromPS :: P.RepoPatch p => R.PatchSet p -> [P.Named p]
 fromPS = WO.unsafeUnRL . WO.reverseFL . R.patchSetToPatches
