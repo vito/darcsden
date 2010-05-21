@@ -104,8 +104,8 @@ class DarcsSession:
         print "safe command: %s" % list(run)
         self.cmd = reactor.spawnProcess(proto, run[0], run)
 
-    def reject(self, proto, msg = "GTFO"):
-        proto.write("GTFO.\r\n")
+    def reject(self, proto, msg = "GTFO."):
+        proto.write(msg + "\r\n")
         dp = DenyProtocol()
         dp.makeConnection(proto)
         proto.makeConnection(session.wrapProtocol(dp))
@@ -121,17 +121,17 @@ class DarcsSession:
         if command[0] != "darcs":
             return ("unknown", [])
 
-        if  command[1] == "transfer-mode" \
+        if  len(command) == 4 \
+        and command[1] == "transfer-mode" \
         and command[2] == "--repodir" \
-        and sane(command[3]) \
-        and len(command) == 4:
+        and sane(command[3]):
             return ("transfer-mode", (self.absolute(command[3]),))
 
-        if  command[1] == "apply" \
+        if  len(command) == 5 \
+        and command[1] == "apply" \
         and command[2] == "--all" \
         and command[3] == "--repodir" \
-        and sane(command[4]) \
-        and len(command) == 5:
+        and sane(command[4]):
             return ("apply", (self.absolute(command[4]),))
 
         return ("unknown", [])
