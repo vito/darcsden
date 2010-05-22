@@ -10,7 +10,7 @@ import DarcsDen.State.User
 
 home :: [Repository] -> HSPage
 home rs = base
-    "darcsden"
+    ""
     <span>home</span>
     <div class="home">
         <h1><a href="/init">create a repository -></a></h1>
