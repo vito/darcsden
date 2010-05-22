@@ -61,7 +61,7 @@ register is = base
                 <% field (input' is "name") "name" "" %>
                 <% field (input' is "email") "email" "" %>
                 <% field (password' is "password1") "password" "" %>
-                <% field (password' is "password2") "" "again" %>
+                <% field (password' is "password2") "again" "" %>
                 <% field (textarea' is 10 "keys") "pubkeys" "optional, one per line" %>
                 <% submit "sign me up" %>
             </fieldset>
