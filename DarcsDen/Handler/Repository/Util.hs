@@ -13,7 +13,7 @@ getRepo = R.maybeIdentifyRepository []
 highlight :: String -> String -> [FormatOption] -> String
 highlight f s os = case hl of
                      Right res -> renderHtmlFragment (formatAsXHtml os lang res)
-                     Left _ -> s
+                     Left _ -> renderHtmlFragment s
     where langs = languagesByExtension (takeExtension f)
           lang = if null langs then "text" else head langs
           hl = if null langs
