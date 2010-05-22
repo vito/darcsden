@@ -43,7 +43,7 @@ withLineNums ls s =
             ++ intercalate "<br />" (map (lineNumber . show) [1..ls])
             ++ "</pre></td>"
 
-        lineNumber n = "<a class=\"lineNumber\" href=\"#LC" ++ n ++ "\" id=\"LN" ++ n ++ "\" rel=\"#L" ++ n ++ "\">" ++ n ++ "</a>"
+        lineNumber n = "<a class=\"lineNumber\" href=\"#L" ++ n ++ "\" id=\"LN" ++ n ++ "\" rel=\"#L" ++ n ++ "\">" ++ n ++ "</a>"
 
 
 highlightBlob :: String -> String -> String

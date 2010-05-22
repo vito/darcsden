@@ -1,7 +1,7 @@
 $(function(){
         var lineno = 1;
         $("span.lineBreak").each(function(){
-            $(this).attr("id", "LC" + lineno);
+            $(this).attr("id", "L" + lineno);
             lineno += 1;
         });
 
