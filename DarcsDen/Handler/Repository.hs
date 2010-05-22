@@ -5,7 +5,7 @@ import Data.Char (isNumber, isSpace, toLower)
 import Data.List (groupBy, inits, isPrefixOf, sortBy)
 import Data.List.Split (wordsBy)
 import Data.Map ((!))
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, isJust)
 import Data.Ord (comparing)
 import Data.Time (getCurrentTime)
 import Database.CouchDB (doc)
@@ -73,6 +73,7 @@ initialize s@(Session { sUser = Just n }) e
                        , rCreated = now
                        , rForkOf = Nothing
                        , rMembers = []
+                       , rIsPrivate = isJust (getInput "private" e)
                        }
 
         let url = input "bootstrap" "" e

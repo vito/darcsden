@@ -127,6 +127,7 @@ init is = base
                 <% field (input' is "description") "description" "" %>
                 <% field (input' is "website") "website" "" %>
                 <% field (input' is "bootstrap") "bootstrap" "" %>
+                {-<% field (checkbox' is "private") "private?" "" %>-}
                 <% submit "create repository" %>
             </fieldset>
         </form>

@@ -99,6 +99,12 @@ textarea r n v = <textarea rows=r name=n id=n><% v %></textarea>
 input' :: [(String, String)] -> String -> HSP XML
 input' is n = input n (fromMaybe "" (lookup n is))
 
+checkbox' :: [(String, String)] -> String -> HSP XML
+checkbox' is n = if n `elem` (map fst is)
+                    then <div class="inline-wrapper"><% box `set` ("checked" := "checked") %></div>
+                    else <div class="inline-wrapper"><% box %></div>
+    where box = <input type="checkbox" name=n />
+
 password' :: [(String, String)] -> String -> HSP XML
 password' is n = <input type="password" name=n id=n value=(fromMaybe "" (lookup n is)) />
 

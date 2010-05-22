@@ -80,7 +80,8 @@ form input[type="checkbox"] {
 	vertical-align: middle;
 	margin-top: -.1em;
 }
-form .field > ul {
+form .field > ul,
+form .field .inline-wrapper {
 	float: right;
 	font-family: monospace;
 	width: 12.83em;

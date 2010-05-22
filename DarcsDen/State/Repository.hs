@@ -23,6 +23,7 @@ data Repository = Repository { rID :: Maybe Doc
                              , rCreated :: UTCTime
                              , rForkOf :: Maybe Doc
                              , rMembers :: [Doc]
+                             , rIsPrivate :: Bool
                              }
                 deriving (Eq, Show)
 
@@ -37,6 +38,7 @@ instance JSON Repository where
         created <- getCreated
         forkOf <- getForkOf
         members <- getMembers
+        isPrivate <- getIsPrivate
         return
             Repository { rID = Just id'
                        , rRev = Just rev'
@@ -47,6 +49,7 @@ instance JSON Repository where
                        , rCreated = created
                        , rForkOf = forkOf
                        , rMembers = members
+                       , rIsPrivate = isPrivate
                        }
         where
             as = fromJSObject js
@@ -74,6 +77,7 @@ instance JSON Repository where
                 (lookup "created" as)
             getForkOf = maybe (Ok Nothing) readJSON (lookup "fork_of" as)
             getMembers = maybe (Ok []) readJSON (lookup "members" as)
+            getIsPrivate = maybe (Ok False) readJSON (lookup "is_private" as)
     readJSON o = fail $ "unable to read Repository: " ++ show o
 
     showJSON r = JSObject (toJSObject ([ ("name", showJSON (rName r))
