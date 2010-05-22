@@ -5,7 +5,7 @@ import Text.JSON
 
 
 runDB :: CouchMonad a -> IO a
-runDB = runCouchDB "localhost" 4895
+runDB = runCouchDB "localhost" 5984
 
 getDocByView :: (JSON a, JSON b) => DB -> Doc -> Doc -> a -> CouchMonad (Maybe b)
 getDocByView db' design view key = do

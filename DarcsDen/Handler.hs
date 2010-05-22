@@ -50,7 +50,7 @@ routes s =
     , ("login", method GET (login s) <|> method POST (doLogin s))
     , ("logout", logout s)
     , ("settings", settings s)
-    , ("/:user", user s)
+    , (":user", user s)
     ] ++
 
     -- Repositories
@@ -68,15 +68,13 @@ routes s =
         , (":owner/:repo/forks", repoForks)
         , (":owner/:repo/merge", mergeForks)
         , (":owner/:repo/patch/:id", repoPatch)
-        , (":owner/:repo/raw/:path", \_ _ _ -> do
-            path <- getSafePath
-            writeBS (toBS path))
+        , (":owner/:repo/raw/:path", \_ _ _ -> getSafePath >>= writeBS . toBS)
         ]
 
 validateRepo :: Session -> (User -> Repository -> Page) -> Snap ()
 validateRepo s p = do
     mo <- getParam "owner"
-    mn <- getParam "name"
+    mn <- getParam "repo"
 
     case (mo, mn) of
         (Just o, Just n) -> do

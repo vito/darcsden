@@ -39,7 +39,7 @@ executable darcsden
                  pandoc,
                  random,
                  snap-core,
-                 snap-server,
+                 snap-server >=0.1.3,
                  split,
                  time,
                  transformers,

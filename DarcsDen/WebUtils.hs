@@ -70,7 +70,7 @@ newSession r = do
                        , cookieValue = toBS $ show sid
                        , cookieExpires = Just $ addUTCTime (60 * 60 * 24 * 30) now
                        , cookieDomain = Nothing
-                       , cookiePath = Just "/"
+                       , cookiePath = Nothing
                        }
              r s
          Nothing -> errorPage "Session could not be created."
