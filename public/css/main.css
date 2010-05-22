@@ -112,7 +112,8 @@ form .cancel-buttons a.cancel {
 }
 
 .head {
-	margin-bottom: 1.4em;
+    line-height: 1.5em;
+    margin-bottom: 1.2em;
 }
 
 .footer {
@@ -182,6 +183,7 @@ form .cancel-buttons a.cancel {
 }
 .links.nav li {
 	font-size: 2em;
+    line-height: 1em;
 	font-weight: bold;
 }
 .links.nav li.settings a {
@@ -285,6 +287,17 @@ table.sourceCode,
 .patch-changes pre.sourceCode {
 	font-size: 1.2em;
 	line-height: 1.4em;
+}
+table.sourceCode .lineNumbers {
+    background: #000;
+    color: #fff;
+}
+table.sourceCode .lineNumbers .lineNumber {
+    text-decoration: none;
+}
+table.sourceCode .lineNumbers .lineNumberActive {
+    color: #f22;
+    font-weight: bold;
 }
 
 div.code,

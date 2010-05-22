@@ -120,15 +120,12 @@ toChanges p = PatchChanges (toLog p) . simplify [] . map primToChange . WO.unsaf
         simplify a (c@(FileChange _ (FileReplace _ _)):cs)
           = simplify (c:a) cs
         simplify a (FileChange n (FileHunk l f t):cs)
-          = simplify (FileChange n (FileHunk l (hl n f) (hl n t)):a) cs
+          = simplify (FileChange n (FileHunk l (highlight False n f) (highlight False n t)):a) cs
         simplify a (c@(PrefChange _ _ _):cs) = simplify (c:a) cs
         simplify a (_:cs) = simplify a cs
 
         notFile n (FileChange { cfName = n' }) | n == n' = False
         notFile _ _ = True
-
-        hl _ "" = ""
-        hl n t = highlight n t []
 
 primToChange :: Prim -> PatchChange
 primToChange (Move f t) = Moved (drop 2 $ fn2fp f) (drop 2 $ fn2fp t)

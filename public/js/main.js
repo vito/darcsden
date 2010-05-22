@@ -1,4 +1,15 @@
 $(function(){
+        var lineno = 1;
+        $("span.lineBreak").each(function(){
+            $(this).attr("id", "LC" + lineno);
+            lineno += 1;
+        });
+
+        $(".lineNumber").click(function(){
+            $(".lineNumber").removeClass("lineNumberActive");
+            $(this).addClass("lineNumberActive");
+        });
+
         $(".relatize").each(function(){
                 $(this).attr("title", $(this).text());
                 $(this).relatizeDate();
