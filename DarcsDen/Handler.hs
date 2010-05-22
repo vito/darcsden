@@ -1,15 +1,24 @@
+{-# LANGUAGE OverloadedStrings #-}
 module DarcsDen.Handler where
 
+import Control.Applicative ((<|>))
+import Control.Arrow (second)
+import Control.Monad.IO.Class
 import Data.Char (isNumber)
 import Data.List.Split (wordsBy)
-import Network.Wai
+import Snap.Types
+import Snap.Util.FileServe
 import System.Directory (getCurrentDirectory)
+import qualified Data.ByteString as BS
 
 import DarcsDen.Handler.Repository
+import DarcsDen.Handler.Repository.Util (getRepo)
 import DarcsDen.Handler.User
-import DarcsDen.State.Session
 import DarcsDen.State.Repository
-import DarcsDen.Util (fromBS)
+import DarcsDen.State.Session
+import DarcsDen.State.User
+import DarcsDen.State.Util
+import DarcsDen.Util (fromBS, toBS)
 import DarcsDen.WebUtils
 import qualified DarcsDen.Pages.Base as Base
 import qualified DarcsDen.Pages.User as User
@@ -17,48 +26,66 @@ import qualified DarcsDen.Pages.User as User
 
 -- Pages
 index :: Page
-index s@(Session { sUser = Nothing }) _ = doPage Base.index s
-index s@(Session { sUser = Just n }) _
-  = do rs <- getUserRepositories n
-       doPage (User.home rs) s
+index s@(Session { sUser = Nothing }) = doPage Base.index s
+index s@(Session { sUser = Just n }) = do
+    rs <- getUserRepositories n
+    doPage (User.home rs) s
 
 
 -- URL handling
-handler :: Application
-handler r = do
-    putStrLn ("Handling request " ++ info ++ " from " ++ show (remoteHost r))
-    is <- getInputsM r
-    let e = Env { eInputs = is
-                , eCookies = readCookies r
-                , eRequest = r
-                }
+handler :: Snap ()
+handler = withSession (\s -> route (routes s))
 
-    if not (null path) && head path == "public"
-       then do
-           dir <- getCurrentDirectory
-           serveDirectory (dir ++ "/public/") (tail path)
-       else withSession e (\s -> pageFor path s e)
-    where
-        path = wordsBy (== '/') . tail . fromBS . pathInfo $ r
-        info = show ( requestMethod r
-                    , pathInfo r
-                    , urlScheme r
-                    , httpVersion r
-                    , queryString r
-                    )
+routes :: Session -> [(BS.ByteString, Snap ())]
+routes s =
+    [ -- Main
+      ("", ifTop (index s))
+    , ("public", fileServe "public")
+    , ("browse", browse s)
+    , ("browse/page/:page", browse s)
+    , ("init", method GET (initialize s) <|> method POST (doInitialize s))
 
-pageFor :: [String] -> Page
-pageFor [] = index
-pageFor ["index"] = index
-pageFor ["register"] = register
-pageFor ["login"] = login
-pageFor ["logout"] = logout
-pageFor ["settings"] = settings
-pageFor ["init"] = initialize
-pageFor ["browse"] = browse 1
-pageFor ["browse", "page", p] | all isNumber p = browse (read p)
-pageFor ("public":unsafe) = \_ _ -> do
-    dir <- getCurrentDirectory
-    serveDirectory (dir ++ "/public/") unsafe
-pageFor [name] = user name
-pageFor (name:repo:action) = handleRepo name repo action
+    -- Users
+    , ("register", method GET (register s) <|> method POST (doRegister s))
+    , ("login", method GET (login s) <|> method POST (doLogin s))
+    , ("logout", logout s)
+    , ("settings", settings s)
+    , ("/:user", user s)
+    ] ++
+
+    -- Repositories
+    map (second (validateRepo s))
+        [ (":owner/:repo", browseRepo)
+        , (":owner/:repo/_darcs", \_ _ _ -> getSafePath >>= writeBS . toBS)
+        , (":owner/:repo/browse/:file", browseRepo)
+        , (":owner/:repo/changes", repoChanges)
+        , (":owner/:repo/changes/atom", repoChangesAtom)
+        , (":owner/:repo/changes/page/:page", repoChanges)
+        , (":owner/:repo/delete", \u r s -> method GET (deleteRepo u r s) <|> method POST (doDeleteRepo u r s))
+        , (":owner/:repo/edit", \u r s -> method GET (editRepo u r s) <|> method POST (doEditRepo u r s))
+        , (":owner/:repo/fork", forkRepo)
+        , (":owner/:repo/fork-as", forkRepoAs)
+        , (":owner/:repo/forks", repoForks)
+        , (":owner/:repo/merge", mergeForks)
+        , (":owner/:repo/patch/:id", repoPatch)
+        , (":owner/:repo/raw/:path", \_ _ _ -> do
+            path <- getSafePath
+            writeBS (toBS path))
+        ]
+
+validateRepo :: Session -> (User -> Repository -> Page) -> Snap ()
+validateRepo s p = do
+    mo <- getParam "owner"
+    mn <- getParam "name"
+
+    case (mo, mn) of
+        (Just o, Just n) -> do
+            user <- getUser (fromBS o)
+            repo <- getRepository (fromBS o, fromBS n)
+            darcsRepo <- liftIO (getRepo (repoDir (fromBS o) (fromBS n)))
+            case (user, repo, darcsRepo) of
+                (Just u , Just r , Right _) -> p u r s
+                (Nothing, _      , _      ) -> warn "user does not exist" s >> redirectTo "/"
+                (_      , Just _ , Left _ ) -> warn "repository invalid" s >> redirectTo "/"
+                (Just _ , Nothing, _      ) -> warn "repository does not exist" s >> redirectTo "/"
+        _ -> warn "no repository specified" s >> redirectTo "/"

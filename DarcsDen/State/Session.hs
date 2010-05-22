@@ -1,5 +1,6 @@
 module DarcsDen.State.Session where
 
+import Control.Monad.IO.Class
 import Database.CouchDB
 import Text.JSON
 
@@ -34,9 +35,9 @@ instance JSON Notification where
                               _ -> fail "Unable to read Notification"
     readJSON _ = fail "Unable to read Notification"
 
-    showJSON (Success msg) = JSObject (toJSObject [("type", showJSON "success"), ("message", showJSON msg)])
-    showJSON (Message msg) = JSObject (toJSObject [("type", showJSON "message"), ("message", showJSON msg)])
-    showJSON (Warning msg) = JSObject (toJSObject [("type", showJSON "warning"), ("message", showJSON msg)])
+    showJSON (Success msg) = JSObject (toJSObject [("type", showJSON ("success" :: String)), ("message", showJSON msg)])
+    showJSON (Message msg) = JSObject (toJSObject [("type", showJSON ("message" :: String)), ("message", showJSON msg)])
+    showJSON (Warning msg) = JSObject (toJSObject [("type", showJSON ("warning" :: String)), ("message", showJSON msg)])
 
 instance JSON Session where
     readJSON (JSObject js) = do
@@ -63,42 +64,42 @@ instance JSON Session where
                                       , ("notifications", showJSON (sNotifications s))
                                       ])
 
-getSession :: Doc -> IO (Maybe Session)
-getSession sid = (fmap . fmap) (\(_, _, s) -> s) (runDB (getDoc (db "sessions") sid))
+getSession :: MonadIO m => Doc -> m (Maybe Session)
+getSession sid = liftIO $ (fmap . fmap) (\(_, _, s) -> s) (runDB (getDoc (db "sessions") sid))
 
-addSession :: Session -> IO Session
-addSession s = do (id', rev') <- runDB (newDoc (db "sessions") s)
+addSession :: MonadIO m => Session -> m Session
+addSession s = do (id', rev') <- liftIO $ runDB (newDoc (db "sessions") s)
                   return (s { sID = Just id', sRev = Just rev' })
 
-updateSession :: Session -> IO (Maybe Session)
+updateSession :: MonadIO m => Session -> m (Maybe Session)
 updateSession s = case (sID s, sRev s) of
                        (Just id', Just rev') -> do
-                           update <- runDB (updateDoc (db "sessions") (id', rev') (s { sID = Nothing }))
+                           update <- liftIO $ runDB (updateDoc (db "sessions") (id', rev') (s { sID = Nothing }))
                            case update of
                                 Just (id'', rev'') -> return (Just (s { sID = Just id'', sRev = Just rev'' }))
                                 _ -> return Nothing
                        _ -> return Nothing
 
-deleteSession :: Session -> IO Bool
+deleteSession :: MonadIO m => Session -> m Bool
 deleteSession s = case (sID s, sRev s) of
                        (Just id', Just rev') ->
-                           runDB (deleteDoc (db "sessions") (id', rev'))
+                           liftIO $ runDB (deleteDoc (db "sessions") (id', rev'))
                        _ -> return False
 
-setUser :: Maybe String -> Session -> IO (Maybe Session)
+setUser :: MonadIO m => Maybe String -> Session -> m (Maybe Session)
 setUser n s = updateSession s { sUser = n }
 
-notice :: (String -> Notification) -> String -> Session -> IO (Maybe Session)
+notice :: MonadIO m => (String -> Notification) -> String -> Session -> m (Maybe Session)
 notice n m (Session { sID = Just sid }) = do
     Just latest <- getSession sid
     updateSession latest { sNotifications = sNotifications latest ++ [n m] }
 notice _ _ _ = return Nothing
 
-warn :: String -> Session -> IO (Maybe Session)
+warn :: MonadIO m => String -> Session -> m (Maybe Session)
 warn = notice Warning
 
-success :: String -> Session -> IO (Maybe Session)
+success :: MonadIO m => String -> Session -> m (Maybe Session)
 success = notice Success
 
-message :: String -> Session -> IO (Maybe Session)
+message :: MonadIO m => String -> Session -> m (Maybe Session)
 message = notice Message

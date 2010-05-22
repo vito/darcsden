@@ -1,5 +1,6 @@
 module DarcsDen.State.Repository where
 
+import Control.Monad.IO.Class
 import Darcs.Commands (commandCommand)
 import Darcs.Flags (DarcsFlag(All, FixFilePath, Quiet))
 import Darcs.RepoPath (getCurrentDirectory)
@@ -103,58 +104,77 @@ repoOwnerURL = ("/" ++) . rOwner
 repoURL :: Repository -> String
 repoURL r = "/" ++ rOwner r ++ "/" ++ rName r
 
-getRepositoryByID :: Doc -> IO (Maybe Repository)
-getRepositoryByID key = do res <- runDB (getDoc (db "repositories") key)
+getRepositoryByID :: MonadIO m => Doc -> m (Maybe Repository)
+getRepositoryByID key = do res <- liftIO $ runDB (getDoc (db "repositories") key)
                            case res of
                                 Just (_, _, r) -> return (Just r)
                                 Nothing -> return Nothing
 
-getRepository :: (String, String) -> IO (Maybe Repository)
-getRepository (un, rn) = runDB (getDocByView (db "repositories") (doc "repositories") (doc "by_owner_and_name") [un, rn])
+getRepository :: MonadIO m => (String, String) -> m (Maybe Repository)
+getRepository (un, rn) = liftIO (runDB query)
+    where
+        query = getDocByView
+            (db "repositories")
+            (doc "repositories")
+            (doc "by_owner_and_name")
+            [un, rn]
 
-getRepositoryForks :: Doc -> IO [Repository]
-getRepositoryForks key = fmap (map snd) (runDB (queryView (db "repositories") (doc "repositories") (doc "by_fork") [("key", showJSON key)]))
+getRepositoryForks :: MonadIO m => Doc -> m [Repository]
+getRepositoryForks key = liftIO $ fmap (map snd) (runDB query)
+    where
+        query = queryView
+            (db "repositories")
+            (doc "repositories")
+            (doc "by_fork")
+            [("key", showJSON key)]
 
-getRepositories :: IO [Repository]
-getRepositories = fmap (map snd) (runDB (getAllDocs (db "repositories") []))
+getRepositories :: MonadIO m => m [Repository]
+getRepositories = liftIO $ fmap (map snd) (runDB (getAllDocs (db "repositories") []))
 
-getUserRepositories :: String -> IO [Repository]
-getUserRepositories un = fmap (map snd) (runDB (queryView (db "repositories") (doc "repositories") (doc "by_owner") [("key", showJSON un)]))
+getUserRepositories :: MonadIO m => String -> m [Repository]
+getUserRepositories un = liftIO $ fmap (map snd) (runDB query)
+    where
+        query = queryView
+            (db "repositories")
+            (doc "repositories")
+            (doc "by_owner")
+            [("key", showJSON un)]
 
-addRepository :: Repository -> IO Repository
-addRepository r = do (id', rev') <- runDB (newDoc (db "repositories") r)
+addRepository :: MonadIO m => Repository -> m Repository
+addRepository r = do (id', rev') <- liftIO $ runDB (newDoc (db "repositories") r)
                      return (r { rID = Just id', rRev = Just rev' })
 
-updateRepository :: Repository -> IO (Maybe Repository)
+updateRepository :: MonadIO m => Repository -> m (Maybe Repository)
 updateRepository r = case (rID r, rRev r) of
                           (Just id', Just rev') -> do
-                              update <- runDB (updateDoc (db "repositories") (id', rev') (r { rID = Nothing }))
+                              update <- liftIO $ runDB (updateDoc (db "repositories") (id', rev') (r { rID = Nothing }))
                               case update of
                                    Just (id'', rev'') -> return (Just (r { rID = Just id'', rRev = Just rev'' }))
                                    _ -> return Nothing
                           _ -> return Nothing
 
-deleteRepository :: Repository -> IO Bool
+deleteRepository :: MonadIO m => Repository -> m Bool
 deleteRepository r = case (rID r, rRev r) of
                           (Just id', Just rev') ->
-                              runDB (deleteDoc (db "repositories") (id', rev'))
+                              liftIO $ runDB (deleteDoc (db "repositories") (id', rev'))
                           _ -> return False
 
-newRepository :: Repository -> IO Repository
+newRepository :: MonadIO m => Repository -> m Repository
 newRepository r = do new <- addRepository r
-                     createDirectoryIfMissing True repo
-                     withCurrentDirectory repo (R.createRepository [])
+                     liftIO (do
+                         createDirectoryIfMissing True repo
+                         withCurrentDirectory repo (R.createRepository []))
                      return new
   where repo = repoDir (rOwner r) (rName r)
 
-destroyRepository :: Repository -> IO Bool
+destroyRepository :: MonadIO m => Repository -> m Bool
 destroyRepository r = do success <- deleteRepository r
                          if success
-                            then removeDirectoryRecursive (repoDir (rOwner r) (rName r)) >> return True
+                            then liftIO $ removeDirectoryRecursive (repoDir (rOwner r) (rName r)) >> return True
                             else return False
 
-bootstrapRepository :: Repository -> String -> IO ()
-bootstrapRepository r orig = do
+bootstrapRepository :: MonadIO m => Repository -> String -> m ()
+bootstrapRepository r orig = liftIO $ do
     cwd <- getCurrentDirectory
     withCurrentDirectory dest $ do
         here <- getCurrentDirectory
@@ -163,7 +183,7 @@ bootstrapRepository r orig = do
         get = commandCommand DC.pull
         dest = repoDir (rOwner r) (rName r)
 
-forkRepository :: String -> String -> Repository -> IO Repository
+forkRepository :: MonadIO m => String -> String -> Repository -> m Repository
 forkRepository un rn r = do
     new <- newRepository
         r { rID = Nothing
@@ -176,17 +196,17 @@ forkRepository un rn r = do
     return new
     where orig = repoDir (rOwner r) (rName r)
 
-moveRepository :: (String, String) -> Repository -> IO ()
-moveRepository (o, n) r = renameDirectory (repoDir (rOwner r) (rName r)) (repoDir o n)
+moveRepository :: MonadIO m => (String, String) -> Repository -> m ()
+moveRepository (o, n) r = liftIO (renameDirectory (repoDir (rOwner r) (rName r)) (repoDir o n))
 
-renameRepository :: String -> Repository -> IO (Maybe Repository)
+renameRepository :: MonadIO m => String -> Repository -> m (Maybe Repository)
 renameRepository n r = do update <- updateRepository (r { rName = n })
                           case update of
                                Just _ -> moveRepository (rOwner r, n) r >> return update
                                _ -> return Nothing
 
-removeMember :: Repository -> Doc -> IO (Maybe Repository)
+removeMember :: MonadIO m => Repository -> Doc -> m (Maybe Repository)
 removeMember r m = updateRepository (r { rMembers = filter (/= m) (rMembers r) })
 
-addMember :: Repository -> Doc -> IO (Maybe Repository)
+addMember :: MonadIO m => Repository -> Doc -> m (Maybe Repository)
 addMember r m = updateRepository (r { rMembers = filter (/= m) (rMembers r) ++ [m] })

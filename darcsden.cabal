@@ -37,9 +37,10 @@ executable darcsden
                  old-locale,
                  old-time,
                  pandoc,
-                 wai,
-                 wai-extra,
                  random,
+                 snap-core,
+                 snap-server,
                  split,
                  time,
+                 transformers,
                  xhtml

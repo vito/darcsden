@@ -1,5 +1,6 @@
 module DarcsDen.State.User where
 
+import Control.Monad.IO.Class
 import Codec.Utils (Octet)
 import Control.Monad (replicateM)
 import Data.Char (ord)
@@ -94,36 +95,36 @@ instance JSON User where
 userURL :: User -> String
 userURL = ("/" ++) . uName
 
-getUser :: String -> IO (Maybe User)
-getUser un = runDB (getDocByView (db "users") (doc "users") (doc "by_name") un)
+getUser :: MonadIO m => String -> m (Maybe User)
+getUser un = liftIO $ runDB (getDocByView (db "users") (doc "users") (doc "by_name") un)
 
-getUserByID :: Doc -> IO (Maybe User)
+getUserByID :: MonadIO m => Doc -> m (Maybe User)
 getUserByID key = do
-    res <- runDB (getDoc (db "users") key)
+    res <- liftIO $ runDB (getDoc (db "users") key)
     case res of
          Just (_, _, r) -> return (Just r)
          Nothing -> return Nothing
 
-getUserByEmail :: String -> IO (Maybe User)
-getUserByEmail email = runDB (getDocByView (db "users") (doc "users") (doc "by_email") email)
+getUserByEmail :: MonadIO m => String -> m (Maybe User)
+getUserByEmail email = liftIO $ runDB (getDocByView (db "users") (doc "users") (doc "by_email") email)
 
-addUser :: User -> IO User
-addUser u = do (id', rev') <- runDB (newDoc (db "users") u)
+addUser :: MonadIO m => User -> m User
+addUser u = do (id', rev') <- liftIO $ runDB (newDoc (db "users") u)
                return (u { uID = Just id', uRev = Just rev' })
 
-updateUser :: User -> IO (Maybe User)
+updateUser :: MonadIO m => User -> m (Maybe User)
 updateUser u = case (uID u, uRev u) of
                     (Just id', Just rev') -> do
-                        update <- runDB (updateDoc (db "users") (id', rev') (u { uID = Nothing }))
+                        update <- liftIO $ runDB (updateDoc (db "users") (id', rev') (u { uID = Nothing }))
                         case update of
                              Just (id'', rev'') -> return (Just (u { uID = Just id'', uRev = Just rev'' }))
                              _ -> return Nothing
                     _ -> return Nothing
 
-deleteUser :: User -> IO Bool
+deleteUser :: MonadIO m => User -> m Bool
 deleteUser u = case (uID u, uRev u) of
                     (Just id', Just rev') ->
-                        runDB (deleteDoc (db "users") (id', rev'))
+                        liftIO $ runDB (deleteDoc (db "users") (id', rev'))
                     _ -> return False
 
 salt :: Int -> IO [Octet]
@@ -136,17 +137,17 @@ hashPassword p s = hash (merge (map (fromIntegral . ord) p) s)
                                                                   then drop (length a) b
                                                                   else drop (length b) a)
 
-newUser :: User -> IO User
+newUser :: MonadIO m => User -> m User
 newUser u = do
-    createDirectoryIfMissing True (userDir (uName u))
+    liftIO $ createDirectoryIfMissing True (userDir (uName u))
     addUser u
 
-destroyUser :: User -> IO Bool
+destroyUser :: MonadIO m => User -> m Bool
 destroyUser u = do repos <- getUserRepositories (uName u)
                    mapM_ destroyRepository repos
                    deleteUser u
 
-renameUser :: String -> User -> IO User
+renameUser :: MonadIO m => String -> User -> m User
 renameUser n u = do new <- newUser (u { uName = n })
                     repos <- getUserRepositories n
                     mapM_ (\r -> moveRepository (n, rName r) r) repos

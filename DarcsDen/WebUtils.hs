@@ -1,121 +1,84 @@
+{-# LANGUAGE OverloadedStrings #-}
 module DarcsDen.WebUtils where
 
-import Data.Char (isSpace)
-import Data.List (intercalate, isPrefixOf)
-import Data.List.Split (wordsBy)
-import Data.Maybe (fromMaybe)
-import Data.Time (addUTCTime, formatTime, getCurrentTime)
+import Control.Monad.IO.Class
+import Data.List (find)
+import Data.Time (addUTCTime, getCurrentTime)
 import Database.CouchDB
 import HSP (XML, evalHSP, renderXML, renderAsHTML)
-import Network.URI (unEscapeString)
-import Network.Wai
-import System.Directory (doesFileExist, canonicalizePath)
-import System.Locale (defaultTimeLocale)
+import Snap.Types
 import qualified Data.ByteString as BS
 import qualified Data.Map as M
-import qualified Network.Wai.Enumerator as E
-import qualified Network.Wai.Source as S
 
 import DarcsDen.Pages.Base (HSPage)
 import DarcsDen.State.Session
-import DarcsDen.Util (fromBS, fromLBS, toBS, toLBS)
+import DarcsDen.Util (fromBS, toBS)
 
 
-data Env = Env { eInputs :: M.Map String String
-               , eCookies :: M.Map String String
-               , eRequest :: Request
-               }
-
-type Page = Session -> Env -> IO Response
+type Page = Session -> Snap ()
 
 
-toResponse :: String -> Either FilePath Enumerator
-toResponse = Right . E.fromLBS . toLBS
+input :: String -> String -> Snap String
+input p d = do
+    param <- getParam (toBS p)
+    return (maybe d fromBS param)
 
-notFound :: IO Response
-notFound = return $ Response Status404 [(ContentType, toBS "text/plain")] (toResponse "404 not found")
+getInputs :: Snap [(String, String)]
+getInputs = fmap
+    (map (\(k, vs) -> (fromBS k, vs >>= fromBS)) . M.toList)
+    (withRequest (return . rqParams))
 
-errorPage :: String -> IO Response
-errorPage msg = return $ Response Status500 [(ContentType, toBS "text/plain")] (toResponse msg)
+notFound :: Snap ()
+notFound = do
+    putResponse (setResponseStatus 404 "Not Found" emptyResponse)
+    writeBS "404 not found."
+    withResponse finishWith
 
-redirectTo :: String -> IO Response
-redirectTo dest = return $ Response Status302 [(Location, toBS dest)] (toResponse "")
+errorPage :: BS.ByteString -> Snap ()
+errorPage msg = do
+    putResponse (setResponseStatus 500 "Internal Server Error" emptyResponse)
+    writeBS msg
+    withResponse finishWith
 
-getInput :: String -> Env -> Maybe String
-getInput key e = M.lookup key (eInputs e)
+redirectTo :: String -> Snap ()
+redirectTo dest = do
+    putResponse (setResponseStatus 302 "Found" emptyResponse)
+    withResponse (finishWith . addHeader "Location" (toBS dest))
 
-input :: String -> String -> Env -> String
-input k d e = fromMaybe d (getInput k e)
+withSession :: Page -> Snap ()
+withSession p = do
+    r <- getRequest
+    case find ((== "DarcsDenSession") . cookieName) (rqCookies r) of
+        Nothing -> newSession p
+        Just (Cookie { cookieValue = sid }) -> do
+            ms <- getSession (doc (fromBS sid))
+            maybe (newSession p) p ms
 
-getInputs :: Env -> [(String, String)]
-getInputs = M.toList . eInputs
-
-getInputsM :: Request -> IO (M.Map String String)
-getInputsM r = do
-    body <- E.toLBS . S.toEnumerator $ requestBody r
-    return $ M.fromList (map (keyVal . wordsBy (== '=')) . wordsBy (== '&') . fromLBS $ body)
-  where sanitize = unEscapeString . intercalate " " . wordsBy (== '+')
-        keyVal (k:v:_) = (sanitize k, sanitize v)
-        keyVal [k] = (sanitize k, "")
-        keyVal _ = ("", "") -- error, but I'd rather not kill the server
-
-setCookies :: [(String, String)] -> IO Response -> IO Response
-setCookies cs r = do o <- r
-                     now <- getCurrentTime
-                     return (o { responseHeaders = cookies (expires now) ++ responseHeaders o })
-    where cookies e = map (\(x, y) -> (SetCookie, toBS $ x ++ "=" ++ y ++ "; path=/; expires=" ++ format e)) cs
-          expires = addUTCTime (60 * 60 * 24 * 30)
-          format = formatTime defaultTimeLocale "%a, %d-%b-%Y %T GMT"
-
-withCookies :: (M.Map String String -> Application) -> Application
-withCookies a r = a (readCookies r) r
-
-readCookies :: Request -> M.Map String String
-readCookies r = readCookies' M.empty (fromBS $ fromMaybe BS.empty (lookup Cookie (requestHeaders r)))
-    where readCookies' acc "" = acc
-          readCookies' acc s = let (crumb, rest) = span (/= ';') s
-                                   (key, val) = span (/= '=') crumb
-                               in readCookies' (M.insert key (dropWhile (== '=') val) acc) (dropWhile (\x -> x == ';' || isSpace x) rest)
-
-withSession :: Env -> (Session -> IO Response) -> IO Response
-withSession e p = case M.lookup "DarcsDenSession" (eCookies e) of
-                    Nothing -> newSession p
-                    Just sid -> do ms <- getSession (doc sid)
-                                   case ms of
-                                     Nothing -> newSession p
-                                     Just s -> p s
-
-newSession :: (Session -> IO Response) -> IO Response
-newSession r = do s <- addSession (Session { sID = Nothing
-                                           , sRev = Nothing
-                                           , sUser = Nothing
-                                           , sNotifications = []
-                                           })
-                  case sID s of
-                       Just sid ->
-                          setCookies [("DarcsDenSession", (show sid))] (r s)
-                       Nothing ->
-                          return $ Response Status500 [(ContentType, toBS "text/html")] (toResponse "<h1>Session Not Created</h1>")
-
-serveDirectory :: String -> [String] -> IO Response
-serveDirectory prefix unsafe
-  = do safe <- canonicalizePath (prefix ++ intercalate "/" unsafe)
-       exists <- doesFileExist safe
-
-       -- Make sure there's no trickery going on here.
-       if not (prefix `isPrefixOf` safe && exists)
-         then notFound
-         else do
-
-       return (Response Status200 [] (Left safe))
+newSession :: Page -> Snap ()
+newSession r = do
+    s <- addSession 
+        Session { sID = Nothing
+                , sRev = Nothing
+                , sUser = Nothing
+                , sNotifications = []
+                }
+    case sID s of
+         Just sid -> do
+             now <- liftIO (getCurrentTime)
+             modifyResponse $ addCookie
+                Cookie { cookieName = "DarcsDenSession"
+                       , cookieValue = toBS $ show sid
+                       , cookieExpires = Just $ addUTCTime (60 * 60 * 24 * 30) now
+                       , cookieDomain = Nothing
+                       , cookiePath = Just "/"
+                       }
+             r s
+         Nothing -> errorPage "Session could not be created."
 
 -- Page helpers
-doPage' :: (XML -> String) -> String -> HSPage -> Session -> IO Response
+doPage' :: (XML -> String) -> BS.ByteString -> HSPage -> Page
 doPage' _ _ _ (Session { sID = Nothing }) =
-    return Response { status = Status500
-                    , responseHeaders = [(ContentType, toBS "text/html")]
-                    , responseBody = toResponse "<h1>Session Not Created</h1>"
-                    }
+    errorPage "Session could not be created."
 doPage' render contentType p s@(Session { sID = Just sid }) = do
     getSess <- getSession sid -- Session must be re-grabbed for any new notifications to be shown
 
@@ -123,20 +86,18 @@ doPage' render contentType p s@(Session { sID = Just sid }) = do
          Nothing -> doPage' render contentType p (s { sID = Nothing })
          Just sess -> doWithSession sess
     where
-        doWithSession :: Session -> IO Response
+        doWithSession :: Page
         doWithSession sess = do
             if not (null (sNotifications sess))
               then updateSession (sess { sNotifications = [] })
               else return Nothing
 
-            (_, page) <- evalHSP Nothing (p sess)
-            return Response { status = Status200
-                            , responseHeaders = [(ContentType, toBS contentType)]
-                            , responseBody = toResponse (render page)
-                            }
+            (_, page) <- liftIO $ evalHSP Nothing (p sess)
+            modifyResponse (addHeader "Content-Type" contentType)
+            writeBS (toBS $ render page)
 
-doPage :: HSPage -> Session -> IO Response
+doPage :: HSPage -> Page
 doPage = doPage' (("<!DOCTYPE html>\n" ++) . renderAsHTML) "text/html; charset=utf-8"
 
-doAtomPage :: HSPage -> Session -> IO Response
+doAtomPage :: HSPage -> Page
 doAtomPage = doPage' (("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" ++) . renderXML) "application/atom+xml; charset=utf-8"

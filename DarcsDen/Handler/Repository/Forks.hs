@@ -33,27 +33,28 @@ data Fork = Fork Repository [PatchLog]
 
 
 getForkChanges :: Repository -> IO Fork
-getForkChanges r = do Just rParent <- getRepositoryByID (fromJust (rForkOf r))
-                      let pdir = repoDir (rOwner rParent) (rName rParent)
-                          cdir = repoDir (rOwner r) (rName r)
+getForkChanges r = do
+    Just rParent <- getRepositoryByID (fromJust (rForkOf r))
+    let pdir = repoDir (rOwner rParent) (rName rParent)
+        cdir = repoDir (rOwner r) (rName r)
 
-                      Right pr <- getRepo pdir
-                      Right cr <- getRepo cdir
+    Right pr <- getRepo pdir
+    Right cr <- getRepo cdir
 
-                      pps <- read_repo pr
-                      cps <- read_repo cr
+    pps <- read_repo pr
+    cps <- read_repo cr
 
-                      let (_, _ :\/: them) = get_common_and_uncommon (pps, cps)
-                          depends = findAllDeps (reverseRL them)
-                          cs = map (\p ->
-                              let l = toLog (hopefully p)
-                              in case lookup (make_filename (info p)) depends of
-                                  Just ds -> l { pDepends = map (take 20 . make_filename . info) ds }
-                                  Nothing -> l) (unsafeUnRL them)
+    let (_, _ :\/: them) = get_common_and_uncommon (pps, cps)
+        depends = findAllDeps (reverseRL them)
+        cs = map (\p ->
+            let l = toLog (hopefully p)
+            in case lookup (make_filename (info p)) depends of
+                Just ds -> l { pDepends = map (take 20 . make_filename . info) ds }
+                Nothing -> l) (unsafeUnRL them)
 
-                      changes <- findUsers cs
+    changes <- findUsers cs
 
-                      return $ Fork r changes
+    return $ Fork r changes
 
 mergePatches :: Repository -> [String] -> Session -> IO Bool
 mergePatches r ps s = do
