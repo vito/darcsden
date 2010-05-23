@@ -34,13 +34,18 @@ index s@(Session { sUser = Just n }) = do
 
 -- URL handling
 handler :: Snap ()
-handler = withSession (\s -> route (routes s))
+handler =
+    route
+        [ ("public", fileServe "public")
+        , (":owner/:repo/_darcs", repoServe "_darcs")
+        , (":owner/:repo/raw", repoServe "")
+        ] <|>
+    withSession (\s -> route (routes s))
 
 routes :: Session -> [(BS.ByteString, Snap ())]
 routes s =
     [ -- Main
       ("", ifTop (index s))
-    , ("public", fileServe "public")
     , ("browse", browse s)
     , ("browse/page/:page", browse s)
     , ("init", method GET (initialize s) <|> method POST (doInitialize s))
@@ -56,7 +61,6 @@ routes s =
     -- Repositories
     map (second (validateRepo s))
         [ (":owner/:repo", browseRepo)
-        , (":owner/:repo/_darcs", \_ r _ -> fileServe (repoDir (rOwner r) (rName r) ++ "/_darcs"))
         , (":owner/:repo/browse", browseRepo)
         , (":owner/:repo/changes", repoChanges)
         , (":owner/:repo/changes/atom", repoChangesAtom)
@@ -68,7 +72,6 @@ routes s =
         , (":owner/:repo/forks", repoForks)
         , (":owner/:repo/merge", mergeForks)
         , (":owner/:repo/patch/:id", repoPatch)
-        , (":owner/:repo/raw", \_ r _ -> fileServe (repoDir (rOwner r) (rName r)))
         ]
 
 validateRepo :: Session -> (User -> Repository -> Page) -> Snap ()

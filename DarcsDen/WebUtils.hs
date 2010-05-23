@@ -7,11 +7,14 @@ import Data.Time (addUTCTime, getCurrentTime)
 import Database.CouchDB
 import HSP (XML, evalHSP, renderXML, renderAsHTML)
 import Snap.Types
+import Snap.Util.FileServe
+import System.FilePath
 import qualified Data.ByteString as BS
 import qualified Data.Map as M
 
 import DarcsDen.Pages.Base (HSPage)
 import DarcsDen.State.Session
+import DarcsDen.State.Util (repoDir)
 import DarcsDen.Util (fromBS, toBS)
 
 
@@ -74,6 +77,16 @@ newSession r = do
                        }
              r s
          Nothing -> errorPage "Session could not be created."
+
+repoServe :: String -> Snap ()
+repoServe b = do
+    mo <- getParam "owner"
+    mr <- getParam "repo"
+    case (mo, mr) of
+        (Just owner, Just repo) ->
+            fileServe (repoDir (fromBS owner) (fromBS repo) </> b)
+        _ ->
+            notFound
 
 -- Page helpers
 doPage' :: (XML -> String) -> BS.ByteString -> HSPage -> Page
