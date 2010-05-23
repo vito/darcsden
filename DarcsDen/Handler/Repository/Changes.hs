@@ -7,6 +7,7 @@ import Darcs.Patch.Patchy (Commute(..))
 import Darcs.Patch.Prim (Prim(..), DirPatchType(..), FilePatchType(..))
 import Darcs.Hopefully (PatchInfoAnd, info)
 import Darcs.Witnesses.Ordered
+import Data.List (nub)
 import Data.Time (UTCTime, readTime)
 import System.Locale (defaultTimeLocale)
 import System.Time (calendarTimeToString)
@@ -169,7 +170,7 @@ fromPS :: P.RepoPatch p => R.PatchSet p -> [P.Named p]
 fromPS = WO.unsafeUnRL . WO.reverseFL . R.patchSetToPatches
 
 summarize :: [PatchChange] -> [Summary]
-summarize = reverse . summarize'
+summarize = nub . reverse . summarize'
     where
         summarize' [] = []
         summarize' (FileChange n FileRemoved:cs) = (Removed n) : summarize cs
