@@ -81,31 +81,31 @@ browse s = do
 
 browseRepo :: User -> Repository -> Page
 browseRepo u r s = do
-  mf <- input "file" ""
-  let f = wordsBy (== '/') mf
-  Right dr <- liftIO $ getRepo (repoDir (rOwner r) (rName r))
+    rq <- getRequest
+    let f = wordsBy (== '/') (fromBS $ rqPathInfo rq)
+    Right dr <- liftIO $ getRepo (repoDir (rOwner r) (rName r))
 
-  fs <- liftIO $ getFiles dr f
-  bl <- liftIO $ getBlob dr f
+    fs <- liftIO $ getFiles dr f
+    bl <- liftIO $ getBlob dr f
 
-  let path = map (\p -> RepoItem { iName = last p
-                                 , iPath = pathToFile p
-                                 , iIsDirectory = True
-                                 }) (tail $ inits f)
+    let path = map (\p -> RepoItem { iName = last p
+                                   , iPath = pathToFile p
+                                   , iIsDirectory = True
+                                   }) (tail $ inits f)
 
-  case (fs, bl) of
-    (Nothing, Nothing) -> notFound
-    (Just fs', _) -> do
-      readme <- liftIO $ getReadme dr f
-      let files = map (\i -> i { iPath = pathToFile (f ++ [iName i]) }) fs'
-          up = if null f
-               then ""
-               else pathToFile (init f)
-      doPage (Page.repo u r files up path readme) s
-    (_, Just source) ->
-        if isTooLarge source
-           then doPage (Page.blob u r path Nothing) s
-           else doPage (Page.blob u r path (Just $ highlightBlob (last f) (fromLBS source))) s
+    case (fs, bl) of
+      (Nothing, Nothing) -> notFound
+      (Just fs', _) -> do
+        readme <- liftIO $ getReadme dr f
+        let files = map (\i -> i { iPath = pathToFile (f ++ [iName i]) }) fs'
+            up = if null f
+                 then ""
+                 else pathToFile (init f)
+        doPage (Page.repo u r files up path readme) s
+      (_, Just source) ->
+          if isTooLarge source
+             then doPage (Page.blob u r path Nothing) s
+             else doPage (Page.blob u r path (Just $ highlightBlob (last f) (fromLBS source))) s
 
 repoChanges :: User -> Repository -> Page
 repoChanges u r s = do

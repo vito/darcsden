@@ -56,8 +56,8 @@ routes s =
     -- Repositories
     map (second (validateRepo s))
         [ (":owner/:repo", browseRepo)
-        , (":owner/:repo/_darcs", \_ _ _ -> getSafePath >>= writeBS . toBS)
-        , (":owner/:repo/browse/:file", browseRepo)
+        , (":owner/:repo/_darcs", \_ r _ -> fileServe (repoDir (rOwner r) (rName r) ++ "/_darcs"))
+        , (":owner/:repo/browse", browseRepo)
         , (":owner/:repo/changes", repoChanges)
         , (":owner/:repo/changes/atom", repoChangesAtom)
         , (":owner/:repo/changes/page/:page", repoChanges)
@@ -68,7 +68,7 @@ routes s =
         , (":owner/:repo/forks", repoForks)
         , (":owner/:repo/merge", mergeForks)
         , (":owner/:repo/patch/:id", repoPatch)
-        , (":owner/:repo/raw/:path", \_ _ _ -> getSafePath >>= writeBS . toBS)
+        , (":owner/:repo/raw", \_ r _ -> fileServe (repoDir (rOwner r) (rName r)))
         ]
 
 validateRepo :: Session -> (User -> Repository -> Page) -> Snap ()
