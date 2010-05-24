@@ -81,31 +81,41 @@ browse s = do
 
 browseRepo :: User -> Repository -> Page
 browseRepo u r s = do
-    rq <- getRequest
-    let f = wordsBy (== '/') (fromBS $ rqPathInfo rq)
     Right dr <- liftIO $ getRepo (repoDir (rOwner r) (rName r))
 
+    f <- filePath
     fs <- liftIO $ getFiles dr f
     bl <- liftIO $ getBlob dr f
 
-    let path = map (\p -> RepoItem { iName = last p
-                                   , iPath = pathToFile p
-                                   , iIsDirectory = True
-                                   }) (tail $ inits f)
-
     case (fs, bl) of
-      (Nothing, Nothing) -> notFound
-      (Just fs', _) -> do
-        readme <- liftIO $ getReadme dr f
-        let files = map (\i -> i { iPath = pathToFile (f ++ [iName i]) }) fs'
-            up = if null f
-                 then ""
-                 else pathToFile (init f)
-        doPage (Page.repo u r files up path readme) s
-      (_, Just source) ->
-          if isTooLarge source
-             then doPage (Page.blob u r path Nothing) s
-             else doPage (Page.blob u r path (Just $ highlightBlob (last f) (fromLBS source))) s
+        (Nothing, Nothing) -> notFound
+        (Just fs', _) -> do
+            readme <- liftIO $ getReadme dr f
+
+            let files = map (\i -> i
+                    { iPath = pathToFile (f ++ [iName i])
+                    }) fs'
+                up = if null f then "" else pathToFile (init f)
+
+            doPage (Page.repo u r files up (crumb f) readme) s
+        (_, Just big) | isTooLarge big ->
+            doPage (Page.blob u r (crumb f) Nothing) s
+        (_, Just source) ->
+            doPage (Page.blob u r (crumb f) (Just $ highlightBlob (last f) (fromLBS source))) s
+  where
+    filePath = do
+        rq <- getRequest
+        return (wordsBy (== '/') (fromBS $ rqPathInfo rq))
+
+    crumb = map pathToRepoItem . tail . inits
+
+    pathToRepoItem p =
+        RepoItem
+            { iName = last p
+            , iPath = pathToFile p
+            , iIsDirectory = True
+            }
+
 
 repoChanges :: User -> Repository -> Page
 repoChanges u r s = do
@@ -137,7 +147,7 @@ repoPatch u r s = do
 editRepo :: User -> Repository -> Page
 editRepo u r s = validate
     [ io "you do not own this repository" (return $ Just (rOwner r) == sUser s) ]
-    (\(OK o) -> do
+    (\(OK _) -> do
         ms <- mapM getUserByID (rMembers r)
 
         let members = map fromJust . filter (/= Nothing) $ ms
@@ -146,7 +156,7 @@ editRepo u r s = validate
     (\(Invalid f) -> notify Warning s f >> redirectTo "/")
 
 doEditRepo :: User -> Repository -> Page
-doEditRepo u r s = validate
+doEditRepo _ r s = validate
     [ io "you do not own this repository" (return $ Just (rOwner r) == sUser s)
     , nonEmpty "name"
     , predicate "name" isSane "contain only alphanumeric characters, underscores, and hyphens"
@@ -175,52 +185,52 @@ doEditRepo u r s = validate
         strip = strip' . strip'
         strip' = reverse . dropWhile isSpace
 
-        rename r n
-            = if rName r /= n
+        rename r' n
+            = if rName r' /= n
                  then do
-                     res <- renameRepository n r
+                     res <- renameRepository n r'
                      case res of
                           Nothing -> do
                               warn "There was an error renaming the repository." s
-                              return r
-                          Just r' -> return r'
-                 else return r
+                              return r'
+                          Just r'' -> return r''
+                 else return r'
 
-        addMembers r [] = return r
-        addMembers r (m:ms) = do
+        addMembers r' [] = return r'
+        addMembers r' (m:ms) = do
             user <- getUser m
             case user of
                  Just u@(User { uID = Just uid }) -> do
-                     done <- addMember r uid
+                     done <- addMember r' uid
                      case done of
-                          Just r' ->
-                              addMembers r' ms
+                          Just r'' ->
+                              addMembers r'' ms
                           Nothing -> do
                               warn ("There was an error adding member " ++ uName u ++ ".") s
-                              return r
+                              return r'
                  _ -> do
                      warn ("Could not add member " ++ m ++ "; user does not exist.") s
-                     addMembers r ms
+                     addMembers r' ms
 
-        removeMembers r [] = return r
-        removeMembers r (m:ms) = do
+        removeMembers r' [] = return r'
+        removeMembers r' (m:ms) = do
             remove <- getParam (toBS $ "remove-" ++ show m)
             case remove of
                  Just _ -> do
                      removed <- removeMember r m
                      case removed of
-                          Just r' ->
-                              removeMembers r' ms
+                          Just r'' ->
+                              removeMembers r'' ms
                           Nothing -> do
                               user <- getUserByID m
                               case user of
-                                   Just u -> do
-                                       warn ("There was an error removing member " ++ uName u ++ ".") s
-                                       removeMembers r ms
+                                   Just u' -> do
+                                       warn ("There was an error removing member " ++ uName u' ++ ".") s
+                                       removeMembers r' ms
                                    Nothing -> do
                                        warn "There was an error removing a member that doesn't exist. So I can't tell you who it was. Way to go." s
-                                       removeMembers r ms
-                 Nothing -> removeMembers r ms
+                                       removeMembers r' ms
+                 Nothing -> removeMembers r' ms
 
 deleteRepo :: User -> Repository -> Page
 deleteRepo u r s = validate
@@ -229,7 +239,7 @@ deleteRepo u r s = validate
     (\(Invalid f) -> notify Warning s f >> redirectTo "/")
 
 doDeleteRepo :: User -> Repository -> Page
-doDeleteRepo u r s = validate
+doDeleteRepo _ r s = validate
     [ io "you do not own this repository" (return $ Just (rOwner r) == sUser s) ]
     (\(OK _) -> do
         destroyed <- destroyRepository r
@@ -279,7 +289,7 @@ repoForks u r s = do
     doPage (Page.forks u r forks) s
 
 mergeForks :: User -> Repository -> Page
-mergeForks u r s
+mergeForks _ r s
   = validate
     [ io "you do not own this repository" (return $ Just (rOwner r) == sUser s) ]
     (\(OK _) -> do
@@ -289,10 +299,10 @@ mergeForks u r s
                        in (doc (split !! 1), split !! 2))
                      (filter (\(n, _) -> "merge:" `isPrefixOf` n) is)
             gps = groupBy (\a b -> fst a == fst b) ps
-            groupedPatches = map (\r@((k, _):_) -> (k, map snd r)) gps
+            groupedPatches = map (\r'@((k, _):_) -> (k, map snd r')) gps
 
-        merge <- mapM (\(r, ps') -> do
-                          Just f <- getRepositoryByID r
+        merge <- mapM (\(r', ps') -> do
+                          Just f <- getRepositoryByID r'
                           liftIO $ mergePatches f ps' s) groupedPatches
 
         when (and merge) (success "Patches merged!" s >> return ())

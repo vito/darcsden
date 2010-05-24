@@ -4,11 +4,8 @@ module DarcsDen.Handler where
 import Control.Applicative ((<|>))
 import Control.Arrow (second)
 import Control.Monad.IO.Class
-import Data.Char (isNumber)
-import Data.List.Split (wordsBy)
 import Snap.Types
 import Snap.Util.FileServe
-import System.Directory (getCurrentDirectory)
 import qualified Data.ByteString as BS
 
 import DarcsDen.Handler.Repository
@@ -18,7 +15,7 @@ import DarcsDen.State.Repository
 import DarcsDen.State.Session
 import DarcsDen.State.User
 import DarcsDen.State.Util
-import DarcsDen.Util (fromBS, toBS)
+import DarcsDen.Util (fromBS)
 import DarcsDen.WebUtils
 import qualified DarcsDen.Pages.Base as Base
 import qualified DarcsDen.Pages.User as User
@@ -65,8 +62,12 @@ routes s =
         , (":owner/:repo/changes", repoChanges)
         , (":owner/:repo/changes/atom", repoChangesAtom)
         , (":owner/:repo/changes/page/:page", repoChanges)
-        , (":owner/:repo/delete", \u r s -> method GET (deleteRepo u r s) <|> method POST (doDeleteRepo u r s))
-        , (":owner/:repo/edit", \u r s -> method GET (editRepo u r s) <|> method POST (doEditRepo u r s))
+        , (":owner/:repo/delete", \u r s' ->
+            method GET (deleteRepo u r s') <|>
+            method POST (doDeleteRepo u r s'))
+        , (":owner/:repo/edit", \u r s' ->
+            method GET (editRepo u r s') <|>
+            method POST (doEditRepo u r s'))
         , (":owner/:repo/fork", forkRepo)
         , (":owner/:repo/fork-as", forkRepoAs)
         , (":owner/:repo/forks", repoForks)
@@ -81,10 +82,10 @@ validateRepo s p = do
 
     case (mo, mn) of
         (Just o, Just n) -> do
-            user <- getUser (fromBS o)
-            repo <- getRepository (fromBS o, fromBS n)
+            mu <- getUser (fromBS o)
+            mr <- getRepository (fromBS o, fromBS n)
             darcsRepo <- liftIO (getRepo (repoDir (fromBS o) (fromBS n)))
-            case (user, repo, darcsRepo) of
+            case (mu, mr, darcsRepo) of
                 (Just u , Just r , Right _) -> p u r s
                 (Nothing, _      , _      ) -> warn "user does not exist" s >> redirectTo "/"
                 (_      , Just _ , Left _ ) -> warn "repository invalid" s >> redirectTo "/"

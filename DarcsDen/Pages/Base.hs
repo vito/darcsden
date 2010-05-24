@@ -83,12 +83,12 @@ field f l n =
             else <br />
         %>
     </div>
-    where
-        for = do fld <- f
-                 case fld of
-                      <input id=i /> -> return i
-                      <textarea id=i /> -> return i
-                      _ -> return ""
+  where
+    for = do
+        Element _ as _ <- f
+        case filter (\(MkAttr ((_, name), _)) -> name == "id") as of
+            [MkAttr (_, Value _ v)] -> return v
+            _ -> return ""
 
 input :: String -> String -> HSP XML
 input n v = <input type="text" name=n id=n value=v />

@@ -1,7 +1,6 @@
 {-# OPTIONS_GHC -F -pgmF trhsx #-}
 module DarcsDen.Pages.Repository where
 
-import Control.Monad.IO.Class
 import Data.List (sortBy)
 import Data.Maybe (fromJust)
 import Data.Time (UTCTime, formatTime)
