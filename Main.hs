@@ -11,5 +11,5 @@ main = do
     putStrLn "                        or http://127.0.0.1:8080/"
     putStrLn "                        or http://[::1]:8080/"
     putStrLn "                        or whatever!"
-    httpServe "*" 8080 "localhost" Nothing Nothing handler
+    httpServe "*" 8080 "localhost" (Just "access.log") (Just "error.log") handler
 
