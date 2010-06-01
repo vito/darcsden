@@ -80,7 +80,7 @@ newSession r = do
 
 repoServe :: String -> Snap ()
 repoServe b = do
-    mo <- getParam "owner"
+    mo <- getParam "user"
     mr <- getParam "repo"
     case (mo, mr) of
         (Just owner, Just repo) ->

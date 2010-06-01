@@ -34,50 +34,49 @@ handler :: Snap ()
 handler =
     route
         [ ("public", fileServe "public")
-        , (":owner/:repo/_darcs", repoServe "_darcs")
-        , (":owner/:repo/raw", repoServe "")
+        , (":user/:repo/_darcs", repoServe "_darcs")
+        , (":user/:repo/raw", repoServe "")
         ] <|>
-    withSession (\s -> route (routes s))
+    withSession (\s -> ifTop (index s) <|> route (routes s))
 
 routes :: Session -> [(BS.ByteString, Snap ())]
 routes s =
     [ -- Main
-      ("", ifTop (index s))
-    , ("browse", browse s)
+      ("browse", browse s)
     , ("browse/page/:page", browse s)
     , ("init", method GET (initialize s) <|> method POST (doInitialize s))
 
     -- Users
+    , (":user", user s)
     , ("register", method GET (register s) <|> method POST (doRegister s))
     , ("login", method GET (login s) <|> method POST (doLogin s))
     , ("logout", logout s)
     , ("settings", settings s)
-    , (":user", user s)
     ] ++
 
     -- Repositories
     map (second (validateRepo s))
-        [ (":owner/:repo", browseRepo)
-        , (":owner/:repo/browse", browseRepo)
-        , (":owner/:repo/changes", repoChanges)
-        , (":owner/:repo/changes/atom", repoChangesAtom)
-        , (":owner/:repo/changes/page/:page", repoChanges)
-        , (":owner/:repo/delete", \u r s' ->
+        [ (":user/:repo", browseRepo)
+        , (":user/:repo/browse", browseRepo)
+        , (":user/:repo/changes", repoChanges)
+        , (":user/:repo/changes/atom", repoChangesAtom)
+        , (":user/:repo/changes/page/:page", repoChanges)
+        , (":user/:repo/delete", \u r s' ->
             method GET (deleteRepo u r s') <|>
             method POST (doDeleteRepo u r s'))
-        , (":owner/:repo/edit", \u r s' ->
+        , (":user/:repo/edit", \u r s' ->
             method GET (editRepo u r s') <|>
             method POST (doEditRepo u r s'))
-        , (":owner/:repo/fork", forkRepo)
-        , (":owner/:repo/fork-as", forkRepoAs)
-        , (":owner/:repo/forks", repoForks)
-        , (":owner/:repo/merge", mergeForks)
-        , (":owner/:repo/patch/:id", repoPatch)
+        , (":user/:repo/fork", forkRepo)
+        , (":user/:repo/fork-as", forkRepoAs)
+        , (":user/:repo/forks", repoForks)
+        , (":user/:repo/merge", mergeForks)
+        , (":user/:repo/patch/:id", repoPatch)
         ]
 
 validateRepo :: Session -> (User -> Repository -> Page) -> Snap ()
 validateRepo s p = do
-    mo <- getParam "owner"
+    mo <- getParam "user"
     mn <- getParam "repo"
 
     case (mo, mn) of
