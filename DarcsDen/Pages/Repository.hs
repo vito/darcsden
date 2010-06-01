@@ -474,7 +474,7 @@ patch u r p ss cs = repoBase u r
                 <a href=("#" ++ f)><% f %></a>
             </li>
         summary (Preference n f t) =
-            <li class="summary-removed">
+            <li class="summary-preference">
                 changed "<% n %>" preference
                 from "<% f %>"
                 to "<% t %>"
