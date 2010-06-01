@@ -37,21 +37,22 @@ handler =
         , (":owner/:repo/_darcs", repoServe "_darcs")
         , (":owner/:repo/raw", repoServe "")
         ] <|>
-    withSession (\s -> ifTop (index s) <|> route (routes s))
+    withSession (\s -> route (routes s))
 
 routes :: Session -> [(BS.ByteString, Snap ())]
 routes s =
     [ -- Main
-      ("browse", browse s)
+      ("", ifTop (index s))
+    , ("browse", browse s)
     , ("browse/page/:page", browse s)
     , ("init", method GET (initialize s) <|> method POST (doInitialize s))
 
     -- Users
-    , (":user", user s)
     , ("register", method GET (register s) <|> method POST (doRegister s))
     , ("login", method GET (login s) <|> method POST (doLogin s))
     , ("logout", logout s)
     , ("settings", settings s)
+    , (":user", user s)
     ] ++
 
     -- Repositories
