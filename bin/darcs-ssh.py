@@ -25,7 +25,7 @@ log.startLogging(sys.stderr)
 
 
 BASE = "/srv/darcs"
-COUCH = couchdb.Server("http://localhost:4895/")
+COUCH = couchdb.Server("http://localhost:5984/")
 USERS = COUCH['users']
 BY_NAME = USERS.view("users/by_name")
 
