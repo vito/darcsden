@@ -302,33 +302,33 @@ table.sourceCode .lineNumbers .lineNumberActive {
 }
 
 div.code,
-div.readme {
+div.markdown {
 	overflow: auto;
 	-webkit-box-shadow: #ddd 0 0 1em;
 	-moz-box-shadow: #ddd 0 0 1em;
 }
 
-div.readme {
+div.markdown {
 	padding: 1em;
 }
-div.readme p,
-div.readme ul {
+div.markdown p,
+div.markdown ul {
 	padding-bottom: 1em;
 }
-div.readme ul li {
+div.markdown ul li {
     list-style: square;
 }
-div.readme h1 {
+div.markdown h1 {
 	font-size: 3em;
     margin-top: .5em;
 }
-div.readme h2 {
+div.markdown h2 {
 	font-size: 2em;
 }
-div.readme h3 {
+div.markdown h3 {
 	font-size: 1.4em;
 }
-div.readme pre {
+div.markdown pre {
     font-size: 1.2em;
     background: #000;
     color: #fff;

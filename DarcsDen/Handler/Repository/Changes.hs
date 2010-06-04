@@ -11,6 +11,7 @@ import Data.List (nub)
 import Data.Time (UTCTime, readTime)
 import System.Locale (defaultTimeLocale)
 import System.Time (calendarTimeToString)
+import Text.Pandoc
 import qualified Darcs.Patch as P
 import qualified Darcs.Repository as R
 import qualified Darcs.Witnesses.Ordered as WO
@@ -32,7 +33,7 @@ data PatchLog = PatchLog { pID :: String
                          , pName :: String
                          , pAuthor :: String
                          , pIsUser :: Bool
-                         , pLog :: [String]
+                         , pLog :: String
                          , pDepends :: [String]
                          }
                 deriving (Eq, Show)
@@ -80,9 +81,11 @@ toLog p = PatchLog (take 20 $ make_filename i)
                    (pi_name i)
                    (pi_author i)
                    False
-                   (pi_log i)
+                   (doMarkdown . unlines $ pi_log i)
                    (map (take 20 . make_filename) (P.getdeps p))
-  where i = P.patch2patchinfo p
+  where
+    i = P.patch2patchinfo p
+    doMarkdown = writeHtmlString defaultWriterOptions . readMarkdown defaultParserState
 
 findUsers :: [PatchLog] -> IO [PatchLog]
 findUsers = findUsers' []

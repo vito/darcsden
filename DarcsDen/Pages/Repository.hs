@@ -42,11 +42,9 @@ change r p =
                then
                    <%
                        <div class="code patch-notes">
-                           <pre>
-                               <code>
-                                   <% unlines (pLog p) %>
-                               </code>
-                           </pre>
+                           <div class="markdown">
+                               <% cdata (pLog p) %>
+                           </div>
                        </div>
                    %>
                else <% "" %>
@@ -168,7 +166,7 @@ repo u r files up path readme = repoBase u r
                              <%
                                  <div class="repo-readme">
                                      <h1>readme</h1>
-                                     <div class="readme">
+                                     <div class="markdown">
                                          <% cdata s %>
                                      </div>
                                  </div>
@@ -376,7 +374,6 @@ changesAtom u r cs _ =
                 </author>
                 <summary>
                     <% pName p %>
-                    <% unlines (pLog p) %>
                 </summary>
                 <link href=(baseURL ++ repoURL r ++ "/patch/" ++ pID p) />
             </entry>
