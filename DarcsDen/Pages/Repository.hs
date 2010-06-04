@@ -41,10 +41,8 @@ change r p =
             if not (null (pLog p))
                then
                    <%
-                       <div class="code patch-notes">
-                           <div class="markdown">
-                               <% cdata (pLog p) %>
-                           </div>
+                       <div class="patch-notes markdown">
+                           <% cdata (pLog p) %>
                        </div>
                    %>
                else <% "" %>
