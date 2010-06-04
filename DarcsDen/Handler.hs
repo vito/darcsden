@@ -51,7 +51,7 @@ routes s =
     , ("register", method GET (register s) <|> method POST (doRegister s))
     , ("login", method GET (login s) <|> method POST (doLogin s))
     , ("logout", logout s)
-    , ("settings", settings s)
+    , ("settings", method GET (settings s) <|> method POST (doSettings s))
     ] ++
 
     -- Repositories
