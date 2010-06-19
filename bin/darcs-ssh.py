@@ -2,7 +2,7 @@
 # a small ssh server providing darcsden-specific darcs push/get.
 # and that's all.
 # 
-# packages needed: twisted, pycrypto, pyasn1
+# packages needed: CouchDB, twisted, pycrypto, pyasn1
 #
 # Once you have CouchDB running, you'll need a "root" user with
 # private_key and public_key values. These will be used for the server.
