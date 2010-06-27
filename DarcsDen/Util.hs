@@ -48,3 +48,5 @@ toLBS = LS.pack . map (fromIntegral . ord)
 fromLBS :: LS.ByteString -> String
 fromLBS = map (chr . fromIntegral) . LS.unpack
 
+strictLBS :: LS.ByteString -> BS.ByteString
+strictLBS = BS.concat . LS.toChunks
