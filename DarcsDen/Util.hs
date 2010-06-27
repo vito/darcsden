@@ -4,7 +4,7 @@ import Control.Monad (unless, when)
 import Data.Char (chr, ord)
 import System.Directory
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Lazy as LS
+import qualified Data.ByteString.Lazy as LBS
 
 
 baseDomain :: String
@@ -42,11 +42,14 @@ toBS = BS.pack . map (fromIntegral . ord)
 fromBS :: BS.ByteString -> String
 fromBS = map (chr . fromIntegral) . BS.unpack
 
-toLBS :: String -> LS.ByteString
-toLBS = LS.pack . map (fromIntegral . ord)
+toLBS :: String -> LBS.ByteString
+toLBS = LBS.pack . map (fromIntegral . ord)
 
-fromLBS :: LS.ByteString -> String
-fromLBS = map (chr . fromIntegral) . LS.unpack
+fromLBS :: LBS.ByteString -> String
+fromLBS = map (chr . fromIntegral) . LBS.unpack
 
-strictLBS :: LS.ByteString -> BS.ByteString
-strictLBS = BS.concat . LS.toChunks
+strictLBS :: LBS.ByteString -> BS.ByteString
+strictLBS = BS.concat . LBS.toChunks
+
+strictTake :: Integral n => n -> LBS.ByteString -> BS.ByteString
+strictTake n = strictLBS . LBS.take (fromIntegral n)

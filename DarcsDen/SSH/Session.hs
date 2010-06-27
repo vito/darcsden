@@ -1,16 +1,20 @@
 {-# LANGUAGE PackageImports #-}
 module DarcsDen.SSH.Session where
 
-import Codec.Crypto.AES (Direction)
+import Codec.Utils (fromOctets, i2osp)
+import Codec.Encryption.Modes
 import Control.Monad (replicateM)
 import "mtl" Control.Monad.State
 import "mtl" Control.Monad.Trans (liftIO)
 import Data.Int
+import Data.LargeWord
 import Data.Word
 import System.IO
+import qualified Codec.Encryption.AES as A
 import qualified Data.ByteString.Lazy as LBS
 
 import DarcsDen.SSH.Pack
+import DarcsDen.Util
 
 
 type Session a = StateT SessionState IO a
@@ -32,8 +36,8 @@ data SessionState
         , ssInSeq :: Word32
         , ssOutSeq :: Word32
         , ssTheirKEXInit :: LBS.ByteString
-        , ssOutCipherPrep :: LBS.ByteString -> LBS.ByteString -> Cipher
-        , ssInCipherPrep :: LBS.ByteString -> LBS.ByteString -> Cipher
+        , ssOutCipher :: Cipher
+        , ssInCipher :: Cipher
         , ssOutHMACPrep :: LBS.ByteString -> HMAC
         , ssInHMACPrep :: LBS.ByteString -> HMAC
         }
@@ -51,21 +55,23 @@ data SessionState
         , ssInCipher :: Cipher
         , ssOutHMAC :: HMAC
         , ssInHMAC :: HMAC
-        , ssEncrypt :: LBS.ByteString -> LBS.ByteString
-        , ssDecrypt :: LBS.ByteString -> LBS.ByteString
         , ssGotNEWKEYS :: Bool
+        , ssInKey :: Integer
+        , ssOutKey :: Integer
+        , ssInVector :: Integer
+        , ssOutVector :: Integer
         }
 
 data Cipher =
     Cipher
-        { cBlockSize :: Int
-        , cFunction :: CipherFunc
+        { cType :: CipherType
+        , cMode :: CipherMode
+        , cBlockSize :: Int
+        , cKeySize :: Int
         }
 
-type CipherFunc
-    =  Direction
-    -> LBS.ByteString
-    -> LBS.ByteString
+data CipherType = AES
+data CipherMode = CBC
 
 data HMAC =
     HMAC
@@ -97,6 +103,50 @@ readBytes n = do
 readBytestring :: Session LBS.ByteString
 readBytestring = readULong >>= readBytes . fromIntegral
 
+toBlocks :: (Integral a, Integral b) => a -> LBS.ByteString -> [b]
+toBlocks _ m | m == LBS.empty = []
+toBlocks bs m = fromOctets 256 (LBS.unpack (LBS.take (fromIntegral bs) m)) : toBlocks bs (LBS.drop (fromIntegral bs) m)
+
+fromBlocks :: Integral a => Int -> [a] -> LBS.ByteString
+fromBlocks bs = LBS.concat . map (LBS.pack . i2osp bs)
+
+decrypt :: LBS.ByteString -> Session LBS.ByteString
+decrypt m = do
+    s <- get
+    case s of
+        Final
+            { ssInCipher = Cipher AES CBC bs 16 -- TODO: dynamic key size (also below)
+            , ssInKey = key
+            , ssInVector = vector
+            } -> do
+                let blocks = toBlocks bs m
+                    decrypted =
+                        unCbc
+                            A.decrypt
+                            (fromIntegral vector)
+                            (fromIntegral key :: Word128) -- TODO
+                            blocks
+                modify (\s -> s { ssInVector = fromIntegral $ last blocks })
+                return (fromBlocks bs decrypted)
+
+encrypt :: LBS.ByteString -> Session LBS.ByteString
+encrypt m = do
+    s <- get
+    case s of
+        Final
+            { ssOutCipher = Cipher AES CBC bs 16 -- TODO
+            , ssOutKey = key
+            , ssOutVector = vector
+            } -> do
+                let encrypted =
+                        cbc
+                            A.encrypt
+                            (fromIntegral vector)
+                            (fromIntegral key :: Word128) -- TODO
+                            (toBlocks bs m)
+                modify (\s -> s { ssOutVector = fromIntegral $ last encrypted })
+                return (fromBlocks bs encrypted)
+
 getPacket :: Session ()
 getPacket = do
     s <- get
@@ -104,21 +154,24 @@ getPacket = do
     case s of
         Final
             { ssGotNEWKEYS = True
-            , ssInCipher = Cipher bs _
+            , ssInCipher = Cipher _ _ bs _
             , ssInHMAC = HMAC ms f
-            , ssDecrypt = decrypt
             , ssInSeq = is
             } -> do
                 let firstChunk = max 8 bs
-                first <- liftIO $ LBS.hGet h firstChunk
 
-                let [UWord32 packetLen, UWord8 paddingLen] = unpack "LB" (decrypt first)
-                rest <- liftIO $ LBS.hGet h (fromIntegral packetLen - firstChunk + 4)
+                firstEnc <- liftIO $ LBS.hGet h firstChunk
+                first <- decrypt firstEnc
+                let [UWord32 packetLen, UWord8 paddingLen] = unpack "LB" first
+                liftIO $ print ("reading packet...", is, firstEnc, first, packetLen, paddingLen)
 
-                let decrypted = decrypt (first `LBS.append` rest)
+                restEnc <- liftIO $ LBS.hGet h (fromIntegral packetLen - firstChunk + 4)
+                rest <- decrypt restEnc
+
+                let decrypted = first `LBS.append` rest
                     payload = extract packetLen paddingLen decrypted
 
-                liftIO $ print ("got encrypted", firstChunk, packetLen, paddingLen, payload)
+                liftIO $ print ("got encrypted", firstChunk, packetLen, paddingLen, rest, payload)
 
                 mac <- liftIO $ LBS.hGet h ms
                 liftIO $ print ("got mac, valid?", verify mac is decrypted f)

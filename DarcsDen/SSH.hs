@@ -1,7 +1,6 @@
 {-# LANGUAGE PackageImports #-}
 {-module DarcsDen.SSH where-}
 
-import Codec.Crypto.AES
 import Codec.Crypto.RSA hiding (sign)
 import Codec.Utils (Octet)
 import Control.Monad
@@ -16,7 +15,6 @@ import OpenSSL.BN
 import Network
 import System.IO
 import System.Random
-import qualified Codec.Crypto.AES as A
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
 
@@ -56,20 +54,20 @@ supportedKeyExchanges =
 supportedKeyAlgorithms :: [String]
 supportedKeyAlgorithms = ["ssh-rsa", "ssh-dss"]
 
-supportedCiphers :: [(String, LBS.ByteString -> LBS.ByteString -> Cipher)]
+supportedCiphers :: [(String, Cipher)]
 supportedCiphers =
-    -- TODO: ctr doesn't work; probably related to the IV
-    [ --("aes256-ctr", aesCipher A.CTR 32)
-      ("aes256-cbc", aesCipher A.CBC 32)
-    {-, ("aes192-ctr", aesCipher A.CTR 24)-}
-    , ("aes192-cbc", aesCipher A.CBC 24)
-    {-, ("aes128-ctr", aesCipher A.CTR 16)-}
-    , ("aes128-cbc", aesCipher A.CBC 16)
+    -- TODO: ctr
+    [ --("aes256-ctr", aesCipher CTR 32)
+      ("aes256-cbc", aesCipher CBC 32)
+    {-, ("aes192-ctr", aesCipher CTR 24)-}
+    , ("aes192-cbc", aesCipher CBC 24)
+    {-, ("aes128-ctr", aesCipher CTR 16)-}
+    , ("aes128-cbc", aesCipher CBC 16)
     {-, ("blowfish-cbc", 16)-}
     ]
   where
-    aesCipher m s k i =
-        Cipher 16 (A.crypt m (strictKey s k) (strictKey 16 i))
+    aesCipher m s =
+        Cipher AES m 16 s
 
 supportedMACs :: [(String, LBS.ByteString -> HMAC)]
 supportedMACs =
@@ -146,8 +144,8 @@ readLoop = do
                             , ssTheirVersion = cv
                             , ssOurKEXInit = sk
                             , ssTheirKEXInit = theirKEXInit
-                            , ssOutCipherPrep = oc
-                            , ssInCipherPrep = ic
+                            , ssOutCipher = oc
+                            , ssInCipher = ic
                             , ssOutHMACPrep = om
                             , ssInHMACPrep = im
                             , ssInSeq = is
@@ -230,6 +228,7 @@ doKexDHReply y e = do
     d <- digest
     let [civ, siv, ckey, skey, cin, sin] = map (makeKey k d) ['A'..'F']
     io $ print ("DECRYPT KEY/IV", LBS.take 16 ckey, LBS.take 16 civ)
+
     modify (\(GotKEXInit h p cv sk is os ck oc ic om im) ->
                 Final
                     { ssID = d
@@ -241,13 +240,15 @@ doKexDHReply y e = do
                     , ssInSeq = is
                     , ssOutSeq = os
                     , ssTheirKEXInit = ck
-                    , ssOutCipher = oc skey siv
-                    , ssInCipher = ic ckey civ
+                    , ssOutCipher = oc
+                    , ssInCipher = ic
                     , ssOutHMAC = om sin
                     , ssInHMAC = im cin
-                    , ssEncrypt = (cFunction (oc skey siv)) A.Encrypt . toLBS . fromLBS -- convert to/from a LBS to ensure the components (now one component) are mod 16
-                    , ssDecrypt = (cFunction (ic ckey civ)) A.Decrypt . toLBS . fromLBS
                     , ssGotNEWKEYS = False
+                    , ssInKey = head . toBlocks (cKeySize ic) $ ckey
+                    , ssInVector = head . toBlocks (cBlockSize ic) $ civ
+                    , ssOutKey = head . toBlocks (cKeySize oc) $ skey
+                    , ssOutVector = head . toBlocks (cBlockSize oc) $ siv
                     })
 
     reply <- doPacket (kexDHReply f (sign privateKey d))

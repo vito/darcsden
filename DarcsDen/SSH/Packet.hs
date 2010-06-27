@@ -1,7 +1,6 @@
 {-# LANGUAGE PackageImports #-}
 module DarcsDen.SSH.Packet where
 
-import Codec.Crypto.RSA hiding (sign)
 import Codec.Utils (fromOctets, i2osp)
 import Control.Monad (replicateM)
 import "mtl" Control.Monad.State
@@ -12,6 +11,7 @@ import Data.Int
 import Data.Digest.Pure.SHA
 import Data.Word
 import System.IO
+import qualified Codec.Crypto.RSA as RSA
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.ByteString as BS
 
@@ -65,19 +65,21 @@ sendPacket m = do
     message <- case s of
         Final
             { ssGotNEWKEYS = True
-            , ssOutCipher = Cipher bs _
+            , ssOutCipher = Cipher _ _ bs _
             , ssOutHMAC = HMAC _ mac
-            , ssEncrypt = encrypt
             , ssOutSeq = os
             } -> do
                 let payload = full (max 8 bs)
+                io $ print ("sending", ssOutSeq s, fromLBS payload, LBS.length payload)
+                payloadEnc <- encrypt payload
                 return $ LBS.concat
-                    [ encrypt payload
+                    [ payloadEnc
                     , mac $ pack "L" [UWord32 (fromIntegral os)] `LBS.append` payload
                     ]
-        _ -> return (full 8)
+        _ -> do
+            io $ print ("sending", ssOutSeq s, fromLBS (full 8))
+            return (full 8)
 
-    io $ print ("sending", ssOutSeq s, fromLBS message)
     io $ LBS.hPut h message
     io $ hFlush h
     modify (\s -> s { ssOutSeq = ssOutSeq s + 1 })
@@ -88,7 +90,7 @@ sendPacket m = do
             , UWord8 . fromIntegral $ paddingLen s
             ]
         , m
-        , LBS.pack (replicate (paddingLen s) 0)
+        , LBS.pack (replicate (paddingLen s) 0) -- TODO: random bytes
         ]
     len s = 1 + LBS.length m + fromIntegral (paddingLen s)
     paddingNeeded s = s - (fromIntegral $ (5 + LBS.length m) `mod` (fromIntegral s))
@@ -107,17 +109,17 @@ mpint i = netLBS (if LBS.head enc .&. 128 > 0
   where
     enc = LBS.pack (i2osp 0 i)
 
-blob :: PublicKey -> LBS.ByteString
+blob :: RSA.PublicKey -> LBS.ByteString
 blob pk = LBS.concat
     [ netString "ssh-rsa"
-    , mpint (public_e pk)
-    , mpint (public_n pk)
+    , mpint (RSA.public_e pk)
+    , mpint (RSA.public_n pk)
     ]
 
-sign :: PrivateKey -> LBS.ByteString -> LBS.ByteString
+sign :: RSA.PrivateKey -> LBS.ByteString -> LBS.ByteString
 sign pk m = LBS.concat
     [ netString "ssh-rsa"
-    , netLBS (rsassa_pkcs1_v1_5_sign ha_SHA1 pk m)
+    , netLBS (RSA.rsassa_pkcs1_v1_5_sign RSA.ha_SHA1 pk m)
     ]
 
 -- warning: don't try to send this; it's an infinite bytestring.
@@ -136,6 +138,3 @@ makeKey s h c = makeKey' initial
         [ acc
         , makeKey' (bytestringDigest . sha1 . LBS.concat $ [mpint s, h, acc])
         ]
-
-strictKey :: Int64 -> LBS.ByteString -> BS.ByteString
-strictKey n = strictLBS . LBS.take n
