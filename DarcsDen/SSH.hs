@@ -97,7 +97,7 @@ waitLoop s = do
     cookie <- fmap (LBS.pack . map fromIntegral) $
         replicateM 16 (randomRIO (0, 255 :: Int))
 
-    let ourKEXInit = doPacket $ kexInit cookie
+    let ourKEXInit = doPacket $ pKEXInit cookie
 
     evalStateT
         (send ourKEXInit >> readLoop)
@@ -112,13 +112,13 @@ waitLoop s = do
 
     waitLoop s
   where
-    kexInit :: LBS.ByteString -> Packet ()
-    kexInit cookie = do
-        putByte 20
+    pKEXInit :: LBS.ByteString -> Packet ()
+    pKEXInit cookie = do
+        byte 20
 
-        putRaw cookie
+        raw cookie
 
-        mapM_ putString
+        mapM_ string
             [ intercalate "," $ supportedKeyExchanges
             , intercalate "," $ supportedKeyAlgorithms
             , intercalate "," $ map fst supportedCiphers
@@ -131,8 +131,8 @@ waitLoop s = do
             , supportedLanguages
             ]
 
-        putByte 0 -- first_kex_packet_follows (boolean)
-        putLong 0
+        byte 0 -- first_kex_packet_follows (boolean)
+        long 0
 
 readLoop :: Session ()
 readLoop = do
@@ -141,13 +141,13 @@ readLoop = do
     msg <- readByte
     case msg of
         1 -> error "disconnected" -- TODO
-        5 -> doServiceRequest
-        20 -> doKEXInit
-        21 -> doNewKeys
-        30 -> doKEXDHInit
-        50 -> doUserAuthRequest
-        90 -> doChannelOpen
-        98 -> doChannelRequest
+        5 -> serviceRequest
+        20 -> kexInit
+        21 -> newKeys
+        30 -> kexDHInit
+        50 -> userAuthRequest
+        90 -> channelOpen
+        98 -> channelRequest
         u -> error $ "unknown message: " ++ show u
 
     modify (\s -> s { ssInSeq = ssInSeq s + 1 })
@@ -157,8 +157,8 @@ readLoop = do
         then return ()
         else readLoop
 
-doKEXInit :: Session ()
-doKEXInit = do
+kexInit :: Session ()
+kexInit = do
     cookie <- readBytes 16
     nameLists <- replicateM 10 readBytestring >>= return . map (splitOn "," . fromLBS)
     kpf <- readByte
@@ -196,17 +196,17 @@ doKEXInit = do
   where
     match n h = head . filter (`elem` h) $ n
     reconstruct c nls kpf dummy = doPacket $ do
-        putByte 20
-        putRaw c
-        mapM_ (putString . intercalate ",") nls
-        putByte kpf
-        putLong dummy
+        byte 20
+        raw c
+        mapM_ (string . intercalate ",") nls
+        byte kpf
+        long dummy
 
-doKEXDHInit :: Session ()
-doKEXDHInit = do
+kexDHInit :: Session ()
+kexDHInit = do
     len <- fmap fromIntegral readULong
     e <- fmap unmpint $ readBytes len
-    io $ print ("KEXDH_INIT", e)
+    io $ print ("KEXDH_INIT", len, e)
 
     y <- io $ randIntegerOneToNMinusOne ((safePrime - 1) `div` 2) -- q?
 
@@ -246,10 +246,10 @@ doKEXDHInit = do
     send reply
   where
     kexDHReply f s = do
-        putByte 31
-        putLBS (blob publicKey)
-        putRaw (mpint f)
-        putLBS s
+        byte 31
+        byteString (blob publicKey)
+        raw (mpint f)
+        byteString s
 
     digest e f k = do
         cv <- gets ssTheirVersion
@@ -266,20 +266,20 @@ doKEXDHInit = do
             , mpint k
             ]
 
-doNewKeys :: Session ()
-doNewKeys = do
+newKeys :: Session ()
+newKeys = do
     send (LBS.singleton 21)
     modify (\s -> s { ssGotNEWKEYS = True })
 
-doServiceRequest :: Session ()
-doServiceRequest = do
+serviceRequest :: Session ()
+serviceRequest = do
     name <- readBytestring
     sendPacket $ do
-        putByte 6
-        putLBS name
+        byte 6
+        byteString name
 
-doUserAuthRequest :: Session ()
-doUserAuthRequest = do
+userAuthRequest :: Session ()
+userAuthRequest = do
     user <- readBytestring
     service <- readBytestring
     method <- readBytestring
@@ -294,29 +294,29 @@ doUserAuthRequest = do
         _ -> sendPacket userAuthFail
   where
     userAuthFail = do
-        putByte 51
-        putString "publickey"
-        putByte 0
+        byte 51
+        string "publickey"
+        byte 0
 
     userAuthOK = do
-        putByte 52
+        byte 52
 
-doChannelOpen :: Session ()
-doChannelOpen = do
+channelOpen :: Session ()
+channelOpen = do
     name <- readBytestring
     chanid <- readULong
     windowSize <- readULong
     maxPacket <- readULong
     io $ print ("channel open", name, chanid, windowSize, maxPacket)
     sendPacket $ do -- TODO
-        putByte 91
-        putLong chanid
-        putLong 0 -- TODO
-        putLong windowSize
-        putLong maxPacket
+        byte 91
+        long chanid
+        long 0 -- TODO
+        long windowSize
+        long maxPacket
 
-doChannelRequest :: Session ()
-doChannelRequest = do
+channelRequest :: Session ()
+channelRequest = do
     dest <- readULong
     typ <- readBytestring
     wantReply <- readByte
@@ -329,9 +329,9 @@ doChannelRequest = do
             command <- readBytestring
             io $ print ("execute command", command)
             sendPacket $ do
-                putByte 94
-                putLong 0 -- TODO
-                putString "foo"
+                byte 94
+                long 0 -- TODO
+                string "foo"
         u -> error $ "unhandled channel request type: " ++ u
 
 generator :: Integer

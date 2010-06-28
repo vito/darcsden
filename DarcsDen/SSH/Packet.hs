@@ -18,23 +18,23 @@ import DarcsDen.Util
 
 type Packet a = Writer LBS.ByteString a
 
-putByte :: Word8 -> Packet ()
-putByte = tell . encode
+byte :: Word8 -> Packet ()
+byte = tell . encode
 
-putLong :: Word32 -> Packet ()
-putLong = tell . encode
+long :: Word32 -> Packet ()
+long = tell . encode
 
-putLBS :: LBS.ByteString -> Packet ()
-putLBS = tell . netLBS
+byteString :: LBS.ByteString -> Packet ()
+byteString = tell . netLBS
 
-putString :: String -> Packet ()
-putString = putLBS . toLBS
+string :: String -> Packet ()
+string = byteString . toLBS
 
-putRaw :: LBS.ByteString -> Packet ()
-putRaw = tell
+raw :: LBS.ByteString -> Packet ()
+raw = tell
 
-putRawString :: String -> Packet ()
-putRawString = tell . toLBS
+rawString :: String -> Packet ()
+rawString = tell . toLBS
 
 doPacket :: Packet a -> LBS.ByteString
 doPacket = execWriter
@@ -67,7 +67,7 @@ send m = do
                 payloadEnc <- encrypt payload
                 return $ LBS.concat
                     [ payloadEnc
-                    , mac $ encode ((fromIntegral os) :: Word32) `LBS.append` payload
+                    , mac $ encode (fromIntegral os :: Word32) `LBS.append` payload
                     ]
         _ -> do
             io $ print ("sending", ssOutSeq s, fromLBS (full 8))
@@ -78,7 +78,7 @@ send m = do
     modify (\ss -> ss { ssOutSeq = ssOutSeq ss + 1 })
   where
     full s = LBS.concat
-        [ encode (fromIntegral $ len s :: Word32)
+        [ encode (fromIntegral (len s) :: Word32)
         , LBS.singleton (fromIntegral $ paddingLen s)
         , m
         , LBS.pack (replicate (paddingLen s) 0) -- TODO: random bytes
