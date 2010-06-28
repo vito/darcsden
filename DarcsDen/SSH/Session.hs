@@ -99,7 +99,7 @@ toBlocks :: (Integral a, Integral b) => a -> LBS.ByteString -> [b]
 toBlocks _ m | m == LBS.empty = []
 toBlocks bs m = b : rest
   where
-    b = fromOctets (256 :: Int) (LBS.unpack (LBS.take (fromIntegral bs) m))
+    b = fromOctets (256 :: Integer) (LBS.unpack (LBS.take (fromIntegral bs) m))
     rest = toBlocks bs (LBS.drop (fromIntegral bs) m)
 
 fromBlocks :: Integral a => Int -> [a] -> LBS.ByteString

@@ -91,7 +91,7 @@ send m = do
             else paddingNeeded s
 
 unmpint :: LBS.ByteString -> Integer
-unmpint = fromOctets (256 :: Int) . LBS.unpack
+unmpint = fromOctets (256 :: Integer) . LBS.unpack
 
 mpint :: Integer -> LBS.ByteString
 mpint i = netLBS (if LBS.head enc .&. 128 > 0
