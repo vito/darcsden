@@ -2,64 +2,57 @@
 module DarcsDen.SSH.Packet where
 
 import Codec.Utils (fromOctets, i2osp)
-import Control.Monad (replicateM)
 import "mtl" Control.Monad.State
-import "mtl" Control.Monad.Trans (liftIO)
-import Data.Binary (decode, encode)
+import "mtl" Control.Monad.Writer
+import Data.Binary (encode)
 import Data.Bits ((.&.))
-import Data.Int
 import Data.Digest.Pure.SHA
 import Data.Word
 import System.IO
 import qualified Codec.Crypto.RSA as RSA
 import qualified Data.ByteString.Lazy as LBS
-import qualified Data.ByteString as BS
 
-import DarcsDen.SSH.Pack
 import DarcsDen.SSH.Session
 import DarcsDen.Util
 
 
-type Packet a = StateT LBS.ByteString IO a
-
-putPacked :: String -> [Pack] -> Packet ()
-putPacked f ps = modify (`LBS.append` pack f ps)
+type Packet a = Writer LBS.ByteString a
 
 putByte :: Word8 -> Packet ()
-putByte b = putPacked "B" [UWord8 b]
+putByte = tell . encode
 
 putLong :: Word32 -> Packet ()
-putLong l = putPacked "L" [UWord32 l]
+putLong = tell . encode
 
 putLBS :: LBS.ByteString -> Packet ()
-putLBS = putRaw . netLBS
+putLBS = tell . netLBS
 
 putString :: String -> Packet ()
 putString = putLBS . toLBS
 
 putRaw :: LBS.ByteString -> Packet ()
-putRaw bs = modify (`LBS.append` bs)
+putRaw = tell
 
 putRawString :: String -> Packet ()
-putRawString = putRaw . toLBS
+putRawString = tell . toLBS
 
-finish :: Packet LBS.ByteString
-finish = get
-
-doPacket :: MonadIO m => Packet a -> m a
-doPacket = liftIO . flip evalStateT LBS.empty
+doPacket :: Packet a -> LBS.ByteString
+doPacket = execWriter
 
 netString :: String -> LBS.ByteString
 netString = netLBS . toLBS
 
 netLBS :: LBS.ByteString -> LBS.ByteString
-netLBS bs = pack "L" [UWord32 . fromIntegral . LBS.length $ bs] `LBS.append` bs
+netLBS bs = encode (fromIntegral (LBS.length bs) :: Word32) `LBS.append` bs
 
 io :: MonadIO m => IO a -> m a
 io = liftIO
 
-sendPacket :: LBS.ByteString -> Session ()
-sendPacket m = do
+sendPacket :: Packet () -> Session ()
+sendPacket = send . doPacket
+
+send :: LBS.ByteString -> Session ()
+send m = do
     h <- gets ssThem
     s <- get
     message <- case s of
@@ -74,7 +67,7 @@ sendPacket m = do
                 payloadEnc <- encrypt payload
                 return $ LBS.concat
                     [ payloadEnc
-                    , mac $ pack "L" [UWord32 (fromIntegral os)] `LBS.append` payload
+                    , mac $ encode ((fromIntegral os) :: Word32) `LBS.append` payload
                     ]
         _ -> do
             io $ print ("sending", ssOutSeq s, fromLBS (full 8))
@@ -82,13 +75,11 @@ sendPacket m = do
 
     io $ LBS.hPut h message
     io $ hFlush h
-    modify (\s -> s { ssOutSeq = ssOutSeq s + 1 })
+    modify (\ss -> ss { ssOutSeq = ssOutSeq ss + 1 })
   where
     full s = LBS.concat
-        [ pack "LB"
-            [ UWord32 . fromIntegral $ len s
-            , UWord8 . fromIntegral $ paddingLen s
-            ]
+        [ encode (fromIntegral $ len s :: Word32)
+        , LBS.singleton (fromIntegral $ paddingLen s)
         , m
         , LBS.pack (replicate (paddingLen s) 0) -- TODO: random bytes
         ]
@@ -100,7 +91,7 @@ sendPacket m = do
             else paddingNeeded s
 
 unmpint :: LBS.ByteString -> Integer
-unmpint = fromOctets 256 . LBS.unpack
+unmpint = fromOctets (256 :: Int) . LBS.unpack
 
 mpint :: Integer -> LBS.ByteString
 mpint i = netLBS (if LBS.head enc .&. 128 > 0

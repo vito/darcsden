@@ -3,18 +3,15 @@ module DarcsDen.SSH.Session where
 
 import Codec.Utils (fromOctets, i2osp)
 import Codec.Encryption.Modes
-import Control.Monad (replicateM)
 import "mtl" Control.Monad.State
 import "mtl" Control.Monad.Trans (liftIO)
+import Data.Binary (decode, encode)
 import Data.Int
 import Data.LargeWord
 import Data.Word
 import System.IO
 import qualified Codec.Encryption.AES as A
 import qualified Data.ByteString.Lazy as LBS
-
-import DarcsDen.SSH.Pack
-import DarcsDen.Util
 
 
 type Session a = StateT SessionState IO a
@@ -80,19 +77,14 @@ data HMAC =
         }
 
 
-readPacked :: Packable a => String -> Session a
-readPacked f = do
-    p <- readBytes (needed f)
-    return . fromPack . head $ unpack f p
-
 readByte :: Session Word8
-readByte = readPacked "B"
+readByte = fmap LBS.head (readBytes 1)
 
 readLong :: Session Int32
-readLong = readPacked "l"
+readLong = fmap decode (readBytes 4)
 
 readULong :: Session Word32
-readULong = readPacked "L"
+readULong = fmap decode (readBytes 4)
 
 readBytes :: Int -> Session LBS.ByteString
 readBytes n = do
@@ -105,7 +97,10 @@ readBytestring = readULong >>= readBytes . fromIntegral
 
 toBlocks :: (Integral a, Integral b) => a -> LBS.ByteString -> [b]
 toBlocks _ m | m == LBS.empty = []
-toBlocks bs m = fromOctets 256 (LBS.unpack (LBS.take (fromIntegral bs) m)) : toBlocks bs (LBS.drop (fromIntegral bs) m)
+toBlocks bs m = b : rest
+  where
+    b = fromOctets (256 :: Int) (LBS.unpack (LBS.take (fromIntegral bs) m))
+    rest = toBlocks bs (LBS.drop (fromIntegral bs) m)
 
 fromBlocks :: Integral a => Int -> [a] -> LBS.ByteString
 fromBlocks bs = LBS.concat . map (LBS.pack . i2osp bs)
@@ -126,8 +121,9 @@ decrypt m = do
                             (fromIntegral vector)
                             (fromIntegral key :: Word128) -- TODO
                             blocks
-                modify (\s -> s { ssInVector = fromIntegral $ last blocks })
+                modify (\ss -> ss { ssInVector = fromIntegral $ last blocks })
                 return (fromBlocks bs decrypted)
+        _ -> error "no decrypt for current state"
 
 encrypt :: LBS.ByteString -> Session LBS.ByteString
 encrypt m = do
@@ -144,8 +140,9 @@ encrypt m = do
                             (fromIntegral vector)
                             (fromIntegral key :: Word128) -- TODO
                             (toBlocks bs m)
-                modify (\s -> s { ssOutVector = fromIntegral $ last encrypted })
+                modify (\ss -> ss { ssOutVector = fromIntegral $ last encrypted })
                 return (fromBlocks bs encrypted)
+        _ -> error "no encrypt for current state"
 
 getPacket :: Session ()
 getPacket = do
@@ -162,7 +159,10 @@ getPacket = do
 
                 firstEnc <- liftIO $ LBS.hGet h firstChunk
                 first <- decrypt firstEnc
-                let [UWord32 packetLen, UWord8 paddingLen] = unpack "LB" first
+
+                let packetLen = decode (LBS.take 4 first) :: Word32
+                    paddingLen = decode (LBS.drop 4 first) :: Word8
+
                 liftIO $ print ("reading packet...", is, firstEnc, first, packetLen, paddingLen)
 
                 restEnc <- liftIO $ LBS.hGet h (fromIntegral packetLen - firstChunk + 4)
@@ -176,13 +176,16 @@ getPacket = do
                 mac <- liftIO $ LBS.hGet h ms
                 liftIO $ print ("got mac, valid?", verify mac is decrypted f)
 
-                modify (\s -> s { ssPayload = payload })
+                modify (\ss -> ss { ssPayload = payload })
         _ -> do
             first <- liftIO $ LBS.hGet h 5
-            let [UWord32 packetLen, UWord8 paddingLen] = unpack "LB" first
+
+            let packetLen = decode (LBS.take 4 first) :: Word32
+                paddingLen = decode (LBS.drop 4 first) :: Word8
+
             rest <- liftIO $ LBS.hGet h (fromIntegral packetLen - 5 + 4)
             let payload = LBS.take (fromIntegral packetLen - fromIntegral paddingLen - 1) rest
-            modify (\s -> s { ssPayload = payload })
+            modify (\ss -> ss { ssPayload = payload })
   where
     extract pkl pdl d = LBS.take (fromIntegral pkl - fromIntegral pdl - 1) (LBS.drop 5 d)
-    verify m is d f = m == f (pack "L" [UWord32 (fromIntegral is)] `LBS.append` d)
+    verify m is d f = m == f (encode (fromIntegral is :: Word32) `LBS.append` d)

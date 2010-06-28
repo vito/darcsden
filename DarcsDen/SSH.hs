@@ -2,11 +2,7 @@
 {-module DarcsDen.SSH where-}
 
 import Codec.Crypto.RSA hiding (sign)
-import Codec.Utils (Octet)
-import Control.Monad
 import "mtl" Control.Monad.State
-import Data.Binary
-import Data.Char (ord)
 import Data.Digest.Pure.SHA (bytestringDigest, sha1)
 import Data.HMAC (hmac_md5, hmac_sha1)
 import Data.List (intercalate)
@@ -15,11 +11,8 @@ import OpenSSL.BN
 import Network
 import System.IO
 import System.Random
-import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
 
-{-import DarcsDen.SSH.Hex-}
-import DarcsDen.SSH.Pack
 import DarcsDen.SSH.Packet
 import DarcsDen.SSH.Session
 import DarcsDen.Util
@@ -101,10 +94,13 @@ waitLoop s = do
     -- get the version response
     theirVersion <- hGetLine handle >>= return . takeWhile (/= '\r')
 
-    ourKEXInit <- doPacket kexInit
+    cookie <- fmap (LBS.pack . map fromIntegral) $
+        replicateM 16 (randomRIO (0, 255 :: Int))
+
+    let ourKEXInit = doPacket $ kexInit cookie
 
     evalStateT
-        (sendPacket ourKEXInit >> readLoop)
+        (send ourKEXInit >> readLoop)
         (Initial
             { ssThem = handle
             , ssPayload = LBS.empty
@@ -115,6 +111,28 @@ waitLoop s = do
             })
 
     waitLoop s
+  where
+    kexInit :: LBS.ByteString -> Packet ()
+    kexInit cookie = do
+        putByte 20
+
+        putRaw cookie
+
+        mapM_ putString
+            [ intercalate "," $ supportedKeyExchanges
+            , intercalate "," $ supportedKeyAlgorithms
+            , intercalate "," $ map fst supportedCiphers
+            , intercalate "," $ map fst supportedCiphers
+            , intercalate "," $ map fst supportedMACs
+            , intercalate "," $ map fst supportedMACs
+            , supportedCompression
+            , supportedCompression
+            , supportedLanguages
+            , supportedLanguages
+            ]
+
+        putByte 0 -- first_kex_packet_follows (boolean)
+        putLong 0
 
 readLoop :: Session ()
 readLoop = do
@@ -123,40 +141,13 @@ readLoop = do
     msg <- readByte
     case msg of
         1 -> error "disconnected" -- TODO
-        5 -> do
-            name <- readBytestring
-            io $ print ("service request", name)
-            doServiceRequest name
-        20 -> do
-            (theirKEXInit, ocn, icn, omn, imn) <- readKEXInit
-            io $ print ("KEXINIT", theirKEXInit, ocn, icn, omn, imn)
-            modify (\(Initial h p cv sk is os) ->
-                case
-                    ( lookup ocn supportedCiphers
-                    , lookup icn supportedCiphers
-                    , lookup omn supportedMACs
-                    , lookup imn supportedMACs
-                    ) of
-                    (Just oc, Just ic, Just om, Just im) ->
-                        GotKEXInit
-                            { ssThem = h
-                            , ssPayload = p
-                            , ssTheirVersion = cv
-                            , ssOurKEXInit = sk
-                            , ssTheirKEXInit = theirKEXInit
-                            , ssOutCipher = oc
-                            , ssInCipher = ic
-                            , ssOutHMACPrep = om
-                            , ssInHMACPrep = im
-                            , ssInSeq = is
-                            , ssOutSeq = os
-                            }
-                    _ -> error $ "impossible: lookup failed for ciphers/macs: " ++ show (ocn, icn, omn, imn))
+        5 -> doServiceRequest
+        20 -> doKEXInit
         21 -> doNewKeys
-        30 -> do
-            e <- readKEXDHInit
-            y <- io $ randIntegerOneToNMinusOne ((safePrime - 1) `div` 2) -- q?
-            doKexDHReply y e
+        30 -> doKEXDHInit
+        50 -> doUserAuthRequest
+        90 -> doChannelOpen
+        98 -> doChannelRequest
         u -> error $ "unknown message: " ++ show u
 
     modify (\s -> s { ssInSeq = ssInSeq s + 1 })
@@ -166,99 +157,101 @@ readLoop = do
         then return ()
         else readLoop
 
-readKEXInit :: Session (LBS.ByteString, String, String, String, String)
-readKEXInit = do
+doKEXInit :: Session ()
+doKEXInit = do
     cookie <- readBytes 16
     nameLists <- replicateM 10 readBytestring >>= return . map (splitOn "," . fromLBS)
     kpf <- readByte
     dummy <- readULong
-    return
-        ( reconstruct cookie nameLists kpf dummy
-        , match (nameLists !! 3) (map fst supportedCiphers)
-        , match (nameLists !! 2) (map fst supportedCiphers)
-        , match (nameLists !! 5) (map fst supportedMACs)
-        , match (nameLists !! 4) (map fst supportedMACs)
-        )
-  where
-    match n h = head . filter (`elem` h) $ n
-    reconstruct c nls kpf dummy =
-        LBS.concat
-            [ pack "B" [UWord8 20]
-            , c
-            , LBS.concat (map (netString . intercalate ",") nls)
-            , pack "BL" [UWord8 kpf, UWord32 dummy]
-            ]
 
-readKEXDHInit :: Session Integer
-readKEXDHInit = do
-    len <- fmap fromIntegral readULong
-    mpi <- readBytes len
-    io $ print ("KEXDHInit", len, mpi)
-    return $ unmpint mpi
+    let theirKEXInit = reconstruct cookie nameLists kpf dummy
+        ocn = match (nameLists !! 3) (map fst supportedCiphers)
+        icn = match (nameLists !! 2) (map fst supportedCiphers)
+        omn = match (nameLists !! 5) (map fst supportedMACs)
+        imn = match (nameLists !! 4) (map fst supportedMACs)
 
-kexInit :: Packet LBS.ByteString
-kexInit = do
-    putByte 20
-
-    cookie <- io $ replicateM 16 (randomRIO (0, 255 :: Int))
-    mapM (putByte . fromIntegral) cookie
-
-    mapM_ putString
-        [ intercalate "," $ supportedKeyExchanges
-        , intercalate "," $ supportedKeyAlgorithms
-        , intercalate "," $ map fst supportedCiphers
-        , intercalate "," $ map fst supportedCiphers
-        , intercalate "," $ map fst supportedMACs
-        , intercalate "," $ map fst supportedMACs
-        , supportedCompression
-        , supportedCompression
-        , supportedLanguages
-        , supportedLanguages
-        ]
-
-    putByte 0 -- first_kex_packet_follows (boolean)
-    putLong 0
-
-    finish
-
-doKexDHReply :: Integer -> Integer -> Session ()
-doKexDHReply y e = do
-    io $ print ("KEXDH_INIT", e)
-
-    d <- digest
-    let [civ, siv, ckey, skey, cin, sin] = map (makeKey k d) ['A'..'F']
-    io $ print ("DECRYPT KEY/IV", LBS.take 16 ckey, LBS.take 16 civ)
-
-    modify (\(GotKEXInit h p cv sk is os ck oc ic om im) ->
-                Final
-                    { ssID = d
-                    , ssSecret = k
-                    , ssThem = h
+    io $ print ("KEXINIT", theirKEXInit, ocn, icn, omn, imn)
+    modify (\(Initial h p cv sk is os) ->
+        case
+            ( lookup ocn supportedCiphers
+            , lookup icn supportedCiphers
+            , lookup omn supportedMACs
+            , lookup imn supportedMACs
+            ) of
+            (Just oc, Just ic, Just om, Just im) ->
+                GotKEXInit
+                    { ssThem = h
                     , ssPayload = p
                     , ssTheirVersion = cv
                     , ssOurKEXInit = sk
-                    , ssInSeq = is
-                    , ssOutSeq = os
-                    , ssTheirKEXInit = ck
+                    , ssTheirKEXInit = theirKEXInit
                     , ssOutCipher = oc
                     , ssInCipher = ic
-                    , ssOutHMAC = om sin
-                    , ssInHMAC = im cin
-                    , ssGotNEWKEYS = False
-                    , ssInKey = head . toBlocks (cKeySize ic) $ ckey
-                    , ssInVector = head . toBlocks (cBlockSize ic) $ civ
-                    , ssOutKey = head . toBlocks (cKeySize oc) $ skey
-                    , ssOutVector = head . toBlocks (cBlockSize oc) $ siv
-                    })
+                    , ssOutHMACPrep = om
+                    , ssInHMACPrep = im
+                    , ssInSeq = is
+                    , ssOutSeq = os
+                    }
+            _ -> error $ "impossible: lookup failed for ciphers/macs: " ++ show (ocn, icn, omn, imn))
+  where
+    match n h = head . filter (`elem` h) $ n
+    reconstruct c nls kpf dummy = doPacket $ do
+        putByte 20
+        putRaw c
+        mapM_ (putString . intercalate ",") nls
+        putByte kpf
+        putLong dummy
 
-    reply <- doPacket (kexDHReply f (sign privateKey d))
+doKEXDHInit :: Session ()
+doKEXDHInit = do
+    len <- fmap fromIntegral readULong
+    e <- fmap unmpint $ readBytes len
+    io $ print ("KEXDH_INIT", e)
+
+    y <- io $ randIntegerOneToNMinusOne ((safePrime - 1) `div` 2) -- q?
+
+    let f = modexp generator y safePrime
+        k = modexp e y safePrime
+
+    d <- digest e f k
+
+    let [civ, siv, ckey, skey, cinteg, sinteg] = map (makeKey k d) ['A'..'F']
+    io $ print ("DECRYPT KEY/IV", LBS.take 16 ckey, LBS.take 16 civ)
+
+    modify (\(GotKEXInit h p cv sk is os ck oc ic om im) ->
+        Final
+            { ssID = d
+            , ssSecret = k
+            , ssThem = h
+            , ssPayload = p
+            , ssTheirVersion = cv
+            , ssOurKEXInit = sk
+            , ssInSeq = is
+            , ssOutSeq = os
+            , ssTheirKEXInit = ck
+            , ssOutCipher = oc
+            , ssInCipher = ic
+            , ssOutHMAC = om sinteg
+            , ssInHMAC = im cinteg
+            , ssGotNEWKEYS = False
+            , ssInKey = head . toBlocks (cKeySize ic) $ ckey
+            , ssInVector = head . toBlocks (cBlockSize ic) $ civ
+            , ssOutKey = head . toBlocks (cKeySize oc) $ skey
+            , ssOutVector = head . toBlocks (cBlockSize oc) $ siv
+            })
+
+    let reply = doPacket (kexDHReply f (sign privateKey d))
     io $ print ("KEXDH_REPLY", reply)
 
-    sendPacket reply
+    send reply
   where
-    f = modexp generator y safePrime
-    k = modexp e y safePrime
-    digest = do
+    kexDHReply f s = do
+        putByte 31
+        putLBS (blob publicKey)
+        putRaw (mpint f)
+        putLBS s
+
+    digest e f k = do
         cv <- gets ssTheirVersion
         ck <- gets ssTheirKEXInit
         sk <- gets ssOurKEXInit
@@ -275,25 +268,71 @@ doKexDHReply y e = do
 
 doNewKeys :: Session ()
 doNewKeys = do
-    sendPacket (LBS.singleton 21)
+    send (LBS.singleton 21)
     modify (\s -> s { ssGotNEWKEYS = True })
 
-doServiceRequest :: LBS.ByteString -> Session ()
-doServiceRequest n = doPacket (serviceAccept n) >>= sendPacket
+doServiceRequest :: Session ()
+doServiceRequest = do
+    name <- readBytestring
+    sendPacket $ do
+        putByte 6
+        putLBS name
 
-serviceAccept :: LBS.ByteString -> Packet LBS.ByteString
-serviceAccept n = do
-    putByte 6
-    putLBS n
-    finish
+doUserAuthRequest :: Session ()
+doUserAuthRequest = do
+    user <- readBytestring
+    service <- readBytestring
+    method <- readBytestring
+    io $ print ("userauth attempt", user, service, method)
+    case fromLBS method of
+        "publickey" -> do
+            0 <- readByte
+            algorithm <- readBytestring
+            key <- readBytestring
+            io $ print ("publickey request", algorithm, key)
+            sendPacket userAuthOK
+        _ -> sendPacket userAuthFail
+  where
+    userAuthFail = do
+        putByte 51
+        putString "publickey"
+        putByte 0
 
-kexDHReply :: Integer -> LBS.ByteString -> Packet LBS.ByteString
-kexDHReply f s = do
-    putByte 31
-    putLBS (blob publicKey)
-    putRaw (mpint f)
-    putLBS s
-    finish
+    userAuthOK = do
+        putByte 52
+
+doChannelOpen :: Session ()
+doChannelOpen = do
+    name <- readBytestring
+    chanid <- readULong
+    windowSize <- readULong
+    maxPacket <- readULong
+    io $ print ("channel open", name, chanid, windowSize, maxPacket)
+    sendPacket $ do -- TODO
+        putByte 91
+        putLong chanid
+        putLong 0 -- TODO
+        putLong windowSize
+        putLong maxPacket
+
+doChannelRequest :: Session ()
+doChannelRequest = do
+    dest <- readULong
+    typ <- readBytestring
+    wantReply <- readByte
+
+    io $ print ("channel request", dest, typ, wantReply)
+    case fromLBS typ of
+        "shell" -> do
+            io $ print "requested shell"
+        "exec" -> do
+            command <- readBytestring
+            io $ print ("execute command", command)
+            sendPacket $ do
+                putByte 94
+                putLong 0 -- TODO
+                putString "foo"
+        u -> error $ "unhandled channel request type: " ++ u
 
 generator :: Integer
 generator = 2
