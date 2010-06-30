@@ -10,6 +10,7 @@ import Data.Int
 import Data.LargeWord
 import Data.Word
 import System.IO
+import System.Process
 import qualified Codec.Encryption.AES as A
 import qualified Data.ByteString.Lazy as LBS
 
@@ -19,6 +20,7 @@ type Session a = StateT SessionState IO a
 data SessionState
     = Initial
         { ssThem :: Handle
+        , ssSend :: SenderMessage -> IO ()
         , ssPayload :: LBS.ByteString
         , ssTheirVersion :: String
         , ssOurKEXInit :: LBS.ByteString
@@ -27,6 +29,7 @@ data SessionState
         }
     | GotKEXInit
         { ssThem :: Handle
+        , ssSend :: SenderMessage -> IO ()
         , ssPayload :: LBS.ByteString
         , ssTheirVersion :: String
         , ssOurKEXInit :: LBS.ByteString
@@ -42,22 +45,41 @@ data SessionState
         { ssID :: LBS.ByteString
         , ssSecret :: Integer
         , ssThem :: Handle
+        , ssSend :: SenderMessage -> IO ()
         , ssPayload :: LBS.ByteString
         , ssTheirVersion :: String
         , ssTheirKEXInit :: LBS.ByteString
         , ssInSeq :: Word32
         , ssOutSeq :: Word32
         , ssOurKEXInit :: LBS.ByteString
-        , ssOutCipher :: Cipher
         , ssInCipher :: Cipher
-        , ssOutHMAC :: HMAC
-        , ssInHMAC :: HMAC
         , ssGotNEWKEYS :: Bool
+        , ssInHMAC :: HMAC
         , ssInKey :: Integer
-        , ssOutKey :: Integer
         , ssInVector :: Integer
-        , ssOutVector :: Integer
+        , ssTheirChannel :: Maybe Word32
+        , ssProcess :: Maybe Process
         }
+
+data SenderState
+    = NoKeys
+        { senderThem :: Handle
+        , senderOutSeq :: Word32
+        }
+    | GotKeys
+        { senderThem :: Handle
+        , senderOutSeq :: Word32
+        , senderEncrypting :: Bool
+        , senderCipher :: Cipher
+        , senderKey :: Integer
+        , senderVector :: Integer
+        , senderHMAC :: HMAC
+        }
+
+data SenderMessage
+    = Prepare Cipher Integer Integer HMAC
+    | StartEncrypting
+    | Send LBS.ByteString
 
 data Cipher =
     Cipher
@@ -69,6 +91,14 @@ data Cipher =
 
 data CipherType = AES
 data CipherMode = CBC
+
+data Process =
+    Process
+        { pHandle :: ProcessHandle
+        , pIn :: Handle
+        , pOut :: Handle
+        , pError :: Handle
+        }
 
 data HMAC =
     HMAC
@@ -92,8 +122,8 @@ readBytes n = do
     modify (\s -> s { ssPayload = LBS.drop (fromIntegral n) p })
     return (LBS.take (fromIntegral n) p)
 
-readBytestring :: Session LBS.ByteString
-readBytestring = readULong >>= readBytes . fromIntegral
+readLBS :: Session LBS.ByteString
+readLBS = readULong >>= readBytes . fromIntegral
 
 toBlocks :: (Integral a, Integral b) => a -> LBS.ByteString -> [b]
 toBlocks _ m | m == LBS.empty = []
@@ -125,24 +155,16 @@ decrypt m = do
                 return (fromBlocks bs decrypted)
         _ -> error "no decrypt for current state"
 
-encrypt :: LBS.ByteString -> Session LBS.ByteString
-encrypt m = do
-    s <- get
-    case s of
-        Final
-            { ssOutCipher = Cipher AES CBC bs 16 -- TODO
-            , ssOutKey = key
-            , ssOutVector = vector
-            } -> do
-                let encrypted =
-                        cbc
-                            A.encrypt
-                            (fromIntegral vector)
-                            (fromIntegral key :: Word128) -- TODO
-                            (toBlocks bs m)
-                modify (\ss -> ss { ssOutVector = fromIntegral $ last encrypted })
-                return (fromBlocks bs encrypted)
-        _ -> error "no encrypt for current state"
+encrypt :: Cipher -> Integer -> Integer -> LBS.ByteString -> (LBS.ByteString, Integer)
+encrypt (Cipher AES CBC bs 16) key vector m =
+    (fromBlocks bs encrypted, fromIntegral $ last encrypted)
+  where
+    encrypted =
+        cbc
+            A.encrypt
+            (fromIntegral vector)
+            (fromIntegral key :: Word128) -- TODO
+            (toBlocks bs m)
 
 getPacket :: Session ()
 getPacket = do
