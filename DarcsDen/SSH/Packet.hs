@@ -2,7 +2,6 @@
 module DarcsDen.SSH.Packet where
 
 import Codec.Utils (fromOctets, i2osp)
-import Control.Concurrent.Chan
 import "mtl" Control.Monad.State
 import "mtl" Control.Monad.Writer
 import Data.Binary (encode)
@@ -14,7 +13,6 @@ import System.Process
 import qualified Codec.Crypto.RSA as RSA
 import qualified Data.ByteString.Lazy as LBS
 
-import DarcsDen.SSH.Session
 import DarcsDen.Util
 
 
@@ -50,12 +48,6 @@ netLBS bs = encode (fromIntegral (LBS.length bs) :: Word32) `LBS.append` bs
 io :: MonadIO m => IO a -> m a
 io = liftIO
 
-sendPacket :: Packet () -> Session ()
-sendPacket = send . Send . doPacket
-
-send :: SenderMessage -> Session ()
-send m = gets ssSend >>= io . ($ m)
-
 unmpint :: LBS.ByteString -> Integer
 unmpint = fromOctets (256 :: Integer) . LBS.unpack
 
@@ -79,35 +71,6 @@ sign pk m = LBS.concat
     , netLBS (RSA.rsassa_pkcs1_v1_5_sign RSA.ha_SHA1 pk m)
     ]
 
-redirectHandle :: Chan () -> Packet () -> Handle -> Session ()
-redirectHandle f d h = do
-    Just target <- gets ssTheirChannel
-    Just (Process proc _ _ _) <- gets ssProcess
-
-    io $ print "reading..."
-    l <- io $ hGetAvailable h
-    io $ print ("read data from handle", l)
-
-    if not (null l)
-        then sendPacket $ d >> string l
-        else return ()
-
-    done <- io $ hIsEOF h
-    io $ print ("eof handle?", done)
-    if done
-        then io $ writeChan f ()
-        else redirectHandle f d h
-  where
-    hGetAvailable :: Handle -> IO String
-    hGetAvailable h = do
-        ready <- hReady h `catch` const (return False)
-        if not ready
-            then return ""
-            else do
-                c <- hGetChar h
-                cs <- hGetAvailable h
-                return (c:cs)
-
 -- warning: don't try to send this; it's an infinite bytestring.
 -- take whatever length the key needs.
 makeKey :: Integer -> LBS.ByteString -> Char -> LBS.ByteString
@@ -124,3 +87,4 @@ makeKey s h c = makeKey' initial
         [ acc
         , makeKey' (bytestringDigest . sha1 . LBS.concat $ [mpint s, h, acc])
         ]
+

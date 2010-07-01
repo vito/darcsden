@@ -3,23 +3,30 @@ module DarcsDen.SSH.Session where
 
 import Codec.Utils (fromOctets, i2osp)
 import Codec.Encryption.Modes
+import Control.Concurrent (forkIO)
+import Control.Concurrent.Chan
 import "mtl" Control.Monad.State
 import "mtl" Control.Monad.Trans (liftIO)
 import Data.Binary (decode, encode)
 import Data.Int
 import Data.LargeWord
 import Data.Word
+import System.Exit
 import System.IO
 import System.Process
 import qualified Codec.Encryption.AES as A
 import qualified Data.ByteString.Lazy as LBS
+
+import DarcsDen.SSH.Packet
+import DarcsDen.Util (fromLBS)
 
 
 type Session a = StateT SessionState IO a
 
 data SessionState
     = Initial
-        { ssThem :: Handle
+        { ssConfig :: SessionConfig
+        , ssThem :: Handle
         , ssSend :: SenderMessage -> IO ()
         , ssPayload :: LBS.ByteString
         , ssTheirVersion :: String
@@ -28,7 +35,8 @@ data SessionState
         , ssOutSeq :: Word32
         }
     | GotKEXInit
-        { ssThem :: Handle
+        { ssConfig :: SessionConfig
+        , ssThem :: Handle
         , ssSend :: SenderMessage -> IO ()
         , ssPayload :: LBS.ByteString
         , ssTheirVersion :: String
@@ -42,7 +50,8 @@ data SessionState
         , ssInHMACPrep :: LBS.ByteString -> HMAC
         }
     | Final
-        { ssID :: LBS.ByteString
+        { ssConfig :: SessionConfig
+        , ssID :: LBS.ByteString
         , ssSecret :: Integer
         , ssThem :: Handle
         , ssSend :: SenderMessage -> IO ()
@@ -109,6 +118,46 @@ data HMAC =
         , hFunction :: LBS.ByteString -> LBS.ByteString
         }
 
+data SessionConfig =
+    SessionConfig
+        { scAuthorize :: Authorize -> Session Bool
+        , scAuthMethods :: [String]
+        , scChannelRequest :: Bool -> ChannelRequest -> Session ()
+        }
+
+data Authorize
+    = Password String String
+    | PublicKey String String LBS.ByteString
+
+data ChannelRequest
+    = Shell
+    | Execute String
+    | Subsystem String
+    | X11Forwarding
+    | Environment String String
+    | PseudoTerminal String Word32 Word32 Word32 Word32 String
+    | WindowChange Word32 Word32 Word32 Word32
+    | Signal String
+    | ExitStatus Word32
+    | ExitSignal String Bool String String
+    | FlowControl Bool
+
+
+defaultConfig :: SessionConfig
+defaultConfig =
+    SessionConfig
+        { scAuthorize = \(Password u p) ->
+            return $ u == "test" && p == "test"
+        , scAuthMethods = ["password"]
+        , scChannelRequest = \wr req ->
+            case req of
+                Execute cmd -> do
+                    spawnProcess (runInteractiveCommand cmd)
+                    when wr channelSuccess
+                _ -> do
+                    sshError "accepting 'exec' requests only"
+                    when wr channelFail
+        }
 
 readByte :: Session Word8
 readByte = fmap LBS.head (readBytes 1)
@@ -127,6 +176,12 @@ readBytes n = do
 
 readLBS :: Session LBS.ByteString
 readLBS = readULong >>= readBytes . fromIntegral
+
+readString :: Session String
+readString = fmap fromLBS readLBS
+
+readBool :: Session Bool
+readBool = readByte >>= return . (== 1)
 
 toBlocks :: (Integral a, Integral b) => a -> LBS.ByteString -> [b]
 toBlocks _ m | m == LBS.empty = []
@@ -219,3 +274,107 @@ getPacket = do
   where
     extract pkl pdl d = LBS.take (fromIntegral pkl - fromIntegral pdl - 1) (LBS.drop 5 d)
     verify m is d f = m == f (encode (fromIntegral is :: Word32) `LBS.append` d)
+
+sendPacket :: Packet () -> Session ()
+sendPacket = send . Send . doPacket
+
+send :: SenderMessage -> Session ()
+send m = gets ssSend >>= io . ($ m)
+
+sshError :: String -> Session ()
+sshError msg = do
+    Just target <- gets ssTheirChannel
+    sendPacket $ do
+        byte 95
+        long target
+        long 1
+        string (msg ++ "\r\n")
+
+channelFail :: Session ()
+channelFail = do
+    Just target <- gets ssTheirChannel
+    sendPacket $ do
+        byte 100
+        long target
+
+channelSuccess :: Session ()
+channelSuccess = do
+    Just target <- gets ssTheirChannel
+    sendPacket $ do
+        byte 99
+        long target
+
+redirectHandle :: Chan () -> Packet () -> Handle -> Session ()
+redirectHandle f d h = get >>= io . forkIO . evalStateT redirectLoop >> return ()
+  where
+    redirectLoop = do
+        Just target <- gets ssTheirChannel
+        Just (Process proc _ _ _) <- gets ssProcess
+
+        io $ print "reading..."
+        l <- io $ hGetAvailable h
+        io $ print ("read data from handle", l)
+
+        if not (null l)
+            then sendPacket $ d >> string l
+            else return ()
+
+        done <- io $ hIsEOF h
+        io $ print ("eof handle?", done)
+        if done
+            then io $ writeChan f ()
+            else redirectLoop
+
+    hGetAvailable :: Handle -> IO String
+    hGetAvailable h = do
+        ready <- hReady h `catch` const (return False)
+        if not ready
+            then return ""
+            else do
+                c <- hGetChar h
+                cs <- hGetAvailable h
+                return (c:cs)
+
+spawnProcess :: IO (Handle, Handle, Handle, ProcessHandle) -> Session ()
+spawnProcess cmd = do
+    Just target <- gets ssTheirChannel
+
+    (stdin, stdout, stderr, proc) <- io cmd
+    modify (\s -> s { ssProcess = Just $ Process proc stdin stdout stderr })
+
+    io $ print ("command spawned")
+    sendPacket (byte 99 >> long target) -- success
+
+    -- redirect stdout and stderr, using a channel to signal completion
+    done <- io newChan
+    redirectHandle done (byte 94 >> long target) stdout
+    redirectHandle done (byte 95 >> long target >> long 1) stderr
+
+    s <- get
+
+    -- spawn a thread to wait for the process to terminate
+    io . forkIO $ do
+        -- wait until both are done
+        readChan done
+        readChan done
+
+        io $ print "done reading output! waiting for process..."
+        exit <- io $ waitForProcess proc
+        io $ print ("process exited", exit)
+
+        flip evalStateT s $ do
+            sendPacket $ do
+                byte 98
+                long target
+                string "exit-status"
+                byte 0
+                long (statusCode exit)
+
+            sendPacket (byte 96 >> long target) -- eof
+            sendPacket (byte 97 >> long target) -- close
+
+    return ()
+  where
+    statusCode ExitSuccess = 0
+    statusCode (ExitFailure n) = fromIntegral n
+

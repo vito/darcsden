@@ -11,7 +11,6 @@ import Data.List.Split (splitOn)
 import Data.Word
 import OpenSSL.BN
 import Network
-import System.Exit
 import System.IO
 import System.Process
 import System.Random
@@ -82,13 +81,16 @@ supportedLanguages :: String
 supportedLanguages = ""
 
 main :: IO ()
-main = withSocketsDo $ do
-    sock <- listenOn (PortNumber 5022)
-    putStrLn "Listenin' on 5022"
-    waitLoop sock
+main = start defaultConfig 5022
 
-waitLoop :: Socket -> IO ()
-waitLoop s = do
+start :: SessionConfig -> PortNumber -> IO ()
+start sc p = withSocketsDo $ do
+    sock <- listenOn (PortNumber p)
+    putStrLn $ "ssh server listening on port " ++ show p
+    waitLoop sc sock
+
+waitLoop :: SessionConfig -> Socket -> IO ()
+waitLoop sc s = do
     (handle, hostName, port) <- accept s
     print ("got connection from", hostName, port)
     
@@ -111,7 +113,8 @@ waitLoop s = do
         evalStateT
             (send (Send ourKEXInit) >> readLoop)
             (Initial
-                { ssThem = handle
+                { ssConfig = sc
+                , ssThem = handle
                 , ssSend = writeChan out
                 , ssPayload = LBS.empty
                 , ssTheirVersion = theirVersion
@@ -120,7 +123,7 @@ waitLoop s = do
                 , ssOutSeq = 0
                 })
 
-    waitLoop s
+    waitLoop sc s
   where
     pKEXInit :: LBS.ByteString -> Packet ()
     pKEXInit cookie = do
@@ -242,7 +245,7 @@ kexInit = do
         imn = match (nameLists !! 4) (map fst supportedMACs)
 
     io $ print ("KEXINIT", theirKEXInit, ocn, icn, omn, imn)
-    modify (\(Initial h s p cv sk is os) ->
+    modify (\(Initial c h s p cv sk is os) ->
         case
             ( lookup ocn supportedCiphers
             , lookup icn supportedCiphers
@@ -251,7 +254,8 @@ kexInit = do
             ) of
             (Just oc, Just ic, Just om, Just im) ->
                 GotKEXInit
-                    { ssThem = h
+                    { ssConfig = c
+                    , ssThem = h
                     , ssSend = s
                     , ssPayload = p
                     , ssTheirVersion = cv
@@ -299,9 +303,10 @@ kexDHInit = do
             (head . toBlocks (cBlockSize oc) $ siv)
             (om sinteg)
 
-    modify (\(GotKEXInit h s p cv sk is os ck _ ic _ im) ->
+    modify (\(GotKEXInit c h s p cv sk is os ck _ ic _ im) ->
         Final
-            { ssID = d
+            { ssConfig = c
+            , ssID = d
             , ssSecret = k
             , ssThem = h
             , ssSend = s
@@ -367,23 +372,38 @@ userAuthRequest = do
     user <- readLBS
     service <- readLBS
     method <- readLBS
+
+    auth <- gets (scAuthorize . ssConfig)
+    authMethods <- gets (scAuthMethods . ssConfig)
+
     io $ print ("userauth attempt", user, service, method)
-    case fromLBS method of
+    check <- case fromLBS method of
+        x | not (x `elem` authMethods) ->
+            return False
+
         "publickey" -> do
             0 <- readByte
             algorithm <- readLBS
             key <- readLBS
-            io $ print ("publickey request", algorithm, key)
-            sendPacket userAuthOK
-        _ -> sendPacket userAuthFail
+            auth (PublicKey (fromLBS user) (fromLBS algorithm) key)
+
+        "password" -> do
+            0 <- readByte
+            password <- readLBS
+            auth (Password (fromLBS user) (fromLBS password))
+
+        u -> error $ "unhandled authorization type: " ++ u
+
+    if check
+        then sendPacket userAuthOK
+        else sendPacket (userAuthFail authMethods)
   where
-    userAuthFail = do
+    userAuthFail ms = do
         byte 51
-        string "publickey"
+        string (intercalate "," ms)
         byte 0
 
-    userAuthOK = do
-        byte 52
+    userAuthOK = byte 52
 
 channelOpen :: Session ()
 channelOpen = do
@@ -410,75 +430,94 @@ channelRequest :: Session ()
 channelRequest = do
     dest <- readULong
     typ <- readLBS
-    wantReply <- readByte
+    wantReply <- readBool
+
     Just target <- gets ssTheirChannel
+    handler <- gets (scChannelRequest . ssConfig) >>= return . ($ wantReply)
 
     io $ print ("channel request", dest, typ, wantReply)
     case fromLBS typ of
-        "shell" -> do
-            io $ print "requested shell"
+        "pty-req" -> do
+            term <- readString
+            cols <- readULong
+            rows <- readULong
+            width <- readULong
+            height <- readULong
+            modes <- readString
+            handler (PseudoTerminal term cols rows width height modes)
+
+        "x11-req" -> handler X11Forwarding
+
+        "shell" -> handler Shell
+
         "exec" -> do
-            command <- readLBS
+            command <- readString
             io $ print ("execute command", command)
+            handler (Execute command)
 
-            (stdin, stdout, stderr, proc) <- io $ runInteractiveCommand (fromLBS command)
-            modify (\s -> s { ssProcess = Just $ Process proc stdin stdout stderr })
+        "subsystem" -> do
+            name <- readString
+            io $ print ("subsystem request", name)
+            handler (Subsystem name)
 
-            io $ print ("command spawned")
-            sendPacket (byte 99 >> long target) -- success
+        "env" -> do
+            name <- readString
+            value <- readString
+            io $ print ("environment request", name, value)
+            handler (Environment name value)
 
-            s <- get
-            io . forkIO $ do
-                done <- newChan
-                forkIO $ evalStateT (redirectHandle done (byte 94 >> long target) stdout) s
-                forkIO $ evalStateT (redirectHandle done (byte 95 >> long target >> long 1) stderr) s
+        "window-change" -> do
+            cols <- readULong
+            rows <- readULong
+            width <- readULong
+            height <- readULong
+            handler (WindowChange cols rows width height)
 
-                -- Wait until both are done
-                readChan done
-                readChan done
+        "xon-xoff" -> do
+            b <- readBool
+            handler (FlowControl b)
 
-                io $ print "done reading output! waiting for process..."
-                exit <- io $ waitForProcess proc
-                io $ print ("process exited", exit)
+        "signal" -> do
+            name <- readString
+            handler (Signal name)
 
-                flip evalStateT s $ do
-                    sendPacket $ do
-                        byte 98
-                        long target
-                        string "exit-status"
-                        byte 0
-                        long (statusCode exit)
+        "exit-status" -> do
+            status <- readULong
+            handler (ExitStatus status)
 
-                    sendPacket (byte 96 >> long target) -- eof
-                    sendPacket (byte 97 >> long target) -- close
+        "exit-signal" -> do
+            name <- readString
+            dumped <- readBool
+            msg <- readString
+            lang <- readString
+            handler (ExitSignal name dumped msg lang)
 
-            return ()
-        u -> error $ "unhandled channel request type: " ++ u
-
-    io $ print "channelRequest completed"
-  where
-    statusCode ExitSuccess = 0
-    statusCode (ExitFailure n) = fromIntegral n
+        u -> do
+            sshError $ "unknown channel request type: " ++ u
+            when wantReply channelFail
 
 dataReceived :: Session ()
 dataReceived = do
     chanid <- readULong
     msg <- readLBS
 
-    modify (\s -> s { ssDataReceived = ssDataReceived s + fromIntegral (LBS.length msg) })
+    modify (\s -> s
+        { ssDataReceived =
+            ssDataReceived s + fromIntegral (LBS.length msg)
+        })
+
+    -- Adjust window size if needed
     rcvd <- gets ssDataReceived
     max <- gets ssMaxPacketLength
     winSize <- gets ssWindowSize
+    when (rcvd + (max * 4) >= winSize && winSize + (max * 4) <= 2^32 - 1) $ do
+        modify (\s -> s { ssWindowSize = winSize + (max * 4) })
+        sendPacket $ do
+            byte 93
+            long chanid
+            long (max * 4)
 
-    if rcvd + (max * 4) >= winSize && winSize + (max * 4) <= 2^32 - 1
-        then do
-            modify (\s -> s { ssWindowSize = winSize + (max * 4) })
-            sendPacket $ do
-                byte 93
-                long chanid
-                long (max * 4)
-        else return ()
-
+    -- Direct input to process's stdin
     proc <- gets ssProcess
     case proc of
         Nothing -> io $ print ("got unhandled data", chanid)
@@ -493,6 +532,7 @@ eofReceived = do
 
     modify (\s -> s { ssDataReceived = 0 })
 
+    -- Close process's stdin to indicate EOF
     proc <- gets ssProcess
     case proc of
         Nothing -> io $ print ("got unhandled eof", chanid)
