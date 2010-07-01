@@ -318,6 +318,9 @@ kexDHInit = do
             , ssInVector = head . toBlocks (cBlockSize ic) $ civ
             , ssTheirChannel = Nothing
             , ssProcess = Nothing
+            , ssWindowSize = 2097152
+            , ssMaxPacketLength = 32768
+            , ssDataReceived = 0
             })
 
     let reply = doPacket (kexDHReply f (sign privateKey d))
@@ -387,17 +390,21 @@ channelOpen = do
     name <- readLBS
     chanid <- readULong
     windowSize <- readULong
-    maxPacket <- readULong
+    maxPacketLength <- readULong
 
-    io $ print ("channel open", name, chanid, windowSize, maxPacket)
-    modify (\s -> s { ssTheirChannel = Just chanid })
+    io $ print ("channel open", name, chanid, windowSize, maxPacketLength)
+    modify (\s -> s
+        { ssTheirChannel = Just chanid
+        , ssWindowSize = windowSize
+        , ssMaxPacketLength = maxPacketLength
+        })
 
     sendPacket $ do -- TODO
         byte 91
         long chanid
         long 0 -- TODO
         long windowSize
-        long maxPacket
+        long maxPacketLength
 
 channelRequest :: Session ()
 channelRequest = do
@@ -458,6 +465,20 @@ dataReceived = do
     chanid <- readULong
     msg <- readLBS
 
+    modify (\s -> s { ssDataReceived = ssDataReceived s + fromIntegral (LBS.length msg) })
+    rcvd <- gets ssDataReceived
+    max <- gets ssMaxPacketLength
+    winSize <- gets ssWindowSize
+
+    if rcvd + (max * 4) >= winSize && winSize + (max * 4) <= 2^32 - 1
+        then do
+            modify (\s -> s { ssWindowSize = winSize + (max * 4) })
+            sendPacket $ do
+                byte 93
+                long chanid
+                long (max * 4)
+        else return ()
+
     proc <- gets ssProcess
     case proc of
         Nothing -> io $ print ("got unhandled data", chanid)
@@ -469,6 +490,8 @@ dataReceived = do
 eofReceived :: Session ()
 eofReceived = do
     chanid <- readULong
+
+    modify (\s -> s { ssDataReceived = 0 })
 
     proc <- gets ssProcess
     case proc of

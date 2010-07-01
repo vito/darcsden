@@ -59,6 +59,9 @@ data SessionState
         , ssInVector :: Integer
         , ssTheirChannel :: Maybe Word32
         , ssProcess :: Maybe Process
+        , ssWindowSize :: Word32
+        , ssMaxPacketLength :: Word32
+        , ssDataReceived :: Word32
         }
 
 data SenderState
