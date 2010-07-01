@@ -225,7 +225,7 @@ readLoop = do
 
     done <- gets ssThem >>= io . hIsEOF
     if done
-        then return ()
+        then io $ putStrLn "connection lost"
         else readLoop
 
 kexInit :: Session ()
