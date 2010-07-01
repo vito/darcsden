@@ -415,57 +415,40 @@ channelRequest = do
             io $ print ("execute command", command)
 
             (stdin, stdout, stderr, proc) <- io $ runInteractiveCommand (fromLBS command)
-            let process = Process proc stdin stdout stderr
+            modify (\s -> s { ssProcess = Just $ Process proc stdin stdout stderr })
 
             io $ print ("command spawned")
-
             sendPacket (byte 99 >> long target) -- success
 
-            mec <- io $ getProcessExitCode proc
-            case mec of
-                Nothing -> do
-                    io $ print "command still be runnin'"
-                    modify (\s -> s { ssProcess = Just process })
+            s <- get
+            io . forkIO $ do
+                done <- newChan
+                forkIO $ evalStateT (redirectHandle done (byte 94 >> long target) stdout) s
+                forkIO $ evalStateT (redirectHandle done (byte 95 >> long target >> long 1) stderr) s
 
-                    let redirect = do
-                        io $ print "reading..."
-                        l <- io $ hGetLine stdout
-                        io $ print "read a line!"
-                        sendPacket $ do
-                            byte 94
-                            long target
-                            string (l ++ "\n")
+                -- Wait until both are done
+                readChan done
+                readChan done
 
-                        done <- io $ hIsEOF stdout
-                        if done
-                            then do
-                                mec <- io $ getProcessExitCode proc
-                                io $ print "done reading output!"
+                io $ print "done reading output! waiting for process..."
+                exit <- io $ waitForProcess proc
+                io $ print ("process exited", exit)
 
-                                case mec of
-                                    Nothing -> error "done reading output, but it ain't done running"
-                                    Just done ->
-                                        sendPacket (byte 98 >> long target >> string "exit-status" >> byte 0 >> long (statusCode done))
-
-                                sendPacket (byte 96 >> long target) -- eof
-                                sendPacket (byte 97 >> long target) -- close
-                            else redirect
-
-                    get >>= io . forkIO . evalStateT redirect
-                    return ()
-                Just done -> do
-                    io $ print "command completed"
-                    out <- io $ hGetContents stdout
-                    sendPacket $ do -- data
-                        byte 94
+                flip evalStateT s $ do
+                    sendPacket $ do
+                        byte 98
                         long target
-                        string out
+                        string "exit-status"
+                        byte 0
+                        long (statusCode exit)
 
-                    io $ print ("status", statusCode done)
-                    sendPacket (byte 98 >> long target >> string "exit-status" >> byte 0 >> long (statusCode done))
                     sendPacket (byte 96 >> long target) -- eof
                     sendPacket (byte 97 >> long target) -- close
+
+            return ()
         u -> error $ "unhandled channel request type: " ++ u
+
+    io $ print "channelRequest completed"
   where
     statusCode ExitSuccess = 0
     statusCode (ExitFailure n) = fromIntegral n
@@ -477,9 +460,9 @@ dataReceived = do
 
     proc <- gets ssProcess
     case proc of
-        Nothing -> io $ print ("got unhandled data", chanid, msg)
+        Nothing -> io $ print ("got unhandled data", chanid)
         Just (Process _ stdin _ _) -> do
-            io $ print ("redirecting data", chanid, msg)
+            io $ print ("redirecting data", chanid, LBS.length msg)
             io $ LBS.hPut stdin msg
             io $ hFlush stdin
 
@@ -493,9 +476,6 @@ eofReceived = do
         Just (Process _ stdin _ _) -> do
             io $ print ("redirecting eof", chanid)
             io $ hClose stdin
-
-            Just target <- gets ssTheirChannel
-            sendPacket (byte 96 >> long target)
 
 generator :: Integer
 generator = 2

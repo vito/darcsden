@@ -136,7 +136,9 @@ fromBlocks :: Integral a => Int -> [a] -> LBS.ByteString
 fromBlocks bs = LBS.concat . map (LBS.pack . i2osp bs)
 
 decrypt :: LBS.ByteString -> Session LBS.ByteString
-decrypt m = do
+decrypt m
+    | m == LBS.empty = return m
+    | otherwise = do
     s <- get
     case s of
         Final
@@ -151,13 +153,18 @@ decrypt m = do
                             (fromIntegral vector)
                             (fromIntegral key :: Word128) -- TODO
                             blocks
+
                 modify (\ss -> ss { ssInVector = fromIntegral $ last blocks })
                 return (fromBlocks bs decrypted)
         _ -> error "no decrypt for current state"
 
 encrypt :: Cipher -> Integer -> Integer -> LBS.ByteString -> (LBS.ByteString, Integer)
 encrypt (Cipher AES CBC bs 16) key vector m =
-    (fromBlocks bs encrypted, fromIntegral $ last encrypted)
+    ( fromBlocks bs encrypted
+    , case encrypted of
+          (_:_) -> fromIntegral $ last encrypted
+          [] -> error ("encrypted data empty for `" ++ show m ++ "' in encrypt") vector
+    )
   where
     encrypted =
         cbc
@@ -185,15 +192,13 @@ getPacket = do
                 let packetLen = decode (LBS.take 4 first) :: Word32
                     paddingLen = decode (LBS.drop 4 first) :: Word8
 
-                liftIO $ print ("reading packet...", is, firstEnc, first, packetLen, paddingLen)
+                liftIO $ print ("got packet", is, first, packetLen, paddingLen)
 
                 restEnc <- liftIO $ LBS.hGet h (fromIntegral packetLen - firstChunk + 4)
                 rest <- decrypt restEnc
 
                 let decrypted = first `LBS.append` rest
                     payload = extract packetLen paddingLen decrypted
-
-                liftIO $ print ("got encrypted", firstChunk, packetLen, paddingLen, rest, payload)
 
                 mac <- liftIO $ LBS.hGet h ms
                 liftIO $ print ("got mac, valid?", verify mac is decrypted f)
