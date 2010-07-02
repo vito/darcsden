@@ -2,9 +2,11 @@ module DarcsDen.SSH.Sender where
 
 import Codec.Encryption.Modes
 import Control.Concurrent.Chan
+import Control.Monad (replicateM)
 import Data.LargeWord
 import Data.Word
 import System.IO
+import System.Random
 import qualified Codec.Encryption.AES as A
 import qualified Data.ByteString.Lazy as LBS
 
@@ -48,7 +50,11 @@ sender ms ss = do
             print ("starting encryption")
             sender ms (ss { senderEncrypting = True })
         Send msg -> do
-            let f = full msg
+            pad <- fmap (LBS.pack . map fromIntegral) $
+                replicateM (fromIntegral $ paddingLen msg) (randomRIO (0, 255 :: Int))
+
+            let f = full msg pad
+
             case ss of
                 GotKeys h os True cipher key iv hmac@(HMAC _ mac) -> do
                     print ("sending encrypted", os, f)
@@ -74,11 +80,11 @@ sender ms ss = do
                 | bs > 8 -> bs
             _ -> 8
 
-    full msg = doPacket $ do
+    full msg pad = doPacket $ do
         long (len msg)
         byte (paddingLen msg)
         raw msg
-        raw $ LBS.replicate (fromIntegral $ paddingLen msg) 0 -- TODO: random bytes
+        raw pad
 
     len :: LBS.ByteString -> Word32
     len msg = 1 + fromIntegral (LBS.length msg) + fromIntegral (paddingLen msg)
