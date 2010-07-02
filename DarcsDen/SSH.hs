@@ -14,31 +14,15 @@ import Network
 import System.IO
 import System.Process
 import System.Random
-import qualified Codec.Crypto.RSA as RSA
 import qualified Data.ByteString.Lazy as LBS
+import qualified Data.Map as M
 
 import DarcsDen.SSH.Packet
 import DarcsDen.SSH.Session
+import DarcsDen.SSH.Channel
+import DarcsDen.SSH.Crypto
+import DarcsDen.SSH.Sender
 import DarcsDen.Util
-
-
--- TODO
-publicKey :: RSA.PublicKey
-publicKey =
-    RSA.PublicKey 
-        { RSA.public_size = 256
-        , RSA.public_n = 22264354616748839793371934754569161142897612941965285596149987360144953208326796356453717675001731575219545394691388538940749670099556383405668117482892529781625855996189741266121323109727527862308367586357355189243549646929836937081239804615886825687604673195131331143170450694333917353609269194599742446976661101237576368164522767616017046956530665923258798398154948381819000171823540969180826711185515800660344303378249302149564654973507768287853232260359335067569212008613627417058706418944305108949512169096217759872483058995761543087735197788285732825544113542391342908985542317817388402993701845404095772508337
-        , RSA.public_e = 35
-        }
-
--- TODO
-privateKey :: RSA.PrivateKey
-privateKey =
-    RSA.PrivateKey
-        { RSA.private_size = 256
-        , RSA.private_n = 22264354616748839793371934754569161142897612941965285596149987360144953208326796356453717675001731575219545394691388538940749670099556383405668117482892529781625855996189741266121323109727527862308367586357355189243549646929836937081239804615886825687604673195131331143170450694333917353609269194599742446976661101237576368164522767616017046956530665923258798398154948381819000171823540969180826711185515800660344303378249302149564654973507768287853232260359335067569212008613627417058706418944305108949512169096217759872483058995761543087735197788285732825544113542391342908985542317817388402993701845404095772508337
-        , RSA.private_d = 12086363934806513030687621723908973191858704168495440752195707424078688884520260879217732452143797140833467499975325206853549820911187750991648406633570230452882607540788716687323003973852086553824542404022564245589355522619054337272673036791481419658985394020214151192006816091209840849102174705639860185501453547419256860812681568668526354566764091422726960435660917532308268940237514746735467477642128626284852148076869892247911732194998471059798383065430668611546686356489343426115111623377945748170349714418178909679489332573333184998552914079986971534330410189219567251310056359227985165212318461636305452088203
-        }
 
 version :: String
 version = "SSH-2.0-DarcsDen"
@@ -81,16 +65,16 @@ supportedLanguages :: String
 supportedLanguages = ""
 
 main :: IO ()
-main = start defaultConfig 5022
+main = start defaultSessionConfig defaultChannelConfig 5022
 
-start :: SessionConfig -> PortNumber -> IO ()
-start sc p = withSocketsDo $ do
+start :: SessionConfig -> ChannelConfig -> PortNumber -> IO ()
+start sc cc p = withSocketsDo $ do
     sock <- listenOn (PortNumber p)
     putStrLn $ "ssh server listening on port " ++ show p
-    waitLoop sc sock
+    waitLoop sc cc sock
 
-waitLoop :: SessionConfig -> Socket -> IO ()
-waitLoop sc s = do
+waitLoop :: SessionConfig -> ChannelConfig -> Socket -> IO ()
+waitLoop sc cc s = do
     (handle, hostName, port) <- accept s
     print ("got connection from", hostName, port)
     
@@ -114,6 +98,7 @@ waitLoop sc s = do
             (send (Send ourKEXInit) >> readLoop)
             (Initial
                 { ssConfig = sc
+                , ssChannelConfig = cc
                 , ssThem = handle
                 , ssSend = writeChan out
                 , ssPayload = LBS.empty
@@ -123,7 +108,7 @@ waitLoop sc s = do
                 , ssOutSeq = 0
                 })
 
-    waitLoop sc s
+    waitLoop sc cc s
   where
     pKEXInit :: LBS.ByteString -> Packet ()
     pKEXInit cookie = do
@@ -146,61 +131,6 @@ waitLoop sc s = do
 
         byte 0 -- first_kex_packet_follows (boolean)
         long 0
-
-    sender :: Chan SenderMessage -> SenderState -> IO ()
-    sender ms ss = do
-        m <- readChan ms
-        case m of
-            Prepare cipher key iv hmac -> do
-                print ("initiating encryption", key, iv)
-                sender ms (GotKeys (senderThem ss) (senderOutSeq ss) False cipher key iv hmac)
-            StartEncrypting -> do
-                print ("starting encryption")
-                sender ms (ss { senderEncrypting = True })
-            Send msg -> do
-                let f = full msg
-                case ss of
-                    GotKeys h os True cipher key iv hmac@(HMAC _ mac) -> do
-                        print ("sending encrypted", os, f)
-                        let (encrypted, newVector) = encrypt cipher key iv f
-                        LBS.hPut h . LBS.concat $
-                            [ encrypted
-                            , mac . doPacket $ long os >> raw f
-                            ]
-                        hFlush h
-                        sender ms $ ss
-                            { senderOutSeq = senderOutSeq ss + 1
-                            , senderVector = newVector
-                            }
-                    _ -> do
-                        print ("sending unencrypted", senderOutSeq ss, f)
-                        LBS.hPut (senderThem ss) f
-                        hFlush (senderThem ss)
-                        sender ms (ss { senderOutSeq = senderOutSeq ss + 1 })
-      where
-        blockSize =
-            case ss of
-                GotKeys { senderCipher = Cipher _ _ bs _ }
-                    | bs > 8 -> bs
-                _ -> 8
-
-        full msg = doPacket $ do
-            long (len msg)
-            byte (paddingLen msg)
-            raw msg
-            raw $ LBS.replicate (fromIntegral $ paddingLen msg) 0 -- TODO: random bytes
-
-        len :: LBS.ByteString -> Word32
-        len msg = 1 + fromIntegral (LBS.length msg) + fromIntegral (paddingLen msg)
-
-        paddingNeeded :: LBS.ByteString -> Word8
-        paddingNeeded msg = fromIntegral blockSize - (fromIntegral $ (5 + LBS.length msg) `mod` fromIntegral blockSize)
-
-        paddingLen :: LBS.ByteString -> Word8
-        paddingLen msg =
-            if paddingNeeded msg < 4
-                then paddingNeeded msg + fromIntegral blockSize
-                else paddingNeeded msg
 
 readLoop :: Session ()
 readLoop = do
@@ -245,7 +175,7 @@ kexInit = do
         imn = match (nameLists !! 4) (map fst supportedMACs)
 
     io $ print ("KEXINIT", theirKEXInit, ocn, icn, omn, imn)
-    modify (\(Initial c h s p cv sk is os) ->
+    modify (\(Initial c cc h s p cv sk is os) ->
         case
             ( lookup ocn supportedCiphers
             , lookup icn supportedCiphers
@@ -255,6 +185,7 @@ kexInit = do
             (Just oc, Just ic, Just om, Just im) ->
                 GotKEXInit
                     { ssConfig = c
+                    , ssChannelConfig = cc
                     , ssThem = h
                     , ssSend = s
                     , ssPayload = p
@@ -303,29 +234,21 @@ kexDHInit = do
             (head . toBlocks (cBlockSize oc) $ siv)
             (om sinteg)
 
-    modify (\(GotKEXInit c h s p cv sk is os ck _ ic _ im) ->
+    modify (\(GotKEXInit c cc h s p cv sk is os ck _ ic _ im) ->
         Final
             { ssConfig = c
+            , ssChannelConfig = cc
+            , ssChannels = M.empty
             , ssID = d
-            , ssSecret = k
             , ssThem = h
             , ssSend = s
             , ssPayload = p
-            , ssTheirVersion = cv
-            , ssOurKEXInit = sk
-            , ssInSeq = is
-            , ssOutSeq = os
-            , ssTheirKEXInit = ck
             , ssGotNEWKEYS = False
+            , ssInSeq = is
             , ssInCipher = ic
             , ssInHMAC = im cinteg
             , ssInKey = head . toBlocks (cKeySize ic) $ ckey
             , ssInVector = head . toBlocks (cBlockSize ic) $ civ
-            , ssTheirChannel = Nothing
-            , ssProcess = Nothing
-            , ssWindowSize = 2097152
-            , ssMaxPacketLength = 32768
-            , ssDataReceived = 0
             })
 
     let reply = doPacket (kexDHReply f (sign privateKey d))
@@ -408,34 +331,27 @@ userAuthRequest = do
 channelOpen :: Session ()
 channelOpen = do
     name <- readLBS
-    chanid <- readULong
+    them <- readULong
     windowSize <- readULong
     maxPacketLength <- readULong
 
-    io $ print ("channel open", name, chanid, windowSize, maxPacketLength)
-    modify (\s -> s
-        { ssTheirChannel = Just chanid
-        , ssWindowSize = windowSize
-        , ssMaxPacketLength = maxPacketLength
-        })
+    io $ print ("channel open", name, them, windowSize, maxPacketLength)
 
-    sendPacket $ do -- TODO
-        byte 91
-        long chanid
-        long 0 -- TODO
-        long windowSize
-        long maxPacketLength
+    us <- newChannelID
+    config <- gets ssChannelConfig
+    send <- gets ssSend
+    chan <- io $ newChannel config send us them windowSize maxPacketLength
+    modify (\s -> s
+        { ssChannels = M.insert us chan (ssChannels s) })
 
 channelRequest :: Session ()
 channelRequest = do
-    dest <- readULong
+    chan <- readULong >>= getChannel
     typ <- readLBS
     wantReply <- readBool
 
-    Just target <- gets ssTheirChannel
-    handler <- gets (scChannelRequest . ssConfig) >>= return . ($ wantReply)
+    let sendRequest = io . writeChan chan . Request wantReply
 
-    io $ print ("channel request", dest, typ, wantReply)
     case fromLBS typ of
         "pty-req" -> do
             term <- readString
@@ -444,104 +360,68 @@ channelRequest = do
             width <- readULong
             height <- readULong
             modes <- readString
-            handler (PseudoTerminal term cols rows width height modes)
+            sendRequest (PseudoTerminal term cols rows width height modes)
 
-        "x11-req" -> handler X11Forwarding
+        "x11-req" -> sendRequest X11Forwarding
 
-        "shell" -> handler Shell
+        "shell" -> sendRequest Shell
 
         "exec" -> do
             command <- readString
             io $ print ("execute command", command)
-            handler (Execute command)
+            sendRequest (Execute command)
 
         "subsystem" -> do
             name <- readString
             io $ print ("subsystem request", name)
-            handler (Subsystem name)
+            sendRequest (Subsystem name)
 
         "env" -> do
             name <- readString
             value <- readString
             io $ print ("environment request", name, value)
-            handler (Environment name value)
+            sendRequest (Environment name value)
 
         "window-change" -> do
             cols <- readULong
             rows <- readULong
             width <- readULong
             height <- readULong
-            handler (WindowChange cols rows width height)
+            sendRequest (WindowChange cols rows width height)
 
         "xon-xoff" -> do
             b <- readBool
-            handler (FlowControl b)
+            sendRequest (FlowControl b)
 
         "signal" -> do
             name <- readString
-            handler (Signal name)
+            sendRequest (Signal name)
 
         "exit-status" -> do
             status <- readULong
-            handler (ExitStatus status)
+            sendRequest (ExitStatus status)
 
         "exit-signal" -> do
             name <- readString
             dumped <- readBool
             msg <- readString
             lang <- readString
-            handler (ExitSignal name dumped msg lang)
+            sendRequest (ExitSignal name dumped msg lang)
 
-        u -> do
-            sshError $ "unknown channel request type: " ++ u
-            when wantReply channelFail
+        u -> sendRequest (Unknown u)
+
+    io $ print ("request processed")
 
 dataReceived :: Session ()
 dataReceived = do
-    chanid <- readULong
+    io $ print "got data"
+    chan <- readULong >>= getChannel
     msg <- readLBS
+    io $ writeChan chan (Data msg)
+    io $ print "data processed"
 
-    modify (\s -> s
-        { ssDataReceived =
-            ssDataReceived s + fromIntegral (LBS.length msg)
-        })
-
-    -- Adjust window size if needed
-    rcvd <- gets ssDataReceived
-    max <- gets ssMaxPacketLength
-    winSize <- gets ssWindowSize
-    when (rcvd + (max * 4) >= winSize && winSize + (max * 4) <= 2^32 - 1) $ do
-        modify (\s -> s { ssWindowSize = winSize + (max * 4) })
-        sendPacket $ do
-            byte 93
-            long chanid
-            long (max * 4)
-
-    -- Direct input to process's stdin
-    proc <- gets ssProcess
-    case proc of
-        Nothing -> io $ print ("got unhandled data", chanid)
-        Just (Process _ stdin _ _) -> do
-            io $ print ("redirecting data", chanid, LBS.length msg)
-            io $ LBS.hPut stdin msg
-            io $ hFlush stdin
 
 eofReceived :: Session ()
 eofReceived = do
-    chanid <- readULong
-
-    modify (\s -> s { ssDataReceived = 0 })
-
-    -- Close process's stdin to indicate EOF
-    proc <- gets ssProcess
-    case proc of
-        Nothing -> io $ print ("got unhandled eof", chanid)
-        Just (Process _ stdin _ _) -> do
-            io $ print ("redirecting eof", chanid)
-            io $ hClose stdin
-
-generator :: Integer
-generator = 2
-
-safePrime :: Integer
-safePrime = 179769313486231590770839156793787453197860296048756011706444423684197180216158519368947833795864925541502180565485980503646440548199239100050792877003355816639229553136239076508735759914822574862575007425302077447712589550957937778424442426617334727629299387668709205606050270810842907692932019128194467627007
+    chan <- readULong >>= getChannel
+    io $ writeChan chan EOF
