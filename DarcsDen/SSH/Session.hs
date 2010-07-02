@@ -137,17 +137,17 @@ decrypt m
     s <- get
     case s of
         Final
-            { ssInCipher = Cipher AES CBC bs 16 -- TODO: dynamic key size (also below)
+            { ssInCipher = Cipher AES CBC bs ks
             , ssInKey = key
             , ssInVector = vector
             } -> do
                 let blocks = toBlocks bs m
-                    decrypted =
-                        unCbc
-                            A.decrypt
-                            (fromIntegral vector)
-                            (fromIntegral key :: Word128) -- TODO
-                            blocks
+                    ksUnCbc =
+                        case ks of
+                            16 -> unCbc A.decrypt (fromIntegral vector) (fromIntegral key :: Word128)
+                            24 -> unCbc A.decrypt (fromIntegral vector) (fromIntegral key :: Word192)
+                            32 -> unCbc A.decrypt (fromIntegral vector) (fromIntegral key :: Word256)
+                    decrypted = ksUnCbc blocks
 
                 modify (\ss -> ss { ssInVector = fromIntegral $ last blocks })
                 return (fromBlocks bs decrypted)

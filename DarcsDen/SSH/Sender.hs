@@ -93,17 +93,16 @@ sender ms ss = do
             else paddingNeeded msg
 
 encrypt :: Cipher -> Integer -> Integer -> LBS.ByteString -> (LBS.ByteString, Integer)
-encrypt (Cipher AES CBC bs 16) key vector m =
+encrypt (Cipher AES CBC bs ks) key vector m =
     ( fromBlocks bs encrypted
     , case encrypted of
           (_:_) -> fromIntegral $ last encrypted
           [] -> error ("encrypted data empty for `" ++ show m ++ "' in encrypt") vector
     )
   where
-    encrypted =
-        cbc
-            A.encrypt
-            (fromIntegral vector)
-            (fromIntegral key :: Word128) -- TODO
-            (toBlocks bs m)
-
+    ksCbc =
+        case ks of
+            16 -> cbc A.encrypt (fromIntegral vector) (fromIntegral key :: Word128)
+            24 -> cbc A.encrypt (fromIntegral vector) (fromIntegral key :: Word192)
+            32 -> cbc A.encrypt (fromIntegral vector) (fromIntegral key :: Word256)
+    encrypted = ksCbc (toBlocks bs m)
