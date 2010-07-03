@@ -10,7 +10,6 @@ import Data.Digest.Pure.SHA
 import Data.Word
 import System.IO
 import System.Process
-import qualified Codec.Crypto.RSA as RSA
 import qualified Data.ByteString.Lazy as LBS
 
 import DarcsDen.Util
@@ -57,19 +56,6 @@ mpint i = netLBS (if LBS.head enc .&. 128 > 0
                       else enc)
   where
     enc = LBS.pack (i2osp 0 i)
-
-blob :: RSA.PublicKey -> LBS.ByteString
-blob pk = LBS.concat
-    [ netString "ssh-rsa"
-    , mpint (RSA.public_e pk)
-    , mpint (RSA.public_n pk)
-    ]
-
-sign :: RSA.PrivateKey -> LBS.ByteString -> LBS.ByteString
-sign pk m = LBS.concat
-    [ netString "ssh-rsa"
-    , netLBS (RSA.rsassa_pkcs1_v1_5_sign RSA.ha_SHA1 pk m)
-    ]
 
 -- warning: don't try to send this; it's an infinite bytestring.
 -- take whatever length the key needs.

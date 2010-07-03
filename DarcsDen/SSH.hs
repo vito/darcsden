@@ -251,7 +251,8 @@ kexDHInit = do
             , ssInVector = head . toBlocks (cBlockSize ic) $ civ
             })
 
-    let reply = doPacket (kexDHReply f (sign privateKey d))
+    signed <- io $ sign privateKey d
+    let reply = doPacket (kexDHReply f signed)
     io $ print ("KEXDH_REPLY", reply)
 
     send (Send reply)
