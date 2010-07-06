@@ -8,20 +8,19 @@ import Data.Digest.Pure.SHA (bytestringDigest, sha1)
 import Data.HMAC (hmac_md5, hmac_sha1)
 import Data.List (intercalate)
 import Data.List.Split (splitOn)
-import Data.Word
 import OpenSSL.BN
 import Network
 import System.IO
-import System.Process
 import System.Random
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Map as M
 
-import DarcsDen.SSH.Packet
-import DarcsDen.SSH.Session
 import DarcsDen.SSH.Channel
 import DarcsDen.SSH.Crypto
+import DarcsDen.SSH.NetReader
+import DarcsDen.SSH.Packet
 import DarcsDen.SSH.Sender
+import DarcsDen.SSH.Session
 import DarcsDen.Util
 
 version :: String
@@ -136,7 +135,7 @@ readLoop :: Session ()
 readLoop = do
     getPacket
 
-    msg <- readByte
+    msg <- net readByte
 
     if msg == 1 || msg == 97 -- disconnect || close
         then io $ putStrLn "disconnected"
@@ -163,10 +162,10 @@ readLoop = do
 
 kexInit :: Session ()
 kexInit = do
-    cookie <- readBytes 16
-    nameLists <- replicateM 10 readLBS >>= return . map (splitOn "," . fromLBS)
-    kpf <- readByte
-    dummy <- readULong
+    cookie <- net $ readBytes 16
+    nameLists <- replicateM 10 (net readLBS) >>= return . map (splitOn "," . fromLBS)
+    kpf <- net readByte
+    dummy <- net readULong
 
     let theirKEXInit = reconstruct cookie nameLists kpf dummy
         ocn = match (nameLists !! 3) (map fst supportedCiphers)
@@ -211,9 +210,8 @@ kexInit = do
 
 kexDHInit :: Session ()
 kexDHInit = do
-    len <- fmap fromIntegral readULong
-    e <- fmap unmpint $ readBytes len
-    io $ print ("KEXDH_INIT", len, e)
+    e <- net readInteger
+    io $ print ("KEXDH_INIT", e)
 
     y <- io $ randIntegerOneToNMinusOne ((safePrime - 1) `div` 2) -- q?
 
@@ -286,16 +284,16 @@ newKeys = do
 
 serviceRequest :: Session ()
 serviceRequest = do
-    name <- readLBS
+    name <- net readLBS
     sendPacket $ do
         byte 6
         byteString name
 
 userAuthRequest :: Session ()
 userAuthRequest = do
-    user <- readLBS
-    service <- readLBS
-    method <- readLBS
+    user <- net readLBS
+    service <- net readLBS
+    method <- net readLBS
 
     auth <- gets (scAuthorize . ssConfig)
     authMethods <- gets (scAuthMethods . ssConfig)
@@ -306,14 +304,14 @@ userAuthRequest = do
             return False
 
         "publickey" -> do
-            0 <- readByte
-            algorithm <- readLBS
-            key <- readLBS
+            0 <- net readByte
+            algorithm <- net readLBS
+            key <- net readLBS
             auth (PublicKey (fromLBS user) (fromLBS algorithm) key)
 
         "password" -> do
-            0 <- readByte
-            password <- readLBS
+            0 <- net readByte
+            password <- net readLBS
             auth (Password (fromLBS user) (fromLBS password))
 
         u -> error $ "unhandled authorization type: " ++ u
@@ -331,10 +329,10 @@ userAuthRequest = do
 
 channelOpen :: Session ()
 channelOpen = do
-    name <- readLBS
-    them <- readULong
-    windowSize <- readULong
-    maxPacketLength <- readULong
+    name <- net readLBS
+    them <- net readULong
+    windowSize <- net readULong
+    maxPacketLength <- net readULong
 
     io $ print ("channel open", name, them, windowSize, maxPacketLength)
 
@@ -347,20 +345,20 @@ channelOpen = do
 
 channelRequest :: Session ()
 channelRequest = do
-    chan <- readULong >>= getChannel
-    typ <- readLBS
-    wantReply <- readBool
+    chan <- net readULong >>= getChannel
+    typ <- net readLBS
+    wantReply <- net readBool
 
     let sendRequest = io . writeChan chan . Request wantReply
 
     case fromLBS typ of
         "pty-req" -> do
-            term <- readString
-            cols <- readULong
-            rows <- readULong
-            width <- readULong
-            height <- readULong
-            modes <- readString
+            term <- net readString
+            cols <- net readULong
+            rows <- net readULong
+            width <- net readULong
+            height <- net readULong
+            modes <- net readString
             sendRequest (PseudoTerminal term cols rows width height modes)
 
         "x11-req" -> sendRequest X11Forwarding
@@ -368,45 +366,45 @@ channelRequest = do
         "shell" -> sendRequest Shell
 
         "exec" -> do
-            command <- readString
+            command <- net readString
             io $ print ("execute command", command)
             sendRequest (Execute command)
 
         "subsystem" -> do
-            name <- readString
+            name <- net readString
             io $ print ("subsystem request", name)
             sendRequest (Subsystem name)
 
         "env" -> do
-            name <- readString
-            value <- readString
+            name <- net readString
+            value <- net readString
             io $ print ("environment request", name, value)
             sendRequest (Environment name value)
 
         "window-change" -> do
-            cols <- readULong
-            rows <- readULong
-            width <- readULong
-            height <- readULong
+            cols <- net readULong
+            rows <- net readULong
+            width <- net readULong
+            height <- net readULong
             sendRequest (WindowChange cols rows width height)
 
         "xon-xoff" -> do
-            b <- readBool
+            b <- net readBool
             sendRequest (FlowControl b)
 
         "signal" -> do
-            name <- readString
+            name <- net readString
             sendRequest (Signal name)
 
         "exit-status" -> do
-            status <- readULong
+            status <- net readULong
             sendRequest (ExitStatus status)
 
         "exit-signal" -> do
-            name <- readString
-            dumped <- readBool
-            msg <- readString
-            lang <- readString
+            name <- net readString
+            dumped <- net readBool
+            msg <- net readString
+            lang <- net readString
             sendRequest (ExitSignal name dumped msg lang)
 
         u -> sendRequest (Unknown u)
@@ -416,13 +414,13 @@ channelRequest = do
 dataReceived :: Session ()
 dataReceived = do
     io $ print "got data"
-    chan <- readULong >>= getChannel
-    msg <- readLBS
+    chan <- net readULong >>= getChannel
+    msg <- net readLBS
     io $ writeChan chan (Data msg)
     io $ print "data processed"
 
 
 eofReceived :: Session ()
 eofReceived = do
-    chan <- readULong >>= getChannel
+    chan <- net readULong >>= getChannel
     io $ writeChan chan EOF

@@ -2,27 +2,22 @@
 module DarcsDen.SSH.Session where
 
 import Codec.Encryption.Modes
-import Control.Concurrent (forkIO)
 import Control.Concurrent.Chan
 import "mtl" Control.Monad.State
 import "mtl" Control.Monad.Trans (liftIO)
 import Data.Binary (decode, encode)
-import Data.Int
 import Data.LargeWord
 import Data.Word
-import System.Exit
 import System.IO
-import System.Process
 import qualified Codec.Encryption.AES as A
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Map as M
 
 import DarcsDen.SSH.Channel
 import DarcsDen.SSH.Crypto
+import DarcsDen.SSH.NetReader
 import DarcsDen.SSH.Packet
 import DarcsDen.SSH.Sender
-import DarcsDen.Util (fromLBS)
-
 
 type Session = StateT SessionState IO
 
@@ -93,29 +88,14 @@ defaultSessionConfig =
             {-return $ u == "test" && p == "test"-}
         }
 
-readByte :: Session Word8
-readByte = fmap LBS.head (readBytes 1)
+net :: NetReader a -> Session a
+net r = do
+    pl <- gets ssPayload
 
-readLong :: Session Int32
-readLong = fmap decode (readBytes 4)
+    let (res, new) = runState r pl
 
-readULong :: Session Word32
-readULong = fmap decode (readBytes 4)
-
-readBytes :: Int -> Session LBS.ByteString
-readBytes n = do
-    p <- gets ssPayload
-    modify (\s -> s { ssPayload = LBS.drop (fromIntegral n) p })
-    return (LBS.take (fromIntegral n) p)
-
-readLBS :: Session LBS.ByteString
-readLBS = readULong >>= readBytes . fromIntegral
-
-readString :: Session String
-readString = fmap fromLBS readLBS
-
-readBool :: Session Bool
-readBool = readByte >>= return . (== 1)
+    modify (\s -> s { ssPayload = new })
+    return res
 
 newChannelID :: Session Word32
 newChannelID = gets ssChannels >>= return . findNext . M.keys

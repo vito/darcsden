@@ -2,14 +2,12 @@
 module DarcsDen.SSH.Packet where
 
 import Codec.Utils (fromOctets, i2osp)
-import "mtl" Control.Monad.State
 import "mtl" Control.Monad.Writer
 import Data.Binary (encode)
 import Data.Bits ((.&.))
 import Data.Digest.Pure.SHA
 import Data.Word
 import System.IO
-import System.Process
 import qualified Data.ByteString.Lazy as LBS
 
 import DarcsDen.Util
