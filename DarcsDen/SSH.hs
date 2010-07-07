@@ -36,14 +36,9 @@ supportedKeyAlgorithms = ["ssh-rsa", "ssh-dss"]
 
 supportedCiphers :: [(String, Cipher)]
 supportedCiphers =
-    -- TODO: ctr
-    [ --("aes256-ctr", aesCipher CTR 32)
-      ("aes256-cbc", aesCipher CBC 32)
-    {-, ("aes192-ctr", aesCipher CTR 24)-}
+    [ ("aes256-cbc", aesCipher CBC 32)
     , ("aes192-cbc", aesCipher CBC 24)
-    {-, ("aes128-ctr", aesCipher CTR 16)-}
     , ("aes128-cbc", aesCipher CBC 16)
-    {-, ("blowfish-cbc", 16)-}
     ]
   where
     aesCipher m s =
