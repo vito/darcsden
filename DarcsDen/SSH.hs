@@ -210,7 +210,13 @@ kexDHInit = do
     let f = modexp generator y safePrime
         k = modexp e y safePrime
 
-    d <- digest e f k
+    keyPair <- gets (scKeyPair . ssConfig)
+
+    let pub =
+            case keyPair of
+                RSAKeyPair { rprivPub = p } -> p
+                DSAKeyPair { dprivPub = p } -> p
+    d <- digest e f k pub
 
     let [civ, siv, ckey, skey, cinteg, sinteg] = map (makeKey k d) ['A'..'F']
     io $ print ("DECRYPT KEY/IV", LBS.take 16 ckey, LBS.take 16 civ)
@@ -242,32 +248,31 @@ kexDHInit = do
             , ssUser = Nothing
             })
 
-    signed <- io $ sign privateKey d
-    let reply = doPacket (kexDHReply f signed)
+    signed <- io $ sign keyPair d
+    let reply = doPacket (kexDHReply f signed pub)
     io $ print ("KEXDH_REPLY", reply)
 
     send (Send reply)
   where
-    kexDHReply f s = do
+    kexDHReply f s p = do
         byte 31
-        byteString (blob publicKey)
-        raw (mpint f)
+        byteString (blob p)
+        integer f
         byteString s
 
-    digest e f k = do
+    digest e f k p = do
         cv <- gets ssTheirVersion
         ck <- gets ssTheirKEXInit
         sk <- gets ssOurKEXInit
-        return . bytestringDigest . sha1 $ LBS.concat
-            [ netString cv
-            , netString version
-            , netLBS ck
-            , netLBS sk
-            , netLBS (blob publicKey)
-            , mpint e
-            , mpint f
-            , mpint k
-            ]
+        return . bytestringDigest . sha1 . doPacket $ do
+            string cv
+            string version
+            byteString ck
+            byteString sk
+            byteString (blob p)
+            integer e
+            integer f
+            integer k
 
 newKeys :: Session ()
 newKeys = do

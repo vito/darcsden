@@ -8,10 +8,12 @@ import Snap.Http.Server
 import System.FilePath
 import System.Process
 import qualified Codec.Binary.Base64.String as Base64
+import qualified Data.ByteString.Lazy as LBS
 
 import DarcsDen.Handler
 import DarcsDen.SSH.Channel
 import DarcsDen.SSH.Crypto
+import DarcsDen.SSH.NetReader
 import DarcsDen.SSH.Session
 import DarcsDen.State.Repository
 import DarcsDen.State.User
@@ -27,13 +29,23 @@ main = do
     putStrLn "                        or http://[::1]:8080/"
     putStrLn "                        or whatever!"
 
-    forkIO startSSH
+    kp <- readKeyPair
+    forkIO (startSSH kp)
     startHTTP
   where
-    startSSH = SSH.start
+    readKeyPair = do
+        s <- LBS.readFile (userRoot </> ".keypair")
+        return $ flip evalState s $ do
+            e <- readInteger
+            n <- readInteger
+            d <- readInteger
+            return (RSAKeyPair (RSAPublicKey e n) d)
+
+    startSSH kp = SSH.start
         (SessionConfig
             { scAuthMethods = ["publickey"]
             , scAuthorize = sshAuthorize
+            , scKeyPair = kp
             })
         (ChannelConfig
             { ccRequestHandler = channelRequest

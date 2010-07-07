@@ -70,6 +70,7 @@ data SessionConfig =
     SessionConfig
         { scAuthMethods :: [String]
         , scAuthorize :: Authorize -> Session Bool
+        , scKeyPair :: KeyPair
         }
 
 data Authorize
@@ -85,6 +86,7 @@ defaultSessionConfig =
     SessionConfig
         { scAuthMethods = ["publickey"]
         , scAuthorize = const (return True)
+        , scKeyPair = RSAKeyPair (RSAPublicKey 0 0) 0
         {-\(Password u p) ->-}
             {-return $ u == "test" && p == "test"-}
         }

@@ -72,18 +72,16 @@ fromBlocks :: Integral a => Int -> [a] -> LBS.ByteString
 fromBlocks bs = LBS.concat . map (LBS.pack . i2osp bs)
 
 blob :: PublicKey -> LBS.ByteString
-blob (RSAPublicKey e n) = LBS.concat
-    [ netString "ssh-rsa"
-    , mpint e
-    , mpint n
-    ]
-blob (DSAPublicKey p q g y) = LBS.concat
-    [ netString "ssh-dss"
-    , mpint p
-    , mpint q
-    , mpint g
-    , mpint y
-    ]
+blob (RSAPublicKey e n) = doPacket $ do
+    string "ssh-rsa"
+    integer e
+    integer n
+blob (DSAPublicKey p q g y) = doPacket $ do
+    string "ssh-dss"
+    integer p
+    integer q
+    integer g
+    integer y
 
 blobToKey :: LBS.ByteString -> PublicKey
 blobToKey s = flip evalState s $ do

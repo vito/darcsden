@@ -21,6 +21,9 @@ byte = tell . encode
 long :: Word32 -> Packet ()
 long = tell . encode
 
+integer :: Integer -> Packet ()
+integer = tell . mpint
+
 byteString :: LBS.ByteString -> Packet ()
 byteString = tell . netLBS
 
