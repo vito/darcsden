@@ -97,14 +97,14 @@ channelRequest wr (Execute cmd) =
 
         case muser of
             Just (User { uID = Just uid }) ->
-                case map saneName (splitDirectories p) of
-                    [ownerName, repoName] | ownerName /= "/" -> do
+                case takeWhile (not . null) . map saneName . splitDirectories $ p of
+                    [ownerName, repoName] -> do
                         mrepo <- getRepository (ownerName, repoName)
                         case mrepo of
                             Just repo | uid `elem` rMembers repo ->
                                 return (Just $ repoDir ownerName repoName)
                             _ -> failWith "invalid repository"
-                    [repoName] | repoName /= "/" -> do
+                    [repoName] -> do
                         mrepo <- getRepository (userName, repoName)
                         case mrepo of
                             Just _ -> return (Just $ repoDir userName repoName)
