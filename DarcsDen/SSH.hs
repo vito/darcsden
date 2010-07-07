@@ -305,9 +305,9 @@ userAuthRequest = do
 
         "publickey" -> do
             0 <- net readByte
-            algorithm <- net readLBS
+            net readLBS
             key <- net readLBS
-            auth (PublicKey (fromLBS user) (fromLBS algorithm) key)
+            auth (PublicKey (fromLBS user) (blobToKey key))
 
         "password" -> do
             0 <- net readByte

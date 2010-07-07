@@ -115,6 +115,7 @@ blobToKey s = flip evalState s $ do
         "ssh-dss" -> do
             [p, q, g, y] <- replicateM 4 readInteger
             return $ DSAPublicKey p q g y
+        u -> error $ "unknown public key format: " ++ u
 
 sign :: KeyPair -> LBS.ByteString -> IO LBS.ByteString
 sign (RSAKeyPair _ n d) m = return $ LBS.concat

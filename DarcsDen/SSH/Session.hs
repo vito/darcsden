@@ -73,7 +73,7 @@ data SessionConfig =
 
 data Authorize
     = Password String String
-    | PublicKey String String LBS.ByteString
+    | PublicKey String PublicKey
 
 instance Sender Session where
     send m = gets ssSend >>= io . ($ m)
