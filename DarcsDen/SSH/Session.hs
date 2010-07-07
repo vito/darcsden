@@ -13,11 +13,13 @@ import qualified Codec.Encryption.AES as A
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Map as M
 
+import DarcsDen.Debug
 import DarcsDen.SSH.Channel
 import DarcsDen.SSH.Crypto
 import DarcsDen.SSH.NetReader
 import DarcsDen.SSH.Packet
 import DarcsDen.SSH.Sender
+
 
 type Session = StateT SessionState IO
 
@@ -155,7 +157,7 @@ getPacket = do
                 let packetLen = decode (LBS.take 4 first) :: Word32
                     paddingLen = decode (LBS.drop 4 first) :: Word8
 
-                liftIO $ print ("got packet", is, first, packetLen, paddingLen)
+                dump ("got packet", is, first, packetLen, paddingLen)
 
                 restEnc <- liftIO $ LBS.hGet h (fromIntegral packetLen - firstChunk + 4)
                 rest <- decrypt restEnc
@@ -164,7 +166,7 @@ getPacket = do
                     payload = extract packetLen paddingLen decrypted
 
                 mac <- liftIO $ LBS.hGet h ms
-                liftIO $ print ("got mac, valid?", verify mac is decrypted f)
+                dump ("got mac, valid?", verify mac is decrypted f)
 
                 modify (\ss -> ss { ssPayload = payload })
         _ -> do

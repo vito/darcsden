@@ -10,8 +10,10 @@ import System.Random
 import qualified Codec.Encryption.AES as A
 import qualified Data.ByteString.Lazy as LBS
 
+import DarcsDen.Debug
 import DarcsDen.SSH.Crypto
 import DarcsDen.SSH.Packet
+
 
 data SenderState
     = NoKeys
@@ -44,10 +46,10 @@ sender ms ss = do
     m <- readChan ms
     case m of
         Prepare cipher key iv hmac -> do
-            print ("initiating encryption", key, iv)
+            dump ("initiating encryption", key, iv)
             sender ms (GotKeys (senderThem ss) (senderOutSeq ss) False cipher key iv hmac)
         StartEncrypting -> do
-            print ("starting encryption")
+            dump ("starting encryption")
             sender ms (ss { senderEncrypting = True })
         Send msg -> do
             pad <- fmap (LBS.pack . map fromIntegral) $
@@ -57,7 +59,7 @@ sender ms ss = do
 
             case ss of
                 GotKeys h os True cipher key iv hmac@(HMAC _ mac) -> do
-                    print ("sending encrypted", os, f)
+                    dump ("sending encrypted", os, f)
                     let (encrypted, newVector) = encrypt cipher key iv f
                     LBS.hPut h . LBS.concat $
                         [ encrypted
@@ -69,7 +71,7 @@ sender ms ss = do
                         , senderVector = newVector
                         }
                 _ -> do
-                    print ("sending unencrypted", senderOutSeq ss, f)
+                    dump ("sending unencrypted", senderOutSeq ss, f)
                     LBS.hPut (senderThem ss) f
                     hFlush (senderThem ss)
                     sender ms (ss { senderOutSeq = senderOutSeq ss + 1 })

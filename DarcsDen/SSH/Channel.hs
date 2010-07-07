@@ -11,6 +11,7 @@ import System.IO
 import System.Process
 import qualified Data.ByteString.Lazy as LBS
 
+import DarcsDen.Debug
 import DarcsDen.SSH.Packet
 import DarcsDen.SSH.Sender
 
@@ -85,7 +86,7 @@ newChannel :: ChannelConfig -> (SenderMessage -> IO ()) -> Word32 -> Word32 -> W
 newChannel config send us them winSize maxPacket user = do
     chan <- newChan
 
-    print ("new channel", winSize, maxPacket)
+    dump ("new channel", winSize, maxPacket)
     forkIO $ evalStateT (do
         sendPacket $ do
             byte 91
@@ -113,7 +114,7 @@ newChannel config send us them winSize maxPacket user = do
 chanLoop :: Chan ChannelMessage -> Channel ()
 chanLoop c = do
     msg <- io (readChan c)
-    io $ print ("got channel message", msg)
+    dump ("got channel message", msg)
 
     chanid <- gets csID
     case msg of
@@ -138,9 +139,9 @@ chanLoop c = do
             -- Direct input to process's stdin
             proc <- gets csProcess
             case proc of
-                Nothing -> io $ print ("got unhandled data", chanid)
+                Nothing -> dump ("got unhandled data", chanid)
                 Just (Process _ stdin _ _) -> do
-                    io $ print ("redirecting data", chanid, LBS.length msg)
+                    dump ("redirecting data", chanid, LBS.length msg)
                     io $ LBS.hPut stdin msg
                     io $ hFlush stdin
         EOF -> do
@@ -149,9 +150,9 @@ chanLoop c = do
             -- Close process's stdin to indicate EOF
             proc <- gets csProcess
             case proc of
-                Nothing -> io $ print ("got unhandled eof")
+                Nothing -> dump ("got unhandled eof")
                 Just (Process _ stdin _ _) -> do
-                    io $ print ("redirecting eof", chanid)
+                    dump ("redirecting eof", chanid)
                     io $ hClose stdin
 
 
@@ -187,16 +188,16 @@ redirectHandle f d h = get >>= io . forkIO . evalStateT redirectLoop >> return (
         target <- gets csTheirID
         Just (Process proc _ _ _) <- gets csProcess
 
-        io $ print "reading..."
+        dump "reading..."
         l <- io $ hGetAvailable h
-        io $ print ("read data from handle", l)
+        dump ("read data from handle", l)
 
         if not (null l)
             then sendPacket $ d >> string l
             else return ()
 
         done <- io $ hIsEOF h
-        io $ print ("eof handle?", done)
+        dump ("eof handle?", done)
         if done
             then io $ writeChan f ()
             else redirectLoop
@@ -218,7 +219,7 @@ spawnProcess cmd = do
     (stdin, stdout, stderr, proc) <- io cmd
     modify (\s -> s { csProcess = Just $ Process proc stdin stdout stderr })
 
-    io $ print ("command spawned")
+    dump ("command spawned")
     sendPacket (byte 99 >> long target) -- success
 
     -- redirect stdout and stderr, using a channel to signal completion
@@ -234,9 +235,9 @@ spawnProcess cmd = do
         readChan done
         readChan done
 
-        io $ print "done reading output! waiting for process..."
+        dump "done reading output! waiting for process..."
         exit <- io $ waitForProcess proc
-        io $ print ("process exited", exit)
+        dump ("process exited", exit)
 
         flip evalStateT s $ do
             sendPacket $ do

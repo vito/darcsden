@@ -104,7 +104,6 @@ sign (RSAKeyPair (RSAPublicKey _ n) d) m = return $ LBS.concat
     ]
 sign (DSAKeyPair (DSAPublicKey p q g y) x) m = do
     (r, s) <- DSA.signDigestedDataWithDSA (DSA.tupleToDSAKeyPair (p, q, g, y, x)) digest
-    print ("r, s", r, s)
     return $ LBS.concat
         [ netString "ssh-dss"
         , netLBS $ LBS.concat

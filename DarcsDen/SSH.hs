@@ -15,6 +15,7 @@ import System.Random
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Map as M
 
+import DarcsDen.Debug
 import DarcsDen.SSH.Channel
 import DarcsDen.SSH.Crypto
 import DarcsDen.SSH.NetReader
@@ -22,6 +23,7 @@ import DarcsDen.SSH.Packet
 import DarcsDen.SSH.Sender
 import DarcsDen.SSH.Session
 import DarcsDen.Util
+
 
 version :: String
 version = "SSH-2.0-DarcsDen"
@@ -67,7 +69,7 @@ start sc cc p = withSocketsDo $ do
 waitLoop :: SessionConfig -> ChannelConfig -> Socket -> IO ()
 waitLoop sc cc s = do
     (handle, hostName, port) <- accept s
-    print ("got connection from", hostName, port)
+    dump ("got connection from", hostName, port)
     
     forkIO $ do
         -- send SSH server version
@@ -165,7 +167,7 @@ kexInit = do
         omn = match (nameLists !! 5) (map fst supportedMACs)
         imn = match (nameLists !! 4) (map fst supportedMACs)
 
-    io $ print ("KEXINIT", theirKEXInit, ocn, icn, omn, imn)
+    dump ("KEXINIT", theirKEXInit, ocn, icn, omn, imn)
     modify (\(Initial c cc h s p cv sk is os) ->
         case
             ( lookup ocn supportedCiphers
@@ -203,7 +205,7 @@ kexInit = do
 kexDHInit :: Session ()
 kexDHInit = do
     e <- net readInteger
-    io $ print ("KEXDH_INIT", e)
+    dump ("KEXDH_INIT", e)
 
     y <- io $ randIntegerOneToNMinusOne ((safePrime - 1) `div` 2) -- q?
 
@@ -219,7 +221,7 @@ kexDHInit = do
     d <- digest e f k pub
 
     let [civ, siv, ckey, skey, cinteg, sinteg] = map (makeKey k d) ['A'..'F']
-    io $ print ("DECRYPT KEY/IV", LBS.take 16 ckey, LBS.take 16 civ)
+    dump ("DECRYPT KEY/IV", LBS.take 16 ckey, LBS.take 16 civ)
 
     oc <- gets ssOutCipher
     om <- gets ssOutHMACPrep
@@ -250,7 +252,7 @@ kexDHInit = do
 
     signed <- io $ sign keyPair d
     let reply = doPacket (kexDHReply f signed pub)
-    io $ print ("KEXDH_REPLY", reply)
+    dump ("KEXDH_REPLY", reply)
 
     send (Send reply)
   where
@@ -296,7 +298,7 @@ userAuthRequest = do
     auth <- gets (scAuthorize . ssConfig)
     authMethods <- gets (scAuthMethods . ssConfig)
 
-    io $ print ("userauth attempt", user, service, method)
+    dump ("userauth attempt", user, service, method)
     check <- case fromLBS method of
         x | not (x `elem` authMethods) ->
             return False
@@ -334,7 +336,7 @@ channelOpen = do
     windowSize <- net readULong
     maxPacketLength <- net readULong
 
-    io $ print ("channel open", name, them, windowSize, maxPacketLength)
+    dump ("channel open", name, them, windowSize, maxPacketLength)
 
     us <- newChannelID
     config <- gets ssChannelConfig
@@ -368,18 +370,18 @@ channelRequest = do
 
         "exec" -> do
             command <- net readString
-            io $ print ("execute command", command)
+            dump ("execute command", command)
             sendRequest (Execute command)
 
         "subsystem" -> do
             name <- net readString
-            io $ print ("subsystem request", name)
+            dump ("subsystem request", name)
             sendRequest (Subsystem name)
 
         "env" -> do
             name <- net readString
             value <- net readString
-            io $ print ("environment request", name, value)
+            dump ("environment request", name, value)
             sendRequest (Environment name value)
 
         "window-change" -> do
@@ -410,15 +412,15 @@ channelRequest = do
 
         u -> sendRequest (Unknown u)
 
-    io $ print ("request processed")
+    dump ("request processed")
 
 dataReceived :: Session ()
 dataReceived = do
-    io $ print "got data"
+    dump "got data"
     chan <- net readULong >>= getChannel
     msg <- net readLBS
     io $ writeChan chan (Data msg)
-    io $ print "data processed"
+    dump "data processed"
 
 
 eofReceived :: Session ()

@@ -83,7 +83,7 @@ sshAuthorize (PublicKey name key) = do
 channelRequest :: Bool -> ChannelRequest -> Channel ()
 channelRequest wr (Execute cmd) =
     case words cmd of
-        ["darcs", "transfer-mode", "--repodir", repo] -> do
+        ["darcs", "transfer-mode", "--repodir", repo] ->
             saneRepo repo >>= maybe (return ()) darcsTransferMode
         ["darcs", "apply", "--all", "--repodir", repo] ->
             saneRepo repo >>= maybe (return ()) darcsApply
