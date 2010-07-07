@@ -1,7 +1,6 @@
-{-# LANGUAGE PackageImports #-}
 module DarcsDen.SSH.NetReader where
 
-import "mtl" Control.Monad.State
+import Control.Monad.Trans.State
 import Data.Binary (decode)
 import Data.Int
 import Data.Word

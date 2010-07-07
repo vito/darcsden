@@ -1,10 +1,10 @@
-{-# LANGUAGE PackageImports, TypeSynonymInstances #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 module DarcsDen.SSH.Session where
 
 import Codec.Encryption.Modes
 import Control.Concurrent.Chan
-import "mtl" Control.Monad.State
-import "mtl" Control.Monad.Trans (liftIO)
+import Control.Monad.IO.Class
+import Control.Monad.Trans.State
 import Data.Binary (decode, encode)
 import Data.LargeWord
 import Data.Word
@@ -63,6 +63,7 @@ data SessionState
         , ssInHMAC :: HMAC
         , ssInKey :: Integer
         , ssInVector :: Integer
+        , ssUser :: Maybe String
         }
 
 data SessionConfig =

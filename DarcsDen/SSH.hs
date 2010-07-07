@@ -1,9 +1,9 @@
-{-# LANGUAGE PackageImports #-}
-{-module DarcsDen.SSH where-}
+module DarcsDen.SSH where
 
 import Control.Concurrent (forkIO)
 import Control.Concurrent.Chan
-import "mtl" Control.Monad.State
+import Control.Monad (replicateM)
+import Control.Monad.Trans.State
 import Data.Digest.Pure.SHA (bytestringDigest, sha1)
 import Data.HMAC (hmac_md5, hmac_sha1)
 import Data.List (intercalate)
@@ -62,9 +62,6 @@ supportedCompression = "none"
 
 supportedLanguages :: String
 supportedLanguages = ""
-
-main :: IO ()
-main = start defaultSessionConfig defaultChannelConfig 5022
 
 start :: SessionConfig -> ChannelConfig -> PortNumber -> IO ()
 start sc cc p = withSocketsDo $ do
@@ -247,6 +244,7 @@ kexDHInit = do
             , ssInHMAC = im cinteg
             , ssInKey = head . toBlocks (cKeySize ic) $ ckey
             , ssInVector = head . toBlocks (cBlockSize ic) $ civ
+            , ssUser = Nothing
             })
 
     signed <- io $ sign privateKey d
@@ -317,7 +315,9 @@ userAuthRequest = do
         u -> error $ "unhandled authorization type: " ++ u
 
     if check
-        then sendPacket userAuthOK
+        then do
+            modify (\s -> s { ssUser = Just (fromLBS user) })
+            sendPacket userAuthOK
         else sendPacket (userAuthFail authMethods)
   where
     userAuthFail ms = do
@@ -339,7 +339,8 @@ channelOpen = do
     us <- newChannelID
     config <- gets ssChannelConfig
     send <- gets ssSend
-    chan <- io $ newChannel config send us them windowSize maxPacketLength
+    Just user <- gets ssUser
+    chan <- io $ newChannel config send us them windowSize maxPacketLength user
     modify (\s -> s
         { ssChannels = M.insert us chan (ssChannels s) })
 

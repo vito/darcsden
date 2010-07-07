@@ -1,9 +1,10 @@
-{-# LANGUAGE PackageImports, TypeSynonymInstances #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 module DarcsDen.SSH.Channel where
 
 import Control.Concurrent (forkIO)
 import Control.Concurrent.Chan
-import "mtl" Control.Monad.State
+import Control.Monad (when)
+import Control.Monad.Trans.State
 import Data.Word
 import System.Exit
 import System.IO
@@ -25,6 +26,7 @@ data ChannelState =
         , csMaxPacket :: Word32
         , csWindowSize :: Word32
         , csTheirWindowSize :: Word32
+        , csUser :: String
         , csProcess :: Maybe Process
         }
 
@@ -79,8 +81,8 @@ defaultChannelConfig =
                     when wr channelFail
         }
 
-newChannel :: ChannelConfig -> (SenderMessage -> IO ()) -> Word32 -> Word32 -> Word32 -> Word32 -> IO (Chan ChannelMessage)
-newChannel config send us them winSize maxPacket = do
+newChannel :: ChannelConfig -> (SenderMessage -> IO ()) -> Word32 -> Word32 -> Word32 -> Word32 -> String -> IO (Chan ChannelMessage)
+newChannel config send us them winSize maxPacket user = do
     chan <- newChan
 
     print ("new channel", winSize, maxPacket)
@@ -102,6 +104,7 @@ newChannel config send us them winSize maxPacket = do
             , csMaxPacket = maxPacket
             , csWindowSize = 32768 * 64
             , csTheirWindowSize = winSize
+            , csUser = user
             , csProcess = Nothing
             }
 

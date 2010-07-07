@@ -1,8 +1,8 @@
-{-# LANGUAGE PackageImports #-}
 module DarcsDen.SSH.Crypto where
 
 import Codec.Utils (fromOctets, i2osp)
-import "mtl" Control.Monad.State
+import Control.Monad (replicateM)
+import Control.Monad.Trans.State
 import Data.Digest.Pure.SHA (bytestringDigest, sha1)
 import Data.Int
 import qualified Codec.Crypto.RSA as RSA
@@ -41,7 +41,7 @@ data PublicKey
         , dpubG :: Integer
         , dpubY :: Integer
         }
-    deriving Show
+    deriving (Eq, Show)
 
 data KeyPair
     = RSAKeyPair
@@ -53,7 +53,7 @@ data KeyPair
         { dprivPub :: PublicKey
         , dprivX :: Integer
         }
-    deriving Show
+    deriving (Eq, Show)
 
 
 -- TODO

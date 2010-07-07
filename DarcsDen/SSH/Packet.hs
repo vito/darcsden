@@ -1,8 +1,8 @@
-{-# LANGUAGE PackageImports #-}
 module DarcsDen.SSH.Packet where
 
 import Codec.Utils (fromOctets, i2osp)
-import "mtl" Control.Monad.Writer
+import Control.Monad.IO.Class
+import Control.Monad.Trans.Writer
 import Data.Binary (encode)
 import Data.Bits ((.&.))
 import Data.Digest.Pure.SHA
