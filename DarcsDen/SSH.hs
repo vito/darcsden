@@ -132,7 +132,7 @@ readLoop = do
     msg <- net readByte
 
     if msg == 1 || msg == 97 -- disconnect || close
-        then io $ putStrLn "disconnected"
+        then dump "disconnected"
         else do
 
     case msg of
@@ -145,13 +145,13 @@ readLoop = do
         94 -> dataReceived
         96 -> eofReceived
         98 -> channelRequest
-        u -> io . putStrLn $ "unknown message: " ++ show u
+        u -> dump $ "unknown message: " ++ show u
 
     modify (\s -> s { ssInSeq = ssInSeq s + 1 })
 
     done <- gets ssThem >>= io . hIsEOF
     if done
-        then io $ putStrLn "connection lost"
+        then dump "connection lost"
         else readLoop
 
 kexInit :: Session ()
