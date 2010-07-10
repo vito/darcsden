@@ -33,7 +33,6 @@ data SessionState
         , ssTheirVersion :: String
         , ssOurKEXInit :: LBS.ByteString
         , ssInSeq :: Word32
-        , ssOutSeq :: Word32
         }
     | GotKEXInit
         { ssConfig :: SessionConfig
@@ -44,7 +43,6 @@ data SessionState
         , ssTheirVersion :: String
         , ssOurKEXInit :: LBS.ByteString
         , ssInSeq :: Word32
-        , ssOutSeq :: Word32
         , ssTheirKEXInit :: LBS.ByteString
         , ssOutCipher :: Cipher
         , ssInCipher :: Cipher

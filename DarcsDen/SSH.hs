@@ -103,7 +103,6 @@ waitLoop sc cc s = do
                 , ssTheirVersion = theirVersion
                 , ssOurKEXInit = ourKEXInit
                 , ssInSeq = 0
-                , ssOutSeq = 0
                 })
 
     waitLoop sc cc s
@@ -174,7 +173,7 @@ kexInit = do
         imn = match (nameLists !! 4) (map fst supportedMACs)
 
     dump ("KEXINIT", theirKEXInit, ocn, icn, omn, imn)
-    modify (\(Initial c cc h s p cv sk is os) ->
+    modify (\(Initial c cc h s p cv sk is) ->
         case
             ( lookup ocn supportedCiphers
             , lookup icn supportedCiphers
@@ -196,7 +195,6 @@ kexInit = do
                     , ssOutHMACPrep = om
                     , ssInHMACPrep = im
                     , ssInSeq = is
-                    , ssOutSeq = os
                     }
             _ -> error $ "impossible: lookup failed for ciphers/macs: " ++ show (ocn, icn, omn, imn))
   where
@@ -238,7 +236,7 @@ kexDHInit = do
             (head . toBlocks (cBlockSize oc) $ siv)
             (om sinteg)
 
-    modify (\(GotKEXInit c cc h s p cv sk is os ck _ ic _ im) ->
+    modify (\(GotKEXInit c cc h s p _ _ is _ _ ic _ im) ->
         Final
             { ssConfig = c
             , ssChannelConfig = cc
@@ -345,10 +343,13 @@ channelOpen = do
     dump ("channel open", name, them, windowSize, maxPacketLength)
 
     us <- newChannelID
-    config <- gets ssChannelConfig
-    send <- gets ssSend
-    Just user <- gets ssUser
-    chan <- io $ newChannel config send us them windowSize maxPacketLength user
+
+    chan <- do
+        c <- gets ssChannelConfig
+        s <- gets ssSend
+        Just u <- gets ssUser
+        io $ newChannel c s us them windowSize maxPacketLength u
+
     modify (\s -> s
         { ssChannels = M.insert us chan (ssChannels s) })
 
