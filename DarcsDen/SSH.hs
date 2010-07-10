@@ -76,6 +76,11 @@ waitLoop sc cc s = do
         hPutStr handle (version ++ "\r\n")
         hFlush handle
 
+        done <- hIsEOF handle
+        if done
+            then return ()
+            else do
+
         -- get the version response
         theirVersion <- hGetLine handle >>= return . takeWhile (/= '\r')
 
@@ -127,6 +132,11 @@ waitLoop sc cc s = do
 
 readLoop :: Session ()
 readLoop = do
+    done <- gets ssThem >>= io . hIsEOF
+    if done
+        then dump "connection lost"
+        else do
+
     getPacket
 
     msg <- net readByte
@@ -148,11 +158,7 @@ readLoop = do
         u -> dump $ "unknown message: " ++ show u
 
     modify (\s -> s { ssInSeq = ssInSeq s + 1 })
-
-    done <- gets ssThem >>= io . hIsEOF
-    if done
-        then dump "connection lost"
-        else readLoop
+    readLoop
 
 kexInit :: Session ()
 kexInit = do
