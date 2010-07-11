@@ -3,7 +3,10 @@ module Main where
 
 import Control.Concurrent (forkIO)
 import Control.Monad (when)
+import Control.Monad.IO.Class
 import Control.Monad.Trans.State
+import Data.List (isPrefixOf)
+import Data.Time
 import Snap.Http.Server
 import System.FilePath
 import System.Process
@@ -83,46 +86,91 @@ sshAuthorize (PublicKey name key) = do
 channelRequest :: Bool -> ChannelRequest -> Channel ()
 channelRequest wr (Execute cmd) =
     case words cmd of
-        ["darcs", "transfer-mode", "--repodir", repo] ->
-            saneRepo repo >>= maybe (return ()) darcsTransferMode
-        ["darcs", "apply", "--all", "--repodir", repo] ->
-            saneRepo repo >>= maybe (return ()) darcsApply
-        _ -> do
-            sshError "invalid exec request"
-            when wr channelFail
+        ["darcs", "transfer-mode", "--repodir", path] ->
+            saneRepo path darcsTransferMode
+        ["darcs", "apply", "--all", "--repodir", path] ->
+            saneRepo path darcsApply
+        [initialize, repoName] | "init" `isPrefixOf` initialize ->
+            if null repoName || not (isSane repoName)
+                then errorWith "invalid repository name"
+                else saneUser $ \u -> do
+                    mr <- getRepository (uName u, repoName)
+                    case mr of
+                        Nothing -> do
+                            now <- liftIO getCurrentTime
+                            newRepository Repository
+                                { rID = Nothing
+                                , rRev = Nothing
+                                , rName = repoName
+                                , rOwner = uName u
+                                , rDescription = ""
+                                , rWebsite = ""
+                                , rCreated = now
+                                , rForkOf = Nothing
+                                , rMembers = []
+                                , rIsPrivate = False
+                                }
+                            finishWith "repository created"
+                        Just _ -> errorWith "repository already exists"
+        _ -> failWith "invalid exec request"
   where
-    saneRepo p = do
-        userName <- gets csUser
-        muser <- getUser userName
+    failWith :: String -> Channel ()
+    failWith msg = do
+        channelError msg
+        when wr channelFail
 
-        case muser of
-            Just (User { uID = Just uid }) ->
-                case takeWhile (not . null) . map saneName . splitDirectories $ p of
-                    [ownerName, repoName] -> do
-                        mrepo <- getRepository (ownerName, repoName)
-                        case mrepo of
-                            Just repo | uid `elem` rMembers repo ->
-                                return (Just $ repoDir ownerName repoName)
-                            _ -> failWith "invalid repository"
-                    [repoName] -> do
-                        mrepo <- getRepository (userName, repoName)
-                        case mrepo of
-                            Just _ -> return (Just $ repoDir userName repoName)
-                            Nothing -> failWith "invalid repository"
-                    _ -> failWith "invalid target directory"
-            _ -> failWith ("invalid user: " ++ show userName)
+    finishWith :: String -> Channel ()
+    finishWith msg = do
+        channelMessage msg
+        when wr channelSuccess
+        channelDone
 
-      where
-        failWith msg = do
-            sshError msg
-            when wr channelFail
-            return Nothing
+    errorWith :: String -> Channel ()
+    errorWith msg = do
+        channelError msg
+        when wr channelSuccess
+        channelDone
 
-    darcsTransferMode repo =
-        spawnProcess . runInteractiveCommand $ "darcs transfer-mode --repodir " ++ repo
+    -- verify a path that may be two forms:
+    --
+    --     foo/         a repository "foo" owned by the current user
+    --     bar/foo/     a repository "foo" owned by user "bar";
+    --                  current user must be a member
+    saneRepo :: FilePath -> (Repository -> Channel ()) -> Channel ()
+    saneRepo p a = saneUser $ \u@(User { uID = Just uid }) -> do
+        case takeWhile (not . null) . map saneName . splitDirectories $ p of
+            [ownerName, repoName] -> do
+                mrepo <- getRepository (ownerName, repoName)
+                case mrepo of
+                    Just r | uid `elem` rMembers r -> a r
+                    _ -> errorWith "invalid repository"
+            [repoName] -> do
+                getRepository (uName u, repoName)
+                    >>= maybe (errorWith "invalid repository") a
+            _ -> errorWith "invalid target directory"
 
-    darcsApply repo =
-        spawnProcess . runInteractiveCommand $ "darcs apply --all --repodir " ++ repo
+    -- verify the current user
+    saneUser :: (User -> Channel ()) -> Channel ()
+    saneUser a = do
+        mu <- gets csUser >>= getUser
+        maybe (errorWith "invalid user") a mu
+
+    darcsTransferMode r = execute . unwords $ 
+        [ "darcs"
+        , "transfer-mode"
+        , "--repodir"
+        , repoDir (rOwner r) (rName r)
+        ]
+
+    darcsApply r = execute . unwords $
+        [ "darcs"
+        , "apply"
+        , "--all"
+        , "--repodir"
+        , repoDir (rOwner r) (rName r)
+        ]
+
+    execute = spawnProcess . runInteractiveCommand
 channelRequest wr _ = do
-    sshError "this server only accepts exec requests"
+    channelError "this server only accepts exec requests"
     when wr channelFail
