@@ -1,11 +1,20 @@
 module DarcsDen.State.Util where
 
+import Control.Monad.IO.Class
 import Database.CouchDB
+{-import Database.Redis.Monad (WithRedis)-}
+import Database.Redis.Monad.State (RedisM, runWithRedis)
 import Text.JSON
+import qualified Database.Redis.Redis as R
 
 
 runDB :: CouchMonad a -> IO a
 runDB = runCouchDB "localhost" 5984
+
+withRedis :: (MonadIO m) => RedisM a -> m a
+withRedis a = liftIO $ do
+    c <- R.connect R.localhost R.defaultPort
+    runWithRedis c a
 
 getDocByView :: (JSON a, JSON b) => DB -> Doc -> Doc -> a -> CouchMonad (Maybe b)
 getDocByView db' design view key = do

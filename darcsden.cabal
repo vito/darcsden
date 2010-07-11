@@ -43,6 +43,7 @@ executable darcsden
                  process,
                  QuickCheck >= 2.0,
                  random,
+                 redis,
                  RSA,
                  SHA,
                  snap-core >= 0.2.7,
@@ -50,4 +51,5 @@ executable darcsden
                  split,
                  time,
                  transformers,
+                 uuid,
                  xhtml

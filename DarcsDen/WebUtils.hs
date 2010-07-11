@@ -52,31 +52,28 @@ withSession :: Page -> Snap ()
 withSession p = do
     r <- getRequest
     case find ((== "DarcsDenSession") . cookieName) (rqCookies r) of
-        Nothing -> newSession p
+        Nothing -> withNewSession p
         Just (Cookie { cookieValue = sid }) -> do
-            ms <- getSession (doc (fromBS sid))
-            maybe (newSession p) p ms
+            s <- getSession sid
+            case s of
+                Just s -> p s
+                Nothing -> withNewSession p
 
-newSession :: Page -> Snap ()
-newSession r = do
-    s <- addSession 
-        Session { sID = Nothing
-                , sRev = Nothing
-                , sUser = Nothing
-                , sNotifications = []
-                }
-    case sID s of
-         Just sid -> do
-             now <- liftIO (getCurrentTime)
-             modifyResponse $ addCookie
+withNewSession :: Page -> Snap ()
+withNewSession r = do
+    ms <- newSession
+
+    case ms of
+        Just s -> do
+            modifyResponse $ addCookie
                 Cookie { cookieName = "DarcsDenSession"
-                       , cookieValue = toBS $ show sid
-                       , cookieExpires = Just $ addUTCTime (60 * 60 * 24 * 30) now
+                       , cookieValue = sID s
+                       , cookieExpires = Just (sExpire s)
                        , cookieDomain = Nothing
                        , cookiePath = Nothing
                        }
-             r s
-         Nothing -> errorPage "Session could not be created."
+            r s
+        Nothing -> errorPage "Session could not be created."
 
 repoServe :: String -> Snap ()
 repoServe b = do
@@ -90,24 +87,14 @@ repoServe b = do
 
 -- Page helpers
 doPage' :: (XML -> String) -> BS.ByteString -> HSPage -> Page
-doPage' _ _ _ (Session { sID = Nothing }) =
-    errorPage "Session could not be created."
-doPage' render contentType p s@(Session { sID = Just sid }) = do
-    getSess <- getSession sid -- Session must be re-grabbed for any new notifications to be shown
-
-    case getSess of
-         Nothing -> doPage' render contentType p (s { sID = Nothing })
-         Just sess -> doWithSession sess
-    where
-        doWithSession :: Page
-        doWithSession sess = do
-            if not (null (sNotifications sess))
-              then updateSession (sess { sNotifications = [] })
-              else return Nothing
-
-            (_, page) <- liftIO $ evalHSP Nothing (p sess)
-            modifyResponse (addHeader "Content-Type" contentType)
-            writeBS (toBS $ render page)
+doPage' render contentType p s = doWithSession s
+  where
+    doWithSession :: Page
+    doWithSession sess = do
+        (_, page) <- liftIO $ evalHSP Nothing (p sess)
+        modifyResponse (addHeader "Content-Type" contentType)
+        writeBS (toBS $ render page)
+        clearNotifications sess
 
 doPage :: HSPage -> Page
 doPage = doPage' (("<!DOCTYPE html>\n" ++) . renderAsHTML) "text/html; charset=utf-8"

@@ -84,18 +84,20 @@ doLogin s = validate
                 Just u -> let hashed = hashPassword (r ! "password") (uSalt u)
                           in return $ uPassword u == hashed)
     ]
-    (\(OK r) -> setUser (Just $ r ! "name") s
-                  >>= maybe (return (Just s)) (success "Logged in!")
-                  >> redirectTo "/")
+    (\(OK r) -> do
+        setUser (Just $ r ! "name") s
+        success "Logged in!" s
+        redirectTo "/")
     (\(Invalid failed) -> do
         notify Warning s failed
         is <- getInputs
         doPage (Page.login is) s)
 
 logout :: Page
-logout s = setUser Nothing s
-             >>= maybe (return (Just s)) (success "Logged out.")
-             >> redirectTo "/"
+logout s = do
+    setUser Nothing s
+    success "Logged out." s
+    redirectTo "/"
 
 settings :: Page
 settings s@(Session { sUser = Nothing }) =

@@ -1,105 +1,138 @@
 module DarcsDen.State.Session where
 
 import Control.Monad.IO.Class
-import Database.CouchDB
-import Text.JSON
+import Database.Redis.Monad hiding (expireAt)
+import Data.Time
+import Data.Time.Clock.POSIX
+import Data.UUID.V1
+import qualified Data.UUID as U
+import qualified Data.ByteString as BS
+import qualified Control.Monad.Trans as MTL
 
 import DarcsDen.State.Util
+import DarcsDen.Util (fromBS, toBS)
 
 
-data Notification = Success String | Message String | Warning String
-                  deriving (Eq, Show)
+data Notification
+    = Success { nMessage :: String }
+    | Message { nMessage :: String }
+    | Warning { nMessage :: String }
+    deriving (Eq, Show)
 
-data Session = Session { sID :: Maybe Doc
-                       , sRev :: Maybe Rev
-                       , sUser :: Maybe String
-                       , sNotifications :: [Notification]
-                       }
-             deriving (Eq, Show)
+data Session =
+    Session
+        { sID :: BS.ByteString
+        , sExpire :: UTCTime
+        , sUser :: Maybe String
+        , sNotifications :: [Notification]
+        }
+    deriving (Eq, Show)
 
-instance JSON Notification where
-    readJSON (JSObject js) = do
-        msg <- getMessage
-        case lookup "type" as of
-             Just (JSString t) ->
-                 case fromJSString t of
-                      "success" -> return (Success msg)
-                      "message" -> return (Message msg)
-                      "warning" -> return (Warning msg)
-                      _ -> fail "Unable to read Notification"
-             _ -> fail "Unable to read Notification"
-        where
-            as = fromJSObject js
-            getMessage = case lookup "message" as of
-                              Just (JSString msg) -> return (fromJSString msg)
-                              _ -> fail "Unable to read Notification"
-    readJSON _ = fail "Unable to read Notification"
 
-    showJSON (Success msg) = JSObject (toJSObject [("type", showJSON ("success" :: String)), ("message", showJSON msg)])
-    showJSON (Message msg) = JSObject (toJSObject [("type", showJSON ("message" :: String)), ("message", showJSON msg)])
-    showJSON (Warning msg) = JSObject (toJSObject [("type", showJSON ("warning" :: String)), ("message", showJSON msg)])
+expireAt :: WithRedis m => String -> Int -> m (Reply Int)
+expireAt k t = do
+    now <- MTL.liftIO getCurrentTime
+    
+    let relative = diffUTCTime (posixSecondsToUTCTime (fromIntegral t)) now
 
-instance JSON Session where
-    readJSON (JSObject js) = do
-        id' <- getID
-        rev' <- getRev
-        user <- getUser
-        notifications <- getNotifications
-        return (Session (Just id') (Just rev') user notifications)
-        where
-            as = fromJSObject js
-            getID = maybe
-                (fail $ "session missing `_id': " ++ show js)
-                readJSON
-                (lookup "_id" as)
-            getRev = maybe
-                (fail $ "session missing `_rev': " ++ show js)
-                (fmap rev . readJSON)
-                (lookup "_rev" as)
-            getUser = maybe (Ok Nothing) readJSON (lookup "user" as)
-            getNotifications = maybe (Ok []) readJSON (lookup "notifications" as)
-    readJSON o = fail $ "unable to read Session: " ++ show o
+    expire k (ceiling relative)
 
-    showJSON s = JSObject (toJSObject [ ("user", showJSON (sUser s))
-                                      , ("notifications", showJSON (sNotifications s))
-                                      ])
+getSession :: MonadIO m => BS.ByteString -> m (Maybe Session)
+getSession sid = withRedis $ do
+    RBulk mexpire <- get (sessionKey' sid "expire")
+    
+    case mexpire of
+        Just e -> do
+            RBulk user <- get (sessionKey' sid "user")
+            ws <- fmap (map Warning) $ getNotifications "warning"
+            ms <- fmap (map Message) $ getNotifications "message"
+            ss <- fmap (map Success) $ getNotifications "success"
+            return . Just $ Session
+                { sID = sid
+                , sExpire = posixSecondsToUTCTime (fromIntegral (e :: Int))
+                , sUser = user
+                , sNotifications = concat [ws, ms, ss]
+                }
+        Nothing -> return Nothing
+  where
+    getNotifications t = do
+        RMulti res <- smembers (sessionKey' sid t)
+        case res of
+            Just mns ->
+                return $ map (\(RBulk (Just n)) -> n) mns
+            Nothing -> return []
 
-getSession :: MonadIO m => Doc -> m (Maybe Session)
-getSession sid = liftIO $ (fmap . fmap) (\(_, _, s) -> s) (runDB (getDoc (db "sessions") sid))
+newSession :: MonadIO m => m (Maybe Session)
+newSession = do
+    muuid <- liftIO nextUUID
 
-addSession :: MonadIO m => Session -> m Session
-addSession s = do (id', rev') <- liftIO $ runDB (newDoc (db "sessions") s)
-                  return (s { sID = Just id', sRev = Just rev' })
+    case muuid of
+        Nothing -> return Nothing
+        Just uuid -> do
+            now <- liftIO (getCurrentTime)
+            let s = Session
+                        { sID = toBS . filter (/= '-') . U.toString $ uuid
+                        , sExpire = addUTCTime (60 * 60 * 24 * 30) now
+                        , sUser = Nothing
+                        , sNotifications = []
+                        }
 
-updateSession :: MonadIO m => Session -> m (Maybe Session)
-updateSession s = case (sID s, sRev s) of
-                       (Just id', Just rev') -> do
-                           update <- liftIO $ runDB (updateDoc (db "sessions") (id', rev') (s { sID = Nothing }))
-                           case update of
-                                Just (id'', rev'') -> return (Just (s { sID = Just id'', sRev = Just rev'' }))
-                                _ -> return Nothing
-                       _ -> return Nothing
+            withRedis $ do
+                incrBy (sessionKey s "expire") (sessionExpire s)
+                expireAt (sessionKey s "expire") (sessionExpire s)
 
-deleteSession :: MonadIO m => Session -> m Bool
-deleteSession s = case (sID s, sRev s) of
-                       (Just id', Just rev') ->
-                           liftIO $ runDB (deleteDoc (db "sessions") (id', rev'))
-                       _ -> return False
+            return (Just s)
 
-setUser :: MonadIO m => Maybe String -> Session -> m (Maybe Session)
-setUser n s = updateSession s { sUser = n }
+deleteSession :: MonadIO m => Session -> m ()
+deleteSession s = withRedis $ do
+    del (sessionKey s "expire")
+    del (sessionKey s "user")
+    del (sessionKey s "warning")
+    del (sessionKey s "message")
+    del (sessionKey s "success")
+    return ()
 
-notice :: MonadIO m => (String -> Notification) -> String -> Session -> m (Maybe Session)
-notice n m (Session { sID = Just sid }) = do
-    Just latest <- getSession sid
-    updateSession latest { sNotifications = sNotifications latest ++ [n m] }
-notice _ _ _ = return Nothing
+setUser :: MonadIO m => Maybe String -> Session -> m ()
+setUser mn s = withRedis $ do 
+    case mn of
+        Just n -> do
+            set key n
+            expireAt key (sessionExpire s)
+            return ()
+        Nothing -> do
+            del key
+            return ()
+  where key = sessionKey s "user"
 
-warn :: MonadIO m => String -> Session -> m (Maybe Session)
-warn = notice Warning
+clearNotifications :: MonadIO m => Session -> m ()
+clearNotifications s = withRedis $
+    mapM_ (del . sessionKey s)
+        ["warning", "message", "success"]
 
-success :: MonadIO m => String -> Session -> m (Maybe Session)
-success = notice Success
+notice :: MonadIO m => Notification -> Session -> m ()
+notice n s = withRedis $ do
+    sadd (key n) (nMessage n)
+    expireAt (key n) (sessionExpire s)
+    return ()
+  where
+    key (Warning _) = sessionKey s "warning"
+    key (Message _) = sessionKey s "message"
+    key (Success _) = sessionKey s "success"
 
-message :: MonadIO m => String -> Session -> m (Maybe Session)
-message = notice Message
+warn :: MonadIO m => String -> Session -> m ()
+warn = notice . Warning
+
+success :: MonadIO m => String -> Session -> m ()
+success = notice . Success
+
+message :: MonadIO m => String -> Session -> m ()
+message = notice . Message
+
+sessionKey :: Session -> String -> String
+sessionKey = sessionKey' . sID
+
+sessionKey' :: BS.ByteString -> String -> String
+sessionKey' sid n = "session:" ++ fromBS sid ++ ":" ++ n
+
+sessionExpire :: Session -> Int
+sessionExpire = ceiling . utcTimeToPOSIXSeconds . sExpire
