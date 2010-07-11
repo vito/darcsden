@@ -78,7 +78,7 @@ defaultChannelConfig =
                     spawnProcess (runInteractiveCommand cmd)
                     when wr channelSuccess
                 _ -> do
-                    sshError "accepting 'exec' requests only"
+                    channelError "accepting 'exec' requests only"
                     when wr channelFail
         }
 
@@ -158,13 +158,21 @@ chanLoop c = do
 
     chanLoop c
 
-sshError :: String -> Channel ()
-sshError msg = do
+channelError :: String -> Channel ()
+channelError msg = do
     target <- gets csTheirID
     sendPacket $ do
         byte 95
         long target
         long 1
+        string (msg ++ "\r\n")
+
+channelMessage :: String -> Channel ()
+channelMessage msg = do
+    target <- gets csTheirID
+    sendPacket $ do
+        byte 94
+        long target
         string (msg ++ "\r\n")
 
 channelFail :: Channel ()
@@ -180,6 +188,12 @@ channelSuccess = do
     sendPacket $ do
         byte 99
         long target
+
+channelDone :: Channel ()
+channelDone = do
+    target <- gets csTheirID
+    sendPacket (byte 96 >> long target) -- eof
+    sendPacket (byte 97 >> long target) -- close
 
 redirectHandle :: Chan () -> Packet () -> Handle -> Channel ()
 redirectHandle f d h = get >>= io . forkIO . evalStateT redirectLoop >> return ()
@@ -220,7 +234,6 @@ spawnProcess cmd = do
     modify (\s -> s { csProcess = Just $ Process proc stdin stdout stderr })
 
     dump ("command spawned")
-    sendPacket (byte 99 >> long target) -- success
 
     -- redirect stdout and stderr, using a channel to signal completion
     done <- io newChan
@@ -247,8 +260,7 @@ spawnProcess cmd = do
                 byte 0
                 long (statusCode exit)
 
-            sendPacket (byte 96 >> long target) -- eof
-            sendPacket (byte 97 >> long target) -- close
+            channelDone
 
     return ()
   where
