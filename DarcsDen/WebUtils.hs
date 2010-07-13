@@ -70,7 +70,7 @@ withNewSession r = do
                        , cookieValue = sID s
                        , cookieExpires = Just (sExpire s)
                        , cookieDomain = Nothing
-                       , cookiePath = Nothing
+                       , cookiePath = Just "/"
                        }
             r s
         Nothing -> errorPage "Session could not be created."
