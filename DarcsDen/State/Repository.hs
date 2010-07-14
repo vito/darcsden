@@ -89,6 +89,7 @@ instance JSON Repository where
                                        , ("created", showJSON (formatTime defaultTimeLocale "%F %T" (rCreated r)))
                                        , ("fork_of", showJSON (rForkOf r))
                                        , ("members", showJSON (rMembers r))
+                                       , ("is_private", showJSON (rIsPrivate r))
                                        ] ++ id' ++ rev'))
         where
             id' = case rID r of
