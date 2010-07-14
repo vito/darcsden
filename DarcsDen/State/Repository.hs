@@ -5,6 +5,7 @@ import Darcs.Commands (commandCommand)
 import Darcs.Flags (DarcsFlag(All, FixFilePath, Quiet))
 import Darcs.RepoPath (getCurrentDirectory)
 import Darcs.Utils (withCurrentDirectory)
+import Data.Maybe (catMaybes)
 import Data.Time (UTCTime, formatTime, readTime)
 import Database.CouchDB
 import System.Directory hiding (getCurrentDirectory)
@@ -129,7 +130,10 @@ getRepositoryForks key = liftIO $ fmap (map snd) (runDB query)
             [("key", showJSON key)]
 
 getRepositories :: MonadIO m => m [Repository]
-getRepositories = liftIO $ fmap (map snd) (runDB (getAllDocs (db "repositories") []))
+getRepositories = do
+    ids <- liftIO $ runDB (getAllDocIds (db "repositories"))
+    repos <- mapM getRepositoryByID ids
+    return (catMaybes repos)
 
 getUserRepositories :: MonadIO m => String -> m [Repository]
 getUserRepositories un = liftIO $ fmap (map snd) (runDB query)
