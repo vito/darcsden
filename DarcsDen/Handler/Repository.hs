@@ -28,13 +28,15 @@ import qualified DarcsDen.Pages.Repository as Page
 
 
 initialize :: Page
-initialize s@(Session { sUser = Nothing }) =
-    warn "You must be logged in to create a repository." s >> redirectTo "/login"
+initialize s@(Session { sUser = Nothing }) = do
+    warn "You must be logged in to create a repository." s
+    redirectTo "/login"
 initialize s = doPage (Page.init []) s
 
 doInitialize :: Page
-doInitialize s@(Session { sUser = Nothing }) =
-    warn "You must be logged in to create a repository." s >> redirectTo "/login"
+doInitialize s@(Session { sUser = Nothing }) = do
+    warn "You must be logged in to create a repository." s
+    redirectTo "/login"
 doInitialize s@(Session { sUser = Just n }) = validate
     [ iff (nonEmpty "name" `And` predicate "name" isSane "contain only alphanumeric characters, underscores, and hyphens")
           (\(OK i) -> io "destination repository already exists" $ fmap (== Nothing) (getRepository (n, i ! "name")))

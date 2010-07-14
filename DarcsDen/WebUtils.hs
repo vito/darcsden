@@ -3,8 +3,6 @@ module DarcsDen.WebUtils where
 
 import Control.Monad.IO.Class
 import Data.List (find)
-import Data.Time (addUTCTime, getCurrentTime)
-import Database.CouchDB
 import HSP (XML, evalHSP, renderXML, renderAsHTML)
 import Snap.Types
 import Snap.Util.FileServe
@@ -54,8 +52,8 @@ withSession p = do
     case find ((== "DarcsDenSession") . cookieName) (rqCookies r) of
         Nothing -> withNewSession p
         Just (Cookie { cookieValue = sid }) -> do
-            s <- getSession sid
-            case s of
+            ms <- getSession sid
+            case ms of
                 Just s -> p s
                 Nothing -> withNewSession p
 
@@ -87,14 +85,11 @@ repoServe b = do
 
 -- Page helpers
 doPage' :: (XML -> String) -> BS.ByteString -> HSPage -> Page
-doPage' render contentType p s = doWithSession s
-  where
-    doWithSession :: Page
-    doWithSession sess = do
-        (_, page) <- liftIO $ evalHSP Nothing (p sess)
-        modifyResponse (addHeader "Content-Type" contentType)
-        writeBS (toBS $ render page)
-        clearNotifications sess
+doPage' render contentType p s = do
+    (_, page) <- liftIO $ evalHSP Nothing (p s)
+    modifyResponse (addHeader "Content-Type" contentType)
+    writeBS (toBS $ render page)
+    clearNotifications s
 
 doPage :: HSPage -> Page
 doPage = doPage' (("<!DOCTYPE html>\n" ++) . renderAsHTML) "text/html; charset=utf-8"
