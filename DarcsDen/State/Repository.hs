@@ -140,7 +140,7 @@ getRepositories :: MonadIO m => m [Repository]
 getRepositories = do
     ids <- liftIO $ runDB (getAllDocIds (db "repositories"))
     repos <- mapM getRepositoryByID ids
-    return (catMaybes repos)
+    return (filter (not . rIsPrivate) $ catMaybes repos)
 
 getUserRepositories :: MonadIO m => String -> m [Repository]
 getUserRepositories = getRepositoriesByOwner (doc "repositories")
