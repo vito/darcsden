@@ -54,7 +54,7 @@ repoBase _ r t b c s = base
     t
     <span>
         <a href=(repoOwnerURL r)><% rOwner r %></a> ->
-        <a href=(repoURL r)><% rName r %></a>
+        <a href=(repoURL r) class=(if rIsPrivate r then "private-repo" else "public-repo")><% rName r %></a>
         <% b %>
     </span>
     <div class="repo">
@@ -123,7 +123,7 @@ init is = base
                 <% field (input' is "description") "description" "" %>
                 <% field (input' is "website") "website" "" %>
                 <% field (input' is "bootstrap") "bootstrap" "" %>
-                {-<% field (checkbox' is "private") "private?" "" %>-}
+                <% field (checkbox' is "private") "private?" "" %>
                 <% submit "create repository" %>
             </fieldset>
         </form>
@@ -151,7 +151,7 @@ repo u r files up path readme = repoBase u r
                 <ul class="repo-files">
                     <%
                         if not (null up)
-                           then <% <li class="up"><a href=(up)>..</a></li> %>
+                           then <% <li class="up"><a href=up>..</a></li> %>
                            else <% "" %>
                     %>
                     <% map file files %>
@@ -242,8 +242,8 @@ fork u r n = repoBase u r
         </form>
     </div>
 
-forks :: User -> Repository -> [Fork] -> HSPage
-forks u r fs s = repoBase u r
+forks :: User -> Repository -> [Fork] -> [Fork] -> HSPage
+forks u r fs opfs s = repoBase u r
     "forks"
     <span> -> forks</span>
     <div class="repo-forks">
@@ -263,6 +263,7 @@ forks u r fs s = repoBase u r
         forksForm =
             <form action=(repoURL r ++ "/merge") class="subtle" method="post">
                 <fieldset>
+                    <% map fork' opfs %>
                     <% map fork' fs %>
                     <%
                         if Just (rOwner r) == sUser s

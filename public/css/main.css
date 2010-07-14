@@ -217,6 +217,11 @@ form .cancel-buttons a.cancel {
 	font-size: 1.2em;
 }
 
+.private-repo {
+    padding-right: 24px;
+	background: url('/public/images/edit.gif') no-repeat right 3px;
+}
+
 .repo-files,
 .patch-summary,
 .user-repos {

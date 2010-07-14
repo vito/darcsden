@@ -25,7 +25,7 @@ import qualified DarcsDen.Pages.User as User
 index :: Page
 index s@(Session { sUser = Nothing }) = doPage Base.index s
 index s@(Session { sUser = Just n }) = do
-    rs <- getUserRepositories n
+    rs <- getOwnerRepositories n
     doPage (User.home rs) s
 
 
@@ -81,9 +81,12 @@ validateRepo s p = do
 
     case (mo, mn) of
         (Just o, Just n) -> do
-            mu <- getUser (fromBS o)
-            mr <- getRepository (fromBS o, fromBS n)
-            darcsRepo <- liftIO (getRepo (repoDir (fromBS o) (fromBS n)))
+            let (owner, name) = (fromBS o, fromBS n)
+            mu <- getUser owner
+            mr <- if Just owner == sUser s
+                      then getOwnerRepository (owner, name)
+                      else getRepository (owner, name)
+            darcsRepo <- liftIO (getRepo (repoDir owner name))
             case (mu, mr, darcsRepo) of
                 (Just u , Just r , Right _) -> p u r s
                 (Nothing, _      , _      ) -> warn "user does not exist" s >> redirectTo "/"

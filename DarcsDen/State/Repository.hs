@@ -112,22 +112,28 @@ getRepositoryByID key = do res <- liftIO $ runDB (getDoc (db "repositories") key
                                 Nothing -> return Nothing
 
 getRepository :: MonadIO m => (String, String) -> m (Maybe Repository)
-getRepository (un, rn) = liftIO (runDB query)
-    where
-        query = getDocByView
-            (db "repositories")
-            (doc "repositories")
-            (doc "by_owner_and_name")
-            [un, rn]
+getRepository = getRepositoryByOwnerAndName (doc "repositories")
+
+getOwnerRepository :: MonadIO m => (String, String) -> m (Maybe Repository)
+getOwnerRepository = getRepositoryByOwnerAndName (doc "private")
+
+getRepositoryByOwnerAndName :: MonadIO m => Doc -> (String, String) -> m (Maybe Repository)
+getRepositoryByOwnerAndName design (un, rn) = liftIO (runDB query)
+  where
+    query = getDocByView
+        (db "repositories")
+        design
+        (doc "by_owner_and_name")
+        [un, rn]
 
 getRepositoryForks :: MonadIO m => Doc -> m [Repository]
 getRepositoryForks key = liftIO $ fmap (map snd) (runDB query)
-    where
-        query = queryView
-            (db "repositories")
-            (doc "repositories")
-            (doc "by_fork")
-            [("key", showJSON key)]
+  where
+    query = queryView
+        (db "repositories")
+        (doc "repositories")
+        (doc "by_fork")
+        [("key", showJSON key)]
 
 getRepositories :: MonadIO m => m [Repository]
 getRepositories = do
@@ -136,13 +142,19 @@ getRepositories = do
     return (catMaybes repos)
 
 getUserRepositories :: MonadIO m => String -> m [Repository]
-getUserRepositories un = liftIO $ fmap (map snd) (runDB query)
-    where
-        query = queryView
-            (db "repositories")
-            (doc "repositories")
-            (doc "by_owner")
-            [("key", showJSON un)]
+getUserRepositories = getRepositoriesByOwner (doc "repositories")
+
+getOwnerRepositories :: MonadIO m => String -> m [Repository]
+getOwnerRepositories = getRepositoriesByOwner (doc "private")
+
+getRepositoriesByOwner :: MonadIO m => Doc -> String -> m [Repository]
+getRepositoriesByOwner design on = liftIO $ fmap (map snd) (runDB query)
+  where
+    query = queryView
+        (db "repositories")
+        design
+        (doc "by_owner")
+        [("key", showJSON on)]
 
 addRepository :: MonadIO m => Repository -> m Repository
 addRepository r = do (id', rev') <- liftIO $ runDB (newDoc (db "repositories") r)

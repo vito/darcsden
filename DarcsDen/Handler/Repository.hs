@@ -288,7 +288,14 @@ repoForks u r s = do
     fs <- getRepositoryForks (fromJust $ rID r)
     forks <- liftIO $ mapM getForkChanges fs
 
-    doPage (Page.forks u r forks) s
+    ownPrivFs <- fmap (filter privateFork) (getOwnerRepositories (uName u))
+    ownPrivForks <- liftIO $ mapM getForkChanges ownPrivFs
+
+    doPage (Page.forks u r forks ownPrivForks) s
+  where
+    privateFork (Repository { rIsPrivate = True, rForkOf = f }) =
+        f == rID r
+    privateFork _ = False
 
 mergeForks :: User -> Repository -> Page
 mergeForks _ r s
