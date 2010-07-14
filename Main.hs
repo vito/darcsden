@@ -8,6 +8,7 @@ import Control.Monad.Trans.State
 import Data.List (isPrefixOf)
 import Data.Time
 import Snap.Http.Server
+import System.Environment
 import System.FilePath
 import System.Process
 import qualified Codec.Binary.Base64.String as Base64
@@ -27,14 +28,17 @@ import qualified DarcsDen.SSH as SSH
 
 main :: IO ()
 main = do
-    putStrLn "darcsden is now running at http://localhost:8080/"
-    putStrLn "                        or http://127.0.0.1:8080/"
-    putStrLn "                        or http://[::1]:8080/"
-    putStrLn "                        or whatever!"
+    (hport, sport) <- do
+        as <- getArgs
+        case as of
+            (h:s:_) -> return (read h, fromIntegral (read s :: Int))
+            _ -> return (8080, 5022)
+
+    putStrLn $ "darcsden running on port " ++ show hport
 
     kp <- readKeyPair
-    forkIO (startSSH kp)
-    startHTTP
+    forkIO (startSSH kp sport)
+    startHTTP hport
   where
     readKeyPair = do
         s <- LBS.readFile (userRoot </> ".keypair")
@@ -53,11 +57,10 @@ main = do
         (ChannelConfig
             { ccRequestHandler = channelRequest
             })
-        5022
 
-    startHTTP = httpServe
+    startHTTP p = httpServe
         "*"
-        8080
+        p
         "localhost"
         (Just "access.log")
         (Just "error.log")
