@@ -37,7 +37,7 @@ user u repos = base
 repo :: Repository -> HSP XML
 repo r =
     <li>
-        <a href=(rOwner r ++ "/" ++ rName r)><% rName r %></a>
+        <a href=(rOwner r ++ "/" ++ rName r) class=(if rIsPrivate r then "private-repo" else "public-repo")><% rName r %></a>
         <%
             if rDescription r /= ""
             then <% <span class="repo-description"><% cdata " &mdash; " %><% rDescription r %></span> %>
