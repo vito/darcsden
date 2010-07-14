@@ -222,6 +222,7 @@ form .cancel-buttons a.cancel {
 	background: url('/public/images/private.gif') no-repeat right 4px;
 }
 .user-repos li .private-repo {
+    padding-right: 20px;
     background-position: right 1px;
 }
 
