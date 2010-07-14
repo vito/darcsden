@@ -218,8 +218,8 @@ form .cancel-buttons a.cancel {
 }
 
 .private-repo {
-    padding-right: 24px;
-	background: url('/public/images/edit.gif') no-repeat right 3px;
+    padding-right: 22px;
+	background: url('/public/images/private.gif') no-repeat right 4px;
 }
 
 .repo-files,
