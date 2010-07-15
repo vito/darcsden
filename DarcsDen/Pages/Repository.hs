@@ -130,20 +130,42 @@ init is = base
     </div>
 
 
-repo :: User -> Repository -> [RepoItem] -> String -> [RepoItem] -> Maybe String -> HSPage
-repo u r files up path readme = repoBase u r
+repo :: User -> Repository -> [RepoItem] -> String -> [RepoItem] -> Maybe String -> Bool -> HSPage
+repo u r files up path readme member sess = repoBase u r
     (uName u ++ "'s " ++ rName r)
     <span class="path">
         <% map (\p -> <span class="path-item"> -> <a href=(repoURL r ++ "/browse" ++ iPath p)><% iName p %></a></span>) path %>
     </span>
     (filesList (null files))
+    sess
     where
         filesList :: Bool -> HSP XML
         filesList True =
             <div class="repo-browse no-files">
                 <h1>nothing here yet!</h1>
-                <p class="repo-empty">push your code to <code><% uName u %>@<% baseDomain %>:<% rName r %></code> to get started</p>
+                <%
+                    if rOwner r == uName u
+                        then ownerMessage
+                        else if member
+                            then memberMessage
+                            else otherMessage
+                %>
             </div>
+          where
+            ownerMessage =
+                <p class="repo-empty">
+                    push your code to
+                    <code><% uName u %>@<% baseDomain %>:<% rName r %></code>
+                    to get started
+                </p>
+            memberMessage =
+                <p class="repo-empty">
+                    push your code to
+                    <code><% fromJust (sUser sess) %><% baseDomain %>:<% rOwner r %>/<% rName r %></code>
+                    to get started
+                </p>
+            otherMessage =
+                <p class="repo-empty">move along, citizen</p>
         filesList False =
             <div class="repo-browse">
                 <h1>files</h1>

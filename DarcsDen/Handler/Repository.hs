@@ -85,6 +85,16 @@ browseRepo :: User -> Repository -> Page
 browseRepo u r s = do
     Right dr <- liftIO $ getRepo (repoDir (rOwner r) (rName r))
 
+    member <-
+        case sUser s of
+            Just un -> do
+                mu <- getUser un
+                case mu of
+                    Just (User { uID = Just uid }) ->
+                        return (uid `elem` rMembers r)
+                    _ -> return False
+            Nothing -> return False
+
     f <- filePath
     fs <- liftIO $ getFiles dr f
     bl <- liftIO $ getBlob dr f
@@ -99,7 +109,7 @@ browseRepo u r s = do
                     }) fs'
                 up = if null f then "" else pathToFile (init f)
 
-            doPage (Page.repo u r files up (crumb f) readme) s
+            doPage (Page.repo u r files up (crumb f) readme member) s
         (_, Just big) | isTooLarge big ->
             doPage (Page.blob u r (crumb f) Nothing) s
         (_, Just source) ->
