@@ -97,7 +97,7 @@ channelRequest wr (Execute cmd) =
             if null repoName || not (isSane repoName)
                 then errorWith "invalid repository name"
                 else saneUser $ \u -> do
-                    mr <- getRepository (uName u, repoName)
+                    mr <- getOwnerRepository (uName u, repoName)
                     case mr of
                         Nothing -> do
                             now <- liftIO getCurrentTime
@@ -143,12 +143,12 @@ channelRequest wr (Execute cmd) =
     saneRepo p a = saneUser $ \u@(User { uID = Just uid }) -> do
         case takeWhile (not . null) . map saneName . splitDirectories $ p of
             [ownerName, repoName] -> do
-                mrepo <- getRepository (ownerName, repoName)
+                mrepo <- getOwnerRepository (ownerName, repoName)
                 case mrepo of
                     Just r | uid `elem` rMembers r -> a r
                     _ -> errorWith "invalid repository"
             [repoName] -> do
-                getRepository (uName u, repoName)
+                getOwnerRepository (uName u, repoName)
                     >>= maybe (errorWith "invalid repository") a
             _ -> errorWith "invalid target directory"
 
