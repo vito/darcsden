@@ -87,9 +87,9 @@ validateRepo s p = do
             darcsRepo <- liftIO (getRepo (repoDir owner name))
             case (mu, mr, darcsRepo) of
                 (Just u , Just r , Right _) -> p u r s
-                (Nothing, _      , _      ) -> warn "user does not exist" s >> redirectTo "/"
-                (_      , Just _ , Left _ ) -> warn "repository invalid" s >> redirectTo "/"
-                (Just _ , Nothing, _      ) -> warn "repository does not exist" s >> redirectTo "/"
+                (Nothing, _      , _      ) -> notFoundPage "user does not exist"
+                (_      , Just _ , Left _ ) -> notFoundPage "repository invalid"
+                (Just _ , Nothing, _      ) -> notFoundPage "repository does not exist"
         _ -> warn "no repository specified" s >> redirectTo "/"
   where
     getValidRepo owner name = do

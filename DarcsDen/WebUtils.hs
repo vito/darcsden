@@ -41,6 +41,12 @@ errorPage msg = do
     writeBS msg
     withResponse finishWith
 
+notFoundPage :: BS.ByteString -> Snap ()
+notFoundPage msg = do
+    putResponse (setResponseStatus 404 "Not Found" emptyResponse)
+    writeBS ("404: " `BS.append` msg)
+    withResponse finishWith
+
 redirectTo :: String -> Snap ()
 redirectTo dest = do
     putResponse (setResponseStatus 302 "Found" emptyResponse)
