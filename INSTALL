@@ -2,25 +2,19 @@ You will need:
 - CouchDB, with the databases and views described below.
 - Redis
 
-Both running on their default port, or just edit DarcsDen/State/Util.hs to
-point to different ones.
+Both should be running on their default port, or just edit
+DarcsDen/State/Util.hs to point to different ones.
+
 
 To install:
-# cabal install mkdir -p /srv/darcs adduser --system --home /srv/darcs
-# --no-create-home --shell /bin/bash --group --gecos "DarcsDen" darcsden chown
-# -R darcsden:darcsden /srv/darcs
 
-To start:
-# sudo -i -u darcsden darcsden
+    cabal install
+    mkdir -p /srv/darcs
+    adduser --system --home /srv/darcs --no-create-home --shell /bin/bash --group --gecos "DarcsDen" darcsden
+    chown -R darcsden:darcsden /srv/darcs
 
-You will need to start it either in the directory with public/ in it, or you
-can run it behind nginx or something that'll handle /public requests by
-pointing to that directory.
 
-None of this is daemonized or anything, so you probably want to run them in
-screen.
-
-CouchDB:
+CouchDB structure:
 1. repositories database, with the following design documents:
 
     {"_id":"_design/repositories","language":"javascript","views":{"by_owner_and_name":{"map":"function(doc) {\n  if (doc.owner && doc.name && !doc.is_private)\n    emit([doc.owner, doc.name], doc);\n}"},"by_owner":{"map":"function(doc) {\n  if (doc.owner && !doc.is_private)\n    emit(doc.owner, doc);\n}"},"by_fork":{"map":"function(doc) {\n  if (doc.fork_of.Just && !doc.is_private)\n    emit(doc.fork_of.Just, doc);\n}"},"by_member":{"map":"function(doc) {\n  if (!doc.is_private)\n    for (member in doc.members)\n      emit(doc.members[member], doc._id);\n}"}}}
@@ -30,3 +24,45 @@ CouchDB:
 2. users database with the following design document:
 
     {"_id":"_design/users","language":"javascript","views":{"by_email":{"map":"function(doc) {\n  if (doc.email)\n    emit(doc.email, doc);\n}"},"by_name":{"map":"function(doc) {\n  if (doc.name)\n    emit(doc.name, doc);\n}"}}}
+
+
+KeyPair setup:
+You will need a .keypair file in /srv/darcs that contains the private/public
+key information for the SSH server. It is a nonstandard format (a id_rsa parser
+is way too much trouble):
+
+    mpint e
+    mpint n
+    mpint d
+
+You can create this file using the Twisted Conch Python library and
+DarcsDen.SSH.Packet, like so:
+
+    >>> from twisted.conch.ssh.key import Key
+    >>> key = Key.fromFile("path/to/id_rsa")
+    >>> key.data()['e']
+    ...
+    >>> key.data()['n']
+    ...
+    >>> key.data()['d']
+
+Copy those 3 numbers, sans the trailing L, into GHCi:
+
+    let e = (first number)
+    let n = (second number)
+    let d = (third number)
+    let packet = doPacket (integer e >> integer n >> integer d)
+    Data.ByteString.Lazy.writeFile "/srv/darcs/.keypair" packet
+
+
+To start:
+
+    sudo -i -u darcsden darcsden
+
+You will need to start it either in the directory with public/ in it, or you
+can run it behind nginx or something that'll handle /public requests by
+pointing to that directory.
+
+None of this is daemonized or anything, so you probably want to run them in
+screen.
+
