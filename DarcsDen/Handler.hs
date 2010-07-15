@@ -92,16 +92,32 @@ validateRepo s p = do
                 (Just _ , Nothing, _      ) -> warn "repository does not exist" s >> redirectTo "/"
         _ -> warn "no repository specified" s >> redirectTo "/"
   where
-    getValidRepo owner name =
+    getValidRepo owner name = do
+        public <- getRepository (owner, name)
+
+        -- repository is public
+        if public /= Nothing
+            then return public
+            else do
+
+        -- repository is private
         case sUser s of
-            Nothing -> getRepository (owner, name)
-            Just un | un == owner -> getOwnerRepository (owner, name)
-            Just membern -> do
-                mmember <- getUser membern
-                case mmember of
+            -- owner viewing their own repository
+            Just un | un == owner ->
+                getOwnerRepository (owner, name)
+
+            -- some other user, check if they're a member
+            Just mn -> do
+                mm <- getUser mn
+                case mm of
                     Just (User { uID = Just mid }) -> do
                         ism <- isMember mid (owner, name)
                         if ism
                             then getOwnerRepository (owner, name)
                             else return Nothing
+
+                    -- invalid user
                     _ -> return Nothing
+
+            -- not logged in
+            _ -> return Nothing
