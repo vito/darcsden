@@ -172,9 +172,11 @@ doEditRepo _ r s = validate
 
         desc <- input "description" (rDescription r)
         site <- input "website" (rWebsite r)
+        private <- getParam "private"
         updateRepository
             new { rDescription = desc
                 , rWebsite = site
+                , rIsPrivate = isJust private
                 }
 
         success "Repository updated." s

@@ -188,6 +188,7 @@ edit u r ms is = repoBase u r
                 <% field (input "name" (rName r)) "name" "" %>
                 <% field (input "description" (rDescription r)) "description" "" %>
                 <% field (input "website" (rWebsite r)) "website" "" %>
+                <% field (checkbox (rIsPrivate r) is "private") "private?" "" %>
                 <% field (input' is "add-members") "add members" "comma separated" %>
                 <div class="field">
                     <ul>

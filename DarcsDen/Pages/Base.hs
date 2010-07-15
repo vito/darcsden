@@ -105,6 +105,10 @@ checkbox' is n = if n `elem` (map fst is)
                     else <div class="inline-wrapper"><% box %></div>
     where box = <input type="checkbox" name=n />
 
+checkbox :: Bool -> [(String, String)] -> String -> HSP XML
+checkbox False = checkbox'
+checkbox True = \is n -> checkbox' ((n, "1"):is) n
+
 password' :: [(String, String)] -> String -> HSP XML
 password' is n = <input type="password" name=n id=n value=(fromMaybe "" (lookup n is)) />
 
