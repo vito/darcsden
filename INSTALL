@@ -38,7 +38,7 @@ is way too much trouble):
 You can create this file using the Twisted Conch Python library and
 DarcsDen.SSH.Packet, like so:
 
-    >>> from twisted.conch.ssh.key import Key
+    >>> import twisted.conch.ssh.keys.Key
     >>> key = Key.fromFile("path/to/id_rsa")
     >>> key.data()['e']
     ...
