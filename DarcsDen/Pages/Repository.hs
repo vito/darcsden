@@ -212,19 +212,26 @@ edit u r ms is = repoBase u r
                 <% field (input "website" (rWebsite r)) "website" "" %>
                 <% field (checkbox (rIsPrivate r) is "private") "private?" "" %>
                 <% field (input' is "add-members") "add members" "comma separated" %>
-                <div class="field">
-                    <ul>
-                        <% map (\m@(User { uID = Just uid }) ->
-                            <li>
-                                <input type="checkbox" name=("remove-" ++ show uid) />
-                                <% cdata " " %>
-                                <a href=("/" ++ uName m)><% uName m %></a>
-                            </li>) ms %>
-                    </ul>
+                <%
+                    if not (null ms)
+                        then
+                            <%
+                                <div class="field">
+                                    <ul>
+                                        <% map (\m@(User { uID = Just uid }) ->
+                                            <li>
+                                                <input type="checkbox" name=("remove-" ++ show uid) />
+                                                <% cdata " " %>
+                                                <a href=("/" ++ uName m)><% uName m %></a>
+                                            </li>) ms %>
+                                    </ul>
 
-                    <label for="remove-members">remove members</label>
-                    <br />
-                </div>
+                                    <label for="remove-members">remove members</label>
+                                    <br />
+                                </div>
+                            %>
+                        else <% "" %>
+                %>
                 <% submit "update repository" %>
             </fieldset>
         </form>
