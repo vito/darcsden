@@ -83,9 +83,7 @@ validateRepo s p = do
         (Just o, Just n) -> do
             let (owner, name) = (fromBS o, fromBS n)
             mu <- getUser owner
-            mr <- if Just owner == sUser s
-                      then getOwnerRepository (owner, name)
-                      else getRepository (owner, name)
+            mr <- getValidRepo owner name
             darcsRepo <- liftIO (getRepo (repoDir owner name))
             case (mu, mr, darcsRepo) of
                 (Just u , Just r , Right _) -> p u r s
@@ -93,3 +91,17 @@ validateRepo s p = do
                 (_      , Just _ , Left _ ) -> warn "repository invalid" s >> redirectTo "/"
                 (Just _ , Nothing, _      ) -> warn "repository does not exist" s >> redirectTo "/"
         _ -> warn "no repository specified" s >> redirectTo "/"
+  where
+    getValidRepo owner name =
+        case sUser s of
+            Nothing -> getRepository (owner, name)
+            Just un | un == owner -> getOwnerRepository (owner, name)
+            Just membern -> do
+                mmember <- getUser membern
+                case mmember of
+                    Just (User { uID = Just mid }) -> do
+                        ism <- isMember mid (owner, name)
+                        if ism
+                            then getOwnerRepository (owner, name)
+                            else return Nothing
+                    _ -> return Nothing

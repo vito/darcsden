@@ -158,8 +158,9 @@ getRepositoriesByOwner design on = liftIO $ fmap (map snd) (runDB query)
         [("key", showJSON on)]
 
 addRepository :: MonadIO m => Repository -> m Repository
-addRepository r = do (id', rev') <- liftIO $ runDB (newDoc (db "repositories") r)
-                     return (r { rID = Just id', rRev = Just rev' })
+addRepository r = do
+    (id', rev') <- liftIO $ runDB (newDoc (db "repositories") r)
+    return (r { rID = Just id', rRev = Just rev' })
 
 updateRepository :: MonadIO m => Repository -> m (Maybe Repository)
 updateRepository r = case (rID r, rRev r) of
@@ -227,3 +228,14 @@ removeMember r m = updateRepository (r { rMembers = filter (/= m) (rMembers r) }
 
 addMember :: MonadIO m => Repository -> Doc -> m (Maybe Repository)
 addMember r m = updateRepository (r { rMembers = filter (/= m) (rMembers r) ++ [m] })
+
+isMember :: MonadIO m => Doc -> (String, String) -> m Bool
+isMember uid key = do
+    repos <- liftIO $ fmap (map snd) (runDB query)
+    return (key `elem` repos)
+  where
+    query = queryView
+        (db "repositories")
+        (doc "private")
+        (doc "by_member")
+        [("key", showJSON uid)]
