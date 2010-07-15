@@ -1,10 +1,32 @@
-# cabal install
-# mkdir /srv/darcs
-# adduser --system --home /srv/darcs --no-create-home --shell /bin/bash --group --gecos "DarcsDen" darcsden
-# chown -R darcsden:darcsden /srv/darcs
+You will need:
+- CouchDB, with the databases and views described below.
+- Redis
 
-to start:
-# sudo -i -u darcsden ./bin/darcs-ssh.py
+Both running on their default port, or just edit DarcsDen/State/Util.hs to
+point to different ones.
+
+To install:
+# cabal install mkdir -p /srv/darcs adduser --system --home /srv/darcs
+# --no-create-home --shell /bin/bash --group --gecos "DarcsDen" darcsden chown
+# -R darcsden:darcsden /srv/darcs
+
+To start:
 # sudo -i -u darcsden darcsden
 
-none of these are daemonized or anything, so you probably want to run them in screen
+You will need to start it either in the directory with public/ in it, or you
+can run it behind nginx or something that'll handle /public requests by
+pointing to that directory.
+
+None of this is daemonized or anything, so you probably want to run them in
+screen.
+
+CouchDB:
+1. repositories database, with the following design documents:
+
+    {"_id":"_design/repositories","language":"javascript","views":{"by_owner_and_name":{"map":"function(doc) {\n  if (doc.owner && doc.name && !doc.is_private)\n    emit([doc.owner, doc.name], doc);\n}"},"by_owner":{"map":"function(doc) {\n  if (doc.owner && !doc.is_private)\n    emit(doc.owner, doc);\n}"},"by_fork":{"map":"function(doc) {\n  if (doc.fork_of.Just && !doc.is_private)\n    emit(doc.fork_of.Just, doc);\n}"},"by_member":{"map":"function(doc) {\n  if (!doc.is_private)\n    for (member in doc.members)\n      emit(doc.members[member], doc._id);\n}"}}}
+
+    {"_id":"_design/private","language":"javascript","views":{"by_owner":{"map":"function(doc) {\n  emit(doc.owner, doc);\n}\n"},"by_owner_and_name":{"map":"function(doc) {\n  if (doc.owner && doc.name)\n    emit([doc.owner, doc.name], doc);\n}"},"by_member":{"map":"function(doc) {\n  for (member in doc.members)\n    emit(doc.members[member], [doc.owner, doc.name]);\n}"}}}
+
+2. users database with the following design document:
+
+    {"_id":"_design/users","language":"javascript","views":{"by_email":{"map":"function(doc) {\n  if (doc.email)\n    emit(doc.email, doc);\n}"},"by_name":{"map":"function(doc) {\n  if (doc.name)\n    emit(doc.name, doc);\n}"}}}
