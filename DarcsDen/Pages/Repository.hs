@@ -144,7 +144,7 @@ repo u r files up path readme member sess = repoBase u r
             <div class="repo-browse no-files">
                 <h1>nothing here yet!</h1>
                 <%
-                    if rOwner r == uName u
+                    if Just (rOwner r) == sUser sess
                         then ownerMessage
                         else if member
                             then memberMessage
@@ -154,15 +154,11 @@ repo u r files up path readme member sess = repoBase u r
           where
             ownerMessage =
                 <p class="repo-empty">
-                    push your code to
-                    <code><% uName u %>@<% baseDomain %>:<% rName r %></code>
-                    to get started
+                    push your code to <code><% uName u %>@<% baseDomain %>:<% rName r %></code> to get started
                 </p>
             memberMessage =
                 <p class="repo-empty">
-                    push your code to
-                    <code><% fromJust (sUser sess) %><% baseDomain %>:<% rOwner r %>/<% rName r %></code>
-                    to get started
+                    push your code to <code><% fromJust (sUser sess) %><% baseDomain %>:<% rOwner r %>/<% rName r %></code> to get started
                 </p>
             otherMessage =
                 <p class="repo-empty">move along, citizen</p>
