@@ -61,7 +61,7 @@ main = do
     startHTTP p = httpServe
         "*"
         p
-        "localhost"
+        "127.0.0.1"
         (Just "access.log")
         (Just "error.log")
         handler

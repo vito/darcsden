@@ -9,11 +9,11 @@ import qualified Database.Redis.Redis as R
 
 
 runDB :: CouchMonad a -> IO a
-runDB = runCouchDB "localhost" 5984
+runDB = runCouchDB "127.0.0.1" 5984
 
 withRedis :: (MonadIO m) => RedisM a -> m a
 withRedis a = liftIO $ do
-    c <- R.connect R.localhost R.defaultPort
+    c <- R.connect "127.0.0.1" R.defaultPort
     runWithRedis c a
 
 getDocByView :: (JSON a, JSON b) => DB -> Doc -> Doc -> a -> CouchMonad (Maybe b)
