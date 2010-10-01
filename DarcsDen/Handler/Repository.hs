@@ -66,9 +66,9 @@ doInitialize s@(Session { sUser = Just n }) = validate
         success "Repository created." s
         redirectTo ("/" ++ n ++ "/" ++ (r ! "name")))
     (\(Invalid f) -> do
-        notify Warning s f
         is <- getInputs
-        doPage (Page.init is) s)
+        notify Warning s f
+            >>= doPage (Page.init is))
 
 browse :: Page
 browse s = do

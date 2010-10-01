@@ -66,9 +66,9 @@ doRegister s = validate
        success "You have been successfully registered and logged in." s
        redirectTo "/")
     (\(Invalid failed) -> do
-        notify Warning s failed
         is <- getInputs
-        doPage (Page.register is) s)
+        notify Warning s failed
+            >>= doPage (Page.register is))
 
 login :: Page
 login s = doPage (Page.login []) s
@@ -89,9 +89,9 @@ doLogin s = validate
         success "Logged in!" s
         redirectTo "/")
     (\(Invalid failed) -> do
-        notify Warning s failed
         is <- getInputs
-        doPage (Page.login is) s)
+        notify Warning s failed
+            >>= doPage (Page.login is))
 
 logout :: Page
 logout s = do

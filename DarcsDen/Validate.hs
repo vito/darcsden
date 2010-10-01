@@ -129,5 +129,9 @@ io :: String -> IO Bool -> Valid
 io = IOPred
 
 -- Notifications
-notify :: MonadIO m => (String -> Notification) -> Session -> [Valid] -> m ()
-notify n s vs = mapM_ (\m -> notice (n (explain m)) s) vs
+notify :: MonadIO m => (String -> Notification) -> Session -> [Valid] -> m Session
+notify n s vs = do
+    mapM_ (flip notice s) ns
+    return (s { sNotifications = sNotifications s ++ ns })
+  where
+    ns = map (n . explain) vs
