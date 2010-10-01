@@ -28,6 +28,12 @@ import qualified DarcsDen.SSH as SSH
 
 main :: IO ()
 main = do
+    putStrLn "checking couchdb..."
+    runDB (return ())
+
+    putStrLn "checking redis..."
+    withRedis (return ())
+
     (hport, sport) <- do
         as <- getArgs
         case as of
