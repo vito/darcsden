@@ -180,6 +180,7 @@ channelRequest wr (Execute cmd) =
         ]
 
     execute = spawnProcess . runInteractiveCommand
-channelRequest wr _ = do
+channelRequest wr r = do
     channelError "this server only accepts exec requests"
+    channelError $ "got: " ++ show r
     when wr channelFail
