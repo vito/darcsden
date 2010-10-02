@@ -7,23 +7,23 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.State
 import Data.List (isPrefixOf)
 import Data.Time
+import SSH.Channel
+import SSH.Crypto
+import SSH.NetReader
+import SSH.Session
 import Snap.Http.Server
 import System.Environment
 import System.FilePath
 import System.Process
 import qualified Codec.Binary.Base64.String as Base64
 import qualified Data.ByteString.Lazy as LBS
+import qualified SSH as SSH
 
 import DarcsDen.Handler
-import DarcsDen.SSH.Channel
-import DarcsDen.SSH.Crypto
-import DarcsDen.SSH.NetReader
-import DarcsDen.SSH.Session
 import DarcsDen.State.Repository
 import DarcsDen.State.User
 import DarcsDen.State.Util
 import DarcsDen.Util (toLBS)
-import qualified DarcsDen.SSH as SSH
 
 
 main :: IO ()
@@ -121,7 +121,7 @@ channelRequest wr (Execute cmd) =
                                 }
                             finishWith "repository created"
                         Just _ -> errorWith "repository already exists"
-        _ -> failWith "invalid exec request"
+        _ -> failWith ("invalid exec request: " ++ show cmd)
   where
     failWith :: String -> Channel ()
     failWith msg = do

@@ -15,13 +15,12 @@ executable darcsden
   main-is:       Main.hs
 
   if impl(ghc >= 6.12)
-    ghc-options:   -O2 -Wall -threaded -fno-warn-unused-do-bind
+    ghc-options:   -Wall -threaded -fno-warn-unused-do-bind
   else
-    ghc-options:   -O2 -Wall -threaded
+    ghc-options:   -Wall -threaded
 
   build-depends: base >= 4 && < 5,
                  base64-string,
-                 binary,
                  bytestring,
                  CouchDB,
                  Crypto,
@@ -32,11 +31,9 @@ executable darcsden
                  harp,
                  hashed-storage,
                  highlighting-kate,
-                 HsOpenSSL >= 0.8,
                  hsp,
                  json,
                  mtl,
-                 network,
                  old-locale,
                  old-time,
                  pandoc,
@@ -44,8 +41,7 @@ executable darcsden
                  QuickCheck >= 2.0,
                  random,
                  redis,
-                 RSA,
-                 SHA,
+                 ssh,
                  snap-core >= 0.2.12,
                  snap-server >= 0.2.12,
                  split,
