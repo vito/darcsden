@@ -41,7 +41,7 @@ executable darcsden
                  QuickCheck >= 2.0,
                  random,
                  redis,
-                 ssh,
+                 ssh >= 0.2,
                  snap-core >= 0.2.12,
                  snap-server >= 0.2.12,
                  system-uuid,

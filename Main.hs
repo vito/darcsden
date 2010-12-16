@@ -200,6 +200,5 @@ channelRequest wr (Execute cmd) =
 channelRequest wr (Environment "LANG" _) =
     when wr channelSuccess
 channelRequest wr r = do
-    channelError "this server only accepts exec requests"
-    channelError $ "got: " ++ show r
+    channelError $ "this server only accepts exec requests\r\ngot: " ++ show r
     when wr channelFail
