@@ -99,6 +99,8 @@ channelRequest wr (Execute cmd) =
             saneRepo path darcsTransferMode
         ["darcs", "apply", "--all", "--repodir", path] ->
             saneRepo path darcsApply
+        ["darcs", "apply", "--all", "--debug", "--repodir", path] ->
+            saneRepo path darcsApply
         [initialize, repoName] | "init" `isPrefixOf` initialize ->
             if null repoName || not (isSane repoName)
                 then errorWith "invalid repository name"
