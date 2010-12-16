@@ -2,8 +2,7 @@ module DarcsDen.State.User where
 
 import Control.Monad.IO.Class
 import Control.Monad (replicateM)
-import Crypto.Hash.SHA1 (hash)
-import Data.Char (ord)
+import Data.Digest.Pure.SHA (sha512, bytestringDigest)
 import Data.Time (UTCTime, formatTime, readTime)
 import Data.Word (Word8)
 import Database.CouchDB
@@ -11,7 +10,7 @@ import System.Directory (createDirectoryIfMissing)
 import System.Locale (defaultTimeLocale)
 import System.Random
 import Text.JSON
-import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as LBS
 
 import DarcsDen.State.Repository
 import DarcsDen.State.Util
@@ -133,7 +132,12 @@ salt num = do r <- replicateM num (randomRIO (0 :: Int, 255))
               return (map (\x -> fromIntegral x :: Word8) r)
 
 hashPassword :: String -> [Word8] -> [Word8]
-hashPassword p s = BS.unpack (hash (BS.pack (merge (map (fromIntegral . ord) p) s)))
+hashPassword p s
+    = LBS.unpack
+    . bytestringDigest
+    . sha512
+    . LBS.pack
+    $ merge (map (fromIntegral . fromEnum) p) s
   where merge a b = concat (zipWith (\ x y -> [x, y]) a b) ++ (if length a < length b
                                                                   then drop (length a) b
                                                                   else drop (length b) a)
