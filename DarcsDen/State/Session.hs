@@ -4,8 +4,7 @@ import Control.Monad.IO.Class
 import Database.Redis.Monad hiding (expireAt)
 import Data.Time
 import Data.Time.Clock.POSIX
-import Data.UUID.V1
-import qualified Data.UUID as U
+import System.UUID.V4
 import qualified Data.ByteString as BS
 import qualified Control.Monad.Trans as MTL
 
@@ -32,7 +31,7 @@ data Session =
 expireAt :: WithRedis m => String -> Int -> m (Reply Int)
 expireAt k t = do
     now <- MTL.liftIO getCurrentTime
-    
+
     let relative = diffUTCTime (posixSecondsToUTCTime (fromIntegral t)) now
 
     expire k (ceiling relative)
@@ -40,7 +39,7 @@ expireAt k t = do
 getSession :: MonadIO m => BS.ByteString -> m (Maybe Session)
 getSession sid = withRedis $ do
     RBulk mexpire <- get (sessionKey' sid "expire")
-    
+
     case mexpire of
         Just e -> do
             RBulk user <- get (sessionKey' sid "user")
@@ -64,24 +63,21 @@ getSession sid = withRedis $ do
 
 newSession :: MonadIO m => m (Maybe Session)
 newSession = do
-    muuid <- liftIO nextUUID
+    uuid <- liftIO uuid
 
-    case muuid of
-        Nothing -> return Nothing
-        Just uuid -> do
-            now <- liftIO (getCurrentTime)
-            let s = Session
-                        { sID = toBS . filter (/= '-') . U.toString $ uuid
-                        , sExpire = addUTCTime (60 * 60 * 24 * 30) now
-                        , sUser = Nothing
-                        , sNotifications = []
-                        }
+    now <- liftIO (getCurrentTime)
+    let s = Session
+                { sID = toBS . filter (/= '-') . show $ uuid
+                , sExpire = addUTCTime (60 * 60 * 24 * 30) now
+                , sUser = Nothing
+                , sNotifications = []
+                }
 
-            withRedis $ do
-                incrBy (sessionKey s "expire") (sessionExpire s)
-                expireAt (sessionKey s "expire") (sessionExpire s)
+    withRedis $ do
+        incrBy (sessionKey s "expire") (sessionExpire s)
+        expireAt (sessionKey s "expire") (sessionExpire s)
 
-            return (Just s)
+    return (Just s)
 
 deleteSession :: MonadIO m => Session -> m ()
 deleteSession s = withRedis $ do
@@ -93,7 +89,7 @@ deleteSession s = withRedis $ do
     return ()
 
 setUser :: MonadIO m => Maybe String -> Session -> m ()
-setUser mn s = withRedis $ do 
+setUser mn s = withRedis $ do
     case mn of
         Just n -> do
             set key n

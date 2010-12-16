@@ -1,16 +1,17 @@
 module DarcsDen.State.User where
 
 import Control.Monad.IO.Class
-import Codec.Utils (Octet)
 import Control.Monad (replicateM)
+import Crypto.Hash.SHA1 (hash)
 import Data.Char (ord)
-import Data.Digest.SHA512
 import Data.Time (UTCTime, formatTime, readTime)
+import Data.Word (Word8)
 import Database.CouchDB
 import System.Directory (createDirectoryIfMissing)
 import System.Locale (defaultTimeLocale)
 import System.Random
 import Text.JSON
+import qualified Data.ByteString as BS
 
 import DarcsDen.State.Repository
 import DarcsDen.State.Util
@@ -19,8 +20,8 @@ import DarcsDen.State.Util
 data User = User { uID :: Maybe Doc
                  , uRev :: Maybe Rev
                  , uName :: String
-                 , uPassword :: [Octet]
-                 , uSalt :: [Octet]
+                 , uPassword :: [Word8]
+                 , uSalt :: [Word8]
                  , uFullName :: String
                  , uWebsite :: String
                  , uEmail :: String
@@ -127,12 +128,12 @@ deleteUser u = case (uID u, uRev u) of
                         liftIO $ runDB (deleteDoc (db "users") (id', rev'))
                     _ -> return False
 
-salt :: Int -> IO [Octet]
+salt :: Int -> IO [Word8]
 salt num = do r <- replicateM num (randomRIO (0 :: Int, 255))
-              return (map (\x -> fromIntegral x :: Octet) r)
+              return (map (\x -> fromIntegral x :: Word8) r)
 
-hashPassword :: String -> [Octet] -> [Octet]
-hashPassword p s = hash (merge (map (fromIntegral . ord) p) s)
+hashPassword :: String -> [Word8] -> [Word8]
+hashPassword p s = BS.unpack (hash (BS.pack (merge (map (fromIntegral . ord) p) s)))
   where merge a b = concat (zipWith (\ x y -> [x, y]) a b) ++ (if length a < length b
                                                                   then drop (length a) b
                                                                   else drop (length b) a)
