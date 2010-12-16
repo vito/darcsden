@@ -123,6 +123,8 @@ channelRequest wr (Execute cmd) =
                                 }
                             finishWith "repository created"
                         Just _ -> errorWith "repository already exists"
+        ["scp", "-f", "--", path] ->
+            safePath path scp
         _ -> failWith ("invalid exec request: " ++ show cmd)
   where
     failWith :: String -> Channel ()
@@ -160,13 +162,24 @@ channelRequest wr (Execute cmd) =
                     >>= maybe (errorWith "invalid repository") a
             _ -> errorWith "invalid target directory"
 
+    safePath :: FilePath -> (FilePath -> Channel ()) -> Channel ()
+    safePath p a = saneUser $ \u -> do
+        case takeWhile (not . null) . splitDirectories $ p of
+            (repoName:_) -> do
+                mrepo <- getOwnerRepository (uName u, repoName)
+                case mrepo of
+                    Just _ -> a ("/srv/darcs/" ++ uName u ++ "/" ++ p)
+                    _ -> errorWith "invalid path"
+
+            x -> errorWith "invalid path"
+
     -- verify the current user
     saneUser :: (User -> Channel ()) -> Channel ()
     saneUser a = do
         mu <- gets csUser >>= getUser
         maybe (errorWith "invalid user") a mu
 
-    darcsTransferMode r = execute . unwords $ 
+    darcsTransferMode r = execute . unwords $
         [ "darcs"
         , "transfer-mode"
         , "--repodir"
@@ -180,6 +193,8 @@ channelRequest wr (Execute cmd) =
         , "--repodir"
         , repoDir (rOwner r) (rName r)
         ]
+
+    scp path = execute . unwords $ ["scp", "-f", "--", path]
 
     execute = spawnProcess . runInteractiveCommand
 channelRequest wr r = do
