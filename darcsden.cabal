@@ -25,7 +25,7 @@ executable darcsden
                  CouchDB,
                  Crypto,
                  containers,
-                 darcs >= 2,
+                 darcs >= 2 && < 2.5,
                  directory,
                  filepath,
                  harp,
