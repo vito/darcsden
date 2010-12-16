@@ -12,6 +12,7 @@ import SSH.Crypto
 import SSH.NetReader
 import SSH.Session
 import Snap.Http.Server
+import System.Directory (canonicalizePath)
 import System.Environment
 import System.FilePath
 import System.Process
@@ -164,14 +165,15 @@ channelRequest wr (Execute cmd) =
 
     safePath :: FilePath -> (FilePath -> Channel ()) -> Channel ()
     safePath p a = saneUser $ \u -> do
-        case takeWhile (not . null) . splitDirectories $ p of
-            (repoName:_) -> do
+        cp <- liftIO (canonicalizePath ("/srv/darcs/" ++ uName u ++ "/" ++ p))
+        case takeWhile (not . null) . splitDirectories $ cp of
+            ("/":"srv":"darcs":_:repoName:_) -> do
                 mrepo <- getOwnerRepository (uName u, repoName)
                 case mrepo of
-                    Just _ -> a ("/srv/darcs/" ++ uName u ++ "/" ++ p)
+                    Just _ -> a cp
                     _ -> errorWith "invalid path"
 
-            x -> errorWith "invalid path"
+            _ -> errorWith "invalid path"
 
     -- verify the current user
     saneUser :: (User -> Channel ()) -> Channel ()
