@@ -69,8 +69,8 @@ main = do
         "*"
         p
         "127.0.0.1"
-        (Just "access.log")
-        (Just "error.log")
+        (Just "/srv/darcs/access.log")
+        (Just "/srv/darcs/error.log")
         handler
 
 sshAuthorize :: Authorize -> Session Bool
