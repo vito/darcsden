@@ -63,11 +63,11 @@ getSession sid = withRedis $ do
 
 newSession :: MonadIO m => m (Maybe Session)
 newSession = do
-    uuid <- liftIO uuid
+    ui <- liftIO uuid
 
     now <- liftIO (getCurrentTime)
     let s = Session
-                { sID = toBS . filter (/= '-') . show $ uuid
+                { sID = toBS . filter (/= '-') . show $ ui
                 , sExpire = addUTCTime (60 * 60 * 24 * 30) now
                 , sUser = Nothing
                 , sNotifications = []
