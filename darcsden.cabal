@@ -29,7 +29,6 @@ executable darcsden
                  filepath,
                  harp,
                  hashed-storage,
-                 highlighting-kate,
                  hsp,
                  json,
                  mtl,

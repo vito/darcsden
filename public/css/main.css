@@ -313,21 +313,25 @@ form .cancel-buttons a.cancel {
     padding: 1em;
 }
 
-table.sourceCode,
-.patch-changes pre.sourceCode {
+table.highlighttable .linenos,
+.highlight {
 	font-size: 1.2em;
 	line-height: 1.4em;
 }
-table.sourceCode .lineNumbers {
+table.highlighttable .linenos {
     background: #000;
     color: #fff;
 }
-table.sourceCode .lineNumbers .lineNumber {
+table.highlighttable .linenos a {
     text-decoration: none;
+    padding: 0 .5em;
 }
-table.sourceCode .lineNumbers .lineNumberActive {
+table.highlighttable .linenos a:target {
     color: #f22;
     font-weight: bold;
+}
+table.highlighttable .code .highlight {
+    padding: 0 .5em;
 }
 
 div.code,

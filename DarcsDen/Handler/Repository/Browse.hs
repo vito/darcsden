@@ -76,7 +76,7 @@ getReadme dr f = do
                Just md | isMarkdown r ->
                    return . Just . doMarkdown . fromLBS $ md
                Just source ->
-                   return . Just . highlight False r . fromLBS $ source
+                   fmap Just $ highlight False r . fromLBS $ source
     where
         findReadmes = maybe Nothing listToMaybe . fmap (filter isReadme . map (fromAnchored . fst) . T.list)
         doMarkdown = writeHtmlString defaultWriterOptions . readMarkdown defaultParserState

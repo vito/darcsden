@@ -102,7 +102,7 @@ findUsers = findUsers' []
             case lookup (pAuthor p) checked of
                  Just (Just n) -> do
                     rest <- findUsers' checked ps
-                    return (p { pAuthor = n, pIsUser = True } : rest) 
+                    return (p { pAuthor = n, pIsUser = True } : rest)
                  Just Nothing -> do
                     rest <- findUsers' checked ps
                     return (p { pAuthor = authorFrom (pAuthor p) } : rest)
@@ -116,15 +116,17 @@ findUsers = findUsers' []
                              rest <- findUsers' ((pAuthor p, Nothing) : checked) ps
                              return (p { pAuthor = authorFrom (pAuthor p) } : rest)
 
-toChanges :: P.Effect p => P.Named p -> PatchChanges
-toChanges p = PatchChanges (toLog p) . simplify [] . map primToChange . WO.unsafeUnFL $ P.effect p
-  where simplify a [] = reverse a
+toChanges :: P.Effect p => P.Named p -> IO PatchChanges
+toChanges p = fmap (PatchChanges (toLog p)) $ simplify [] . map primToChange . WO.unsafeUnFL $ P.effect p
+  where simplify a [] = return (reverse a)
         simplify a (c@(FileChange n t):cs) | t `elem` [FileAdded, FileRemoved, FileBinary]
           = simplify (c:filter (notFile n) a) (filter (notFile n) cs)
         simplify a (c@(FileChange _ (FileReplace _ _)):cs)
           = simplify (c:a) cs
-        simplify a (FileChange n (FileHunk l f t):cs)
-          = simplify (FileChange n (FileHunk l (highlight False n f) (highlight False n t)):a) cs
+        simplify a (FileChange n (FileHunk l f t):cs) = do
+            hf <- highlight False n f
+            ht <- highlight False n t
+            simplify (FileChange n (FileHunk l hf ht):a) cs
         simplify a (c@(PrefChange _ _ _):cs) = simplify (c:a) cs
         simplify a (_:cs) = simplify a cs
 
@@ -164,7 +166,8 @@ getPatch dir patch = R.withRepositoryDirectory [] dir $ \dr ->
   do pset <- R.read_repo dr
      let ps = fromPS pset
          p = head $ filter (\p' -> patch == take 20 (P.patchname p')) ps
-         cs = toChanges p
+
+     cs <- toChanges p
 
      [l] <- findUsers [pPatch cs]
      return cs { pPatch = l }

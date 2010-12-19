@@ -20,14 +20,14 @@ index = base
         <p class="blurb">if you want to help out or just poke around an example repository, feel free to take a gander at <a href="/alex/darcsden">darcsden's source code</a>!</p>
     </div>
 
- 
+
 base :: String -> HSP XML -> HSP XML -> HSPage
 base title crumb content sess =
     <html>
         <head>
             <title><% title %><% if not (null title) then " :: " else "" %>darcsden</title>
             <link rel="stylesheet" href="/public/css/main.css" type="text/css" media="screen" />
-            <link rel="stylesheet" href="/public/css/hk-kate.css" />
+            <link rel="stylesheet" href="/public/css/highlight.css" />
             <script src="/public/js/jquery.js" type="text/javascript"></script>
             <script src="/public/js/relatize.js" type="text/javascript"></script>
             <script src="/public/js/main.js" type="text/javascript"></script>
