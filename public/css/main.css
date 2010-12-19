@@ -161,6 +161,29 @@ form .cancel-buttons a.cancel {
 .links {
 	float: right;
 }
+.repo .links {
+    float: left;
+    width: 10em;
+    margin-bottom: 2em;
+    text-align: right;
+    margin-left: -12em;
+}
+.repo .links li {
+    padding: .5em 0;
+    margin-bottom: .25em;
+}
+.repo .links li a {
+    margin-right: .25em;
+    padding: .4em .5em .4em 2em;
+    border: .1em solid #ddd;
+}
+.repo .links li a:hover {
+    position: relative;
+    top: -3px;
+    left: -3px;
+    -webkit-box-shadow: 1px 1px 0 #eee, 2px 2px #eee, 3px 3px #eee;
+    -webkit-transition: all 0.125s ease-out;
+}
 .links li {
 	font-size: 1.5em;
 	display: inline-block;
@@ -171,16 +194,16 @@ form .cancel-buttons a.cancel {
 	padding: .5em 0 .5em 21px;
 }
 .links li.edit a {
-	background: url('/public/images/edit.gif') no-repeat left 8px;
+	background: #fff url('/public/images/edit.gif') no-repeat 6px 6px;
 }
 .links li.delete a {
-	background: url('/public/images/delete.gif') no-repeat left 8px;
+	background: #fff url('/public/images/delete.gif') no-repeat 6px 6px;
 }
 .links li.fork a {
-	background: url('/public/images/fork.gif') no-repeat left 8px;
+	background: #fff url('/public/images/fork.gif') no-repeat 6px 6px;
 }
 .links li.changes a {
-	background: url('/public/images/log.gif') no-repeat left 8px;
+	background: #fff url('/public/images/log.gif') no-repeat 6px 6px;
 }
 .links.nav li {
 	font-size: 2em;
@@ -204,7 +227,10 @@ form .cancel-buttons a.cancel {
 .repo-empty {
 	color: #777;
 	font-size: 1.4em;
-	margin-bottom: 2em;
+    margin-bottom: 2em;
+}
+.repo-empty {
+    margin-bottom: 2em;
 }
 .repo-desc .repo-fork {
 	color: #aaa;
