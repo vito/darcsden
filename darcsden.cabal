@@ -11,47 +11,57 @@ maintainer:      i.am@toogeneric.com
 homepage:        http://darcsden.com/
 category:        Web
 
+source-repository   head
+    type:           darcs
+    location:       http://darcsden.com/alex/darcsden
+
 executable darcsden
-  main-is:       Main.hs
+  hs-source-dirs:   src
+
+  main-is:          WebServer.hs
 
   if impl(ghc >= 6.12)
     ghc-options:   -Wall -threaded -fno-warn-unused-do-bind
   else
     ghc-options:   -Wall -threaded
 
-  build-depends: base >= 4 && < 5,
-                 base64-string,
-                 bytestring,
-                 CouchDB,
-                 containers,
-                 darcs >= 2 && < 2.5,
-                 directory,
-                 filepath,
-                 harp,
-                 hashed-storage,
-                 hsp,
-                 json,
-                 mtl,
-                 old-locale,
-                 old-time,
-                 pandoc,
-                 process,
-                 QuickCheck >= 2.0,
-                 random,
-                 redis,
-                 SHA,
-                 ssh >= 0.2.4,
-                 snap-core >= 0.2.12,
-                 snap-server >= 0.2.12,
-                 system-uuid,
-                 split,
-                 time,
-                 transformers,
-                 xhtml
+  build-depends:
+    { base >= 4 && < 5
+    , base64-string
+    , bytestring
+    , CouchDB
+    , containers
+    , darcs >= 2 && < 2.5
+    , directory
+    , filepath
+    , harp
+    , hashed-storage
+    , hsp
+    , json
+    , mtl
+    , old-locale
+    , old-time
+    , pandoc
+    , process
+    , QuickCheck >= 2.0
+    , random
+    , redis
+    , SHA
+    , ssh >= 0.2.4
+    , snap-core >= 0.2.12
+    , snap-server >= 0.2.12
+    , system-uuid
+    , split
+    , time
+    , transformers
+    , xhtml
+    }
 
 
 executable darcsden-ssh
-  main-is:       SSHServer.hs
+  hs-source-dirs:   src
+
+  main-is:          SSHServer.hs
 
   if impl(ghc >= 6.12)
     ghc-options:   -Wall -threaded -fno-warn-unused-do-bind
