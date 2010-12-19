@@ -447,7 +447,7 @@ div.markdown pre {
 }
 .repo-list li .repo-forks-wrap {
     margin: 1em;
-    padding: 1em;
+    padding: 1em 1em 0;
 	-webkit-box-shadow: #ddd 0 0 1em;
 	-moz-box-shadow: #ddd 0 0 1em;
 
@@ -466,7 +466,7 @@ div.markdown pre {
     float: left;
     display: block;
     font-size: 1.1em;
-    margin-right: 1em;
+    margin: 0 1em 1em 0;
     padding: .5em .75em;
     background: #fff;
     border: .1em solid #ddd;
