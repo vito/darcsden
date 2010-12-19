@@ -351,7 +351,7 @@ changes u r cs p tp = repoBase u r
         </ul>
 
         <% paginate (repoURL r ++ "/changes") p tp %>
-    </div> 
+    </div>
 
 
 changesAtom :: User -> Repository -> [PatchLog] -> HSPage
@@ -423,10 +423,10 @@ blob u r fs b = repoBase u r
         file :: RepoItem
         file = last fs
 
-browse :: [Repository] -> Int -> Int -> HSPage
+browse :: [(Repository, [Repository])] -> Int -> Int -> HSPage
 browse rs p tp = base
     "browse"
-    <span> -> browse</span>
+    <span>browse</span>
     <div class="browse">
         <h1>all repositories</h1>
         <ul class="repo-list">
@@ -435,8 +435,8 @@ browse rs p tp = base
         <% paginate "/browse" p tp %>
     </div>
     where
-        repo' :: Repository -> HSP XML
-        repo' r =
+        repo' :: (Repository, [Repository]) -> HSP XML
+        repo' (r, fs) =
             <li>
                 <div class="title">
                     <a class="repo-name" href=(repoURL r)><% rName r %></a> :: <a href=(repoOwnerURL r)><% rOwner r %></a>
@@ -444,6 +444,20 @@ browse rs p tp = base
                 <p class="repo-desc">
                     <% rDescription r %>
                 </p>
+                <%
+                    if length fs > 0
+                        then
+                            <%
+                                <div class="repo-forks-wrap">
+                                    <h3>forks</h3>
+                                    <ul class="repo-forks">
+                                        <% map (\f -> <% <li><a href=(repoURL f)><% rOwner f %>'s <% rName f %></a></li> %>) fs %>
+                                    </ul>
+                                    <div class="clear"></div>
+                               </div>
+                            %>
+                        else <% "" %>
+                %>
             </li>
 
 patch :: User -> Repository -> PatchLog -> [Summary] -> [PatchChange]-> HSPage

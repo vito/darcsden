@@ -75,11 +75,21 @@ browse s = do
     page <- input "page" "1"
 
     let p = read page :: Int
-        paginated rs = (paginate 50 p (sortBy (comparing (map toLower . rName)) rs))
+        paginated rs = (paginate 50 p (sortBy (comparing (map toLower . rName . fst)) rs))
 
-    rs <- getRepositories
+    rs <- fmap groupForks getRepositories
     let totalPages = ceiling ((fromIntegral (length rs) :: Double) / 50)
     doPage (Page.browse (paginated rs) p totalPages) s
+  where
+    groupForks [] = []
+    groupForks (r@(Repository { rForkOf = Just d }):rs) =
+        addFork d r (groupForks rs)
+    groupForks (r:rs) = (r, []) : groupForks rs
+
+    addFork _ _ [] = []
+    addFork x f ((r@(Repository { rID = y }), fs):rs)
+        | Just x == y = ((r, (f:fs)) : rs)
+        | otherwise = (r, fs) : addFork x f rs
 
 browseRepo :: User -> Repository -> Page
 browseRepo u r s = do

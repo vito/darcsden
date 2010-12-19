@@ -411,7 +411,7 @@ div.markdown pre {
 .repo-list {
 	margin-top: 1em;
 }
-.repo-list li {
+.repo-list > li {
 	margin-bottom: 2em;
 }
 .repo-list li .title {
@@ -424,6 +424,44 @@ div.markdown pre {
 }
 .repo-list li .repo-desc {
 	margin-bottom: 0;
+}
+.repo-list li .repo-forks-wrap {
+    margin: 1em;
+    padding: 1em;
+	-webkit-box-shadow: #ddd 0 0 1em;
+	-moz-box-shadow: #ddd 0 0 1em;
+
+}
+.repo-list li .repo-forks-wrap h3 {
+    font-size: 1.5em;
+    padding-bottom: 0;
+    margin: 0;
+    padding-bottom: .4em;
+    line-height: 1em;
+}
+.repo-list li .repo-forks {
+    margin: 0;
+}
+.repo-list li .repo-forks li a {
+    float: left;
+    display: block;
+    font-size: 1.1em;
+    padding: .5em .75em;
+    border: .1em solid #ddd;
+    font-family: monospace;
+    text-decoration: none;
+    font-weight: bold;
+}
+.repo-list li .repo-forks li a:hover {
+    position: relative;
+    top: -3px;
+    left: -3px;
+    color: #555;
+    -webkit-box-shadow: #eee 1px 1px 0, #eee 2px 2px 0, #eee 3px 3px 0;
+    -webkit-transition: all 0.125s ease-out;
+}
+.repo-list li .repo-forks li a:active {
+    background: #eee;
 }
 
 .user-repos li {
