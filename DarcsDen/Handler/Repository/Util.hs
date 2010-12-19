@@ -1,7 +1,7 @@
 module DarcsDen.Handler.Repository.Util where
 
+import Control.Concurrent
 import Data.Char (isAlphaNum)
-import System.Exit
 import System.FilePath (takeExtension)
 import System.IO
 import System.Process
@@ -30,10 +30,22 @@ highlight lineNums fn s =
         (pin, pout, _, ph) <- runInteractiveCommand ("pygmentize " ++ unwords (args lexer))
         hPutStr pin s
         hClose pin
-        res <- waitForProcess ph
-        case res of
-            ExitSuccess -> hGetContents pout
-            ExitFailure _ -> err
+
+        reschan <- newChan
+        waiter <- forkIO (hGetContents pout >>= writeChan reschan . Just)
+        killer <- forkIO $ do
+            threadDelay (10 * 1000000)
+            killThread waiter
+            terminateProcess ph
+            writeChan reschan Nothing
+
+        res <- readChan reschan
+        mec <- getProcessExitCode ph
+        killThread killer
+        case (res, mec) of
+            (Just out, Nothing) | length out > 0 ->
+                return out
+            _ -> err
 
 highlightBlob :: String -> String -> IO String
 highlightBlob = highlight True
