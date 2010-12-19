@@ -86,7 +86,7 @@ browse s = do
         addFork d r (groupForks rs)
     groupForks (r:rs) = (r, []) : groupForks rs
 
-    addFork _ _ [] = []
+    addFork _ f [] = [(f, [])]
     addFork x f ((r@(Repository { rID = y }), fs):rs)
         | Just x == y = ((r, (f:fs)) : rs)
         | otherwise = (r, fs) : addFork x f rs
