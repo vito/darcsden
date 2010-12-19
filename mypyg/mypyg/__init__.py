@@ -20,6 +20,7 @@ class AtomoLexer(RegexLexer):
              'EM','SUB','ESC','[FGRU]S','SP','DEL']
 
     valid_name = r'[:a-zA-Z0-9!%&*+,/<=>?@^_~|-]'
+    operator_name = r'[:!#%&*+.\\/<=>?@^|~-]'
 
     tokens = {
         'root': [
@@ -28,15 +29,13 @@ class AtomoLexer(RegexLexer):
             #(r'--\s*|.*$', Comment.Doc),
             (r'--(?![!#$%&*+./<=>?@\^|_~]).*?$', Comment.Single),
             (r'{-', Comment.Multiline, 'comment'),
-            # Lexemes:
-                #  Identifiers
-            (r'\berror:\b', Name.Exception),
-            (r'\b(%s)(?!\')\b' % '|'.join(reserved), Keyword.Reserved),
+            #  Identifiers
+            (r'\b(%s)\b(?!%s)' % ('|'.join(reserved), operator_name), Keyword.Reserved),
             (r'[_a-z]' + valid_name + '*:', Name.Function),
             (r'[_a-z]' + valid_name + '*', Name),
             (r'[A-Z]' + valid_name + '*', Keyword.Type),
             #  Operators
-            (r'[:!#%&*+.\\/<=>?@^|~-]+', Operator),
+            (r'(?![@$~])' + operator_name + '+', Operator),
             #  Numbers
             (r'\d+[eE][+-]?\d+', Number.Float),
             (r'\d+\.\d+([eE][+-]?\d+)?', Number.Float),
@@ -46,12 +45,20 @@ class AtomoLexer(RegexLexer):
             #  Character/String Literals
             (r'\$', String.Char, 'character'),
             (r'"', String, 'string'),
-            #  Special
-            (r"'" + valid_name + '+', String.Symbol),
+            #  Boolean
             (r"(True|False)", Keyword.Constant),
-            (r'\[\]', Keyword.Type),
-            (r'\(\)', Name.Builtin),
-            (r'[][(),;`{}]', Punctuation),
+            #  Quoting
+            (r"'" + valid_name + '+', String.Symbol),
+            (r"'", String.Symbol),
+            (r"`" + valid_name + '+', String.Symbol),
+            (r"`", String.Symbol),
+            (r"~" + valid_name + '+', String.Interpol),
+            (r"~", String.Interpol),
+            #  Partickes
+            (r"@" + valid_name + '+', String.Interpol),
+            (r"@", String.Interpol),
+            #  Punctuation
+            (r'[][(),;{}|]', Punctuation),
             ],
         'comment': [
             # Multiline Comments
@@ -61,7 +68,6 @@ class AtomoLexer(RegexLexer):
             (r'[-{}]', Comment.Multiline),
             ],
         'character': [
-            # Allows multi-chars, incorrectly.
             (r"[^\\]", String.Char, '#pop'),
             (r"\\[^\s]+", String.Escape, '#pop'),
             ],
