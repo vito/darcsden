@@ -50,7 +50,7 @@ highlight lineNums fn s =
                 return out
             (Just out, Just ExitSuccess) ->
                 return out
-            x -> err
+            _ -> err
 
 highlightBlob :: String -> String -> IO String
 highlightBlob = highlight True
