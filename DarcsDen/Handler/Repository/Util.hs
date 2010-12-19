@@ -2,9 +2,11 @@ module DarcsDen.Handler.Repository.Util where
 
 import Control.Concurrent
 import Data.Char (isAlphaNum)
+import System.Exit (ExitCode(ExitSuccess))
 import System.FilePath (takeExtension)
 import System.IO
 import System.Process
+import Text.XHtml.Strict (renderHtmlFragment)
 import qualified Darcs.Patch as P
 import qualified Darcs.Repository as R
 
@@ -15,19 +17,20 @@ getRepo = R.maybeIdentifyRepository []
 highlight :: Bool -> String -> String -> IO String
 highlight lineNums fn s =
     highlightAs (filter isAlphaNum (takeExtension fn)) $
-        highlightAs "text" (return "Highlighting failed!")
+        highlightAs "text" (return $ "<div class=\"highlight\"><pre>" ++ renderHtmlFragment s ++ "</pre></div>")
   where
     args l =
         [ "-l " ++ l
         , "-f html"
         , if lineNums
-             then "-O linenos,lineanchors=L,anchorlinenos"
-             else ""
+             then "-O encoding=utf8,linenos,lineanchors=L,anchorlinenos"
+             else "-O encoding=utf8"
         ]
 
     highlightAs :: String -> IO String -> IO String
     highlightAs lexer err = do
         (pin, pout, _, ph) <- runInteractiveCommand ("pygmentize " ++ unwords (args lexer))
+        hSetEncoding pin utf8
         hPutStr pin s
         hClose pin
 
@@ -45,7 +48,9 @@ highlight lineNums fn s =
         case (res, mec) of
             (Just out, Nothing) | length out > 0 ->
                 return out
-            _ -> err
+            (Just out, Just ExitSuccess) ->
+                return out
+            x -> err
 
 highlightBlob :: String -> String -> IO String
 highlightBlob = highlight True
