@@ -117,9 +117,8 @@ browseRepo u r s = do
             let files = map (\i -> i
                     { iPath = pathToFile (f ++ [iName i])
                     }) fs'
-                up = if null f then "" else pathToFile (init f)
 
-            doPage (Page.repo u r files up (crumb f) readme member) s
+            doPage (Page.repo u r files (crumb f) readme member) s
         (_, Just big) | isTooLarge big ->
             doPage (Page.blob u r (crumb f) Nothing) s
         (_, Just source) ->

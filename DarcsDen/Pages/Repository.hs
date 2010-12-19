@@ -130,12 +130,10 @@ init is = base
     </div>
 
 
-repo :: User -> Repository -> [RepoItem] -> String -> [RepoItem] -> Maybe String -> Bool -> HSPage
-repo u r files up path readme member sess = repoBase u r
+repo :: User -> Repository -> [RepoItem] -> [RepoItem] -> Maybe String -> Bool -> HSPage
+repo u r files path readme member sess = repoBase u r
     (uName u ++ "'s " ++ rName r)
-    <span class="path">
-        <% map (\p -> <span class="path-item"> -> <a href=(repoURL r ++ "/browse" ++ iPath p)><% iName p %></a></span>) path %>
-    </span>
+    <span> -> browse</span>
     (filesList (null files))
     sess
     where
@@ -164,14 +162,12 @@ repo u r files up path readme member sess = repoBase u r
                 <p class="repo-empty">move along, citizen</p>
         filesList False =
             <div class="repo-browse">
-                <h1>files</h1>
+                <h1 class="path">
+                    <a href=(repoURL r ++ "/browse")>root</a>
+                    <% map (\p -> <span class="path-item"> / <a href=(repoURL r ++ "/browse" ++ iPath p)><% iName p %></a></span>) path %>
+                </h1>
 
                 <ul class="repo-files">
-                    <%
-                        if not (null up)
-                           then <% <li class="up"><a href=up>..</a></li> %>
-                           else <% "" %>
-                    %>
                     <% map file files %>
                 </ul>
 
@@ -406,9 +402,13 @@ changesAtom u r cs _ =
 blob :: User -> Repository -> [RepoItem] -> Maybe String -> HSPage
 blob u r fs b = repoBase u r
     (iName file)
-    <span class="path"><% map (\f -> <% <span class="path-item"> -> <a href=(repoURL r ++ "/browse" ++ iPath f)><% iName f %></a></span> %>) fs %></span>
+    <span> -> blob</span>
     <div class="repo-blob">
-        <h1><a href=(repoURL r ++ "/raw" ++ iPath file)><% iName file %></a></h1>
+        <h1 class="path">
+            <a href=(repoURL r ++ "/browse")>root</a>
+            <% map (\f -> <% <span class="path-item"> / <a href=(repoURL r ++ "/browse" ++ iPath f)><% iName f %></a></span> %>) (Prelude.init fs) %>
+            <span class="path-item"> / <a href=(repoURL r ++ "/raw" ++ iPath file)><% iName file %></a></span>
+        </h1>
         <%
             case b of
                  Nothing ->

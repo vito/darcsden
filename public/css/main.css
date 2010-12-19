@@ -248,15 +248,9 @@ form .cancel-buttons a.cancel {
   display: inline;
   padding: 0;
 }
-.repo-files li.up {
-	padding: 0;
-}
-.repo-files li.up a {
-	background: url('/public/images/up.gif') no-repeat left 8px;
+.repo-browse h1.path {
 	border-bottom: .1em dotted;
-}
-.repo-files li.up a:hover {
-	background-color: #f9f9f9;
+    padding-bottom: .5em;
 }
 .repo-files li.directory a {
 	background: url('/public/images/folder.gif') no-repeat left 8px;
