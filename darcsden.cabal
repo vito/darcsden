@@ -41,7 +41,7 @@ executable darcsden
                  random,
                  redis,
                  SHA,
-                 ssh >= 0.2,
+                 ssh >= 0.2.2,
                  snap-core >= 0.2.12,
                  snap-server >= 0.2.12,
                  system-uuid,
