@@ -10,6 +10,7 @@ To install:
 
     cabal install
     mkdir -p /srv/darcs
+    cp /path/to/id_rsa /srv/darcs/.keypair -- for the SSH server
     adduser --system --home /srv/darcs --no-create-home --shell /bin/bash --group --gecos "DarcsDen" darcsden
     chown -R darcsden:darcsden /srv/darcs
 
@@ -26,43 +27,11 @@ CouchDB structure:
     {"_id":"_design/users","language":"javascript","views":{"by_email":{"map":"function(doc) {\n  if (doc.email)\n    emit(doc.email, doc);\n}"},"by_name":{"map":"function(doc) {\n  if (doc.name)\n    emit(doc.name, doc);\n}"}}}
 
 
-KeyPair setup:
-You will need a .keypair file in /srv/darcs that contains the private/public
-key information for the SSH server. It is a nonstandard format (a id_rsa parser
-is way too much trouble):
-
-    mpint e
-    mpint n
-    mpint d
-
-You can create this file using the Twisted Conch Python library and
-DarcsDen.SSH.Packet, like so:
-
-    >>> import twisted.conch.ssh.keys.Key
-    >>> key = Key.fromFile("path/to/id_rsa")
-    >>> key.data()['e']
-    ...
-    >>> key.data()['n']
-    ...
-    >>> key.data()['d']
-
-Copy those 3 numbers, sans the trailing L, into GHCi:
-
-    let e = (first number)
-    let n = (second number)
-    let d = (third number)
-    let packet = doPacket (integer e >> integer n >> integer d)
-    Data.ByteString.Lazy.writeFile "/srv/darcs/.keypair" packet
-
-
 To start:
+This package provides separate executables for the web and SSH servers,
+`darcsden' and `darcsden-ssh', respectively. I recommend running them in
+screen as user "darcsden".
 
-    sudo -i -u darcsden darcsden
-
-You will need to start it either in the directory with public/ in it, or you
-can run it behind nginx or something that'll handle /public requests by
+The web server should be started from the directory containing /public, or
+you can run it behind nginx or something that'll handle /public requests by
 pointing to that directory.
-
-None of this is daemonized or anything, so you probably want to run them in
-screen.
-

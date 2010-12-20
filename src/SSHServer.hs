@@ -8,14 +8,12 @@ import Data.List (isPrefixOf)
 import Data.Time
 import SSH.Channel
 import SSH.Crypto
-import SSH.NetReader
 import SSH.Session
 import System.Directory (canonicalizePath)
 import System.Environment
 import System.FilePath
 import System.Process
 import qualified Codec.Binary.Base64.String as Base64
-import qualified Data.ByteString.Lazy as LBS
 import qualified SSH as SSH
 
 import DarcsDen.State.Repository
@@ -35,17 +33,9 @@ main = do
             (p:_) -> return (fromIntegral (read p :: Int))
             _ -> return 5022
 
-    kp <- readKeyPair
+    kp <- rsaKeyPairFromFile (userRoot </> ".keypair")
     startSSH kp port
   where
-    readKeyPair = do
-        s <- LBS.readFile (userRoot </> ".keypair")
-        return $ flip evalState s $ do
-            e <- readInteger
-            n <- readInteger
-            d <- readInteger
-            return (RSAKeyPair (RSAPublicKey e n) d)
-
     startSSH kp = SSH.start
         (SessionConfig
             { scAuthMethods = ["publickey"]
