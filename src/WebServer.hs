@@ -14,17 +14,14 @@ import DarcsDen.State.Util
 
 main :: IO ()
 main = do
-    putStrLn "checking couchdb..."
-    runDB (return ())
-
-    putStrLn "checking redis..."
-    withRedis (return ())
-
     as <- getArgs
     case as of
         ("--readme":_) ->
             putStr . unlines $
-                [ "You will need:"
+                [ "darcsden is a darcs hosting platform, providing a simple website and"
+                , "a SSH server for push/pull and quick repository creation."
+                , ""
+                , "You will need:"
                 , "- CouchDB, with the databases and views described below."
                 , "- Redis"
                 , ""
@@ -71,11 +68,15 @@ main = do
             liftIO (putStrLn "All set!")
 
         ("--port":p:_) -> do
+            checkDBs
             putStrLn $ "darcsden running on port " ++ p
             startHTTP (read p)
+
         [] -> do
+            checkDBs
             putStrLn "darcsden running on port 8080"
             startHTTP 8080
+
         _ ->
             putStr . unlines $
                 [ "usage:"
@@ -92,6 +93,13 @@ main = do
         (Just "/srv/darcs/access.log")
         (Just "/srv/darcs/error.log")
         handler
+
+    checkDBs = do
+        putStrLn "checking couchdb..."
+        runDB (return ())
+
+        putStrLn "checking redis..."
+        withRedis (return ())
 
     repoDesigns =
         [ jsobj
