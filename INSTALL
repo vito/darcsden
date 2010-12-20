@@ -14,17 +14,8 @@ To install:
     ssh-keygen -- save to /srv/darcs/.ssh/id_rsa
     chown -R darcsden:darcsden /srv/darcs
 
-
-CouchDB structure:
-1. repositories database, with the following design documents:
-
-    {"_id":"_design/repositories","language":"javascript","views":{"by_owner_and_name":{"map":"function(doc) {\n  if (doc.owner && doc.name && !doc.is_private)\n    emit([doc.owner, doc.name], doc);\n}"},"by_owner":{"map":"function(doc) {\n  if (doc.owner && !doc.is_private)\n    emit(doc.owner, doc);\n}"},"by_fork":{"map":"function(doc) {\n  if (doc.fork_of.Just && !doc.is_private)\n    emit(doc.fork_of.Just, doc);\n}"},"by_member":{"map":"function(doc) {\n  if (!doc.is_private)\n    for (member in doc.members)\n      emit(doc.members[member], doc._id);\n}"}}}
-
-    {"_id":"_design/private","language":"javascript","views":{"by_owner":{"map":"function(doc) {\n  emit(doc.owner, doc);\n}\n"},"by_owner_and_name":{"map":"function(doc) {\n  if (doc.owner && doc.name)\n    emit([doc.owner, doc.name], doc);\n}"},"by_member":{"map":"function(doc) {\n  for (member in doc.members)\n    emit(doc.members[member], [doc.owner, doc.name]);\n}"}}}
-
-2. users database with the following design document:
-
-    {"_id":"_design/users","language":"javascript","views":{"by_email":{"map":"function(doc) {\n  if (doc.email)\n    emit(doc.email, doc);\n}"},"by_name":{"map":"function(doc) {\n  if (doc.name)\n    emit(doc.name, doc);\n}"}}}
+    -- make sure CouchDB is running
+    darcsden --install
 
 
 To start:
