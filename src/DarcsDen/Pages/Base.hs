@@ -53,23 +53,22 @@ base title crumb content sess =
             </div>
         </body>
     </html>
-    where
-        nav :: Bool -> HSP XML
-        nav True =
-            <ul class="links nav">
-                <li class="settings"><a href="/settings">settings</a></li>
-                <li class="logout"><a href="/logout">log out</a></li>
-            </ul>
-        nav False =
-            <ul class="links nav">
-                <li class="login"><a href="/login">log in</a></li>
-                <li class="register"><a href="/register">register</a></li>
-            </ul>
+  where
+    nav True =
+        <ul class="links nav">
+            <li class="settings"><a href="/settings">settings</a></li>
+            <li class="logout"><a href="/logout">log out</a></li>
+        </ul>
+    nav False =
+        <ul class="links nav">
+            <li class="login"><a href="/login">log in</a></li>
+            <li class="register"><a href="/register">register</a></li>
+        </ul>
 
-        notification :: Notification -> HSP XML
-        notification (Success msg) = <div class="notification success"><% msg %></div>
-        notification (Message msg) = <div class="notification message"><% msg %></div>
-        notification (Warning msg) = <div class="notification warning"><% msg %></div>
+    notification :: Notification -> HSP XML
+    notification (Success msg) = <div class="notification success"><% msg %></div>
+    notification (Message msg) = <div class="notification message"><% msg %></div>
+    notification (Warning msg) = <div class="notification warning"><% msg %></div>
 
 
 field :: HSP XML -> String -> String -> HSP XML
@@ -100,10 +99,11 @@ input' :: [(String, String)] -> String -> HSP XML
 input' is n = input n (fromMaybe "" (lookup n is))
 
 checkbox' :: [(String, String)] -> String -> HSP XML
-checkbox' is n = if n `elem` (map fst is)
-                    then <div class="inline-wrapper"><% box `set` ("checked" := "checked") %></div>
-                    else <div class="inline-wrapper"><% box %></div>
-    where box = <input type="checkbox" name=n />
+checkbox' is n
+    | n `elem` (map fst is) =
+        <div class="inline-wrapper"><% box `set` ("checked" := "checked") %></div>
+    | otherwise = <div class="inline-wrapper"><% box %></div>
+  where box = <input type="checkbox" name=n />
 
 checkbox :: Bool -> [(String, String)] -> String -> HSP XML
 checkbox False = checkbox'

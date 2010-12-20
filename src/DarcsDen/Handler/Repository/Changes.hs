@@ -21,117 +21,141 @@ import DarcsDen.State.User
 import DarcsDen.Util
 
 
-data Summary = Removed FilePath
-             | Added FilePath
-             | Replaced FilePath String String
-             | Modified FilePath
-             | Preference String String String
-             deriving (Eq, Show)
+data Summary
+    = Removed FilePath
+    | Added FilePath
+    | Replaced FilePath String String
+    | Modified FilePath
+    | Preference String String String
+    deriving (Eq, Show)
 
-data PatchLog = PatchLog { pID :: String
-                         , pDate :: UTCTime
-                         , pName :: String
-                         , pAuthor :: String
-                         , pIsUser :: Bool
-                         , pLog :: String
-                         , pDepends :: [String]
-                         }
-                deriving (Eq, Show)
+data PatchLog =
+    PatchLog
+        { pID :: String
+        , pDate :: UTCTime
+        , pName :: String
+        , pAuthor :: String
+        , pIsUser :: Bool
+        , pLog :: String
+        , pDepends :: [String]
+        }
+    deriving (Eq, Show)
 
 
-data PatchChange = Moved { cmFrom :: FilePath
-                         , cmTo :: FilePath
-                         }
-                 | DirChange { cdName :: FilePath
-                             , cdType :: DirChange
-                             }
-                 | FileChange { cfName :: FilePath
-                              , cfType :: FileChange
-                              }
-                 | PrefChange { cpName :: String
-                              , cpFrom :: String
-                              , cpTo :: String
-                              }
-                 deriving (Eq, Show)
+data PatchChange
+    = Moved
+        { cmFrom :: FilePath
+        , cmTo :: FilePath
+        }
+    | DirChange
+        { cdName :: FilePath
+        , cdType :: DirChange
+        }
+    | FileChange
+        { cfName :: FilePath
+        , cfType :: FileChange
+        }
+    | PrefChange
+        { cpName :: String
+        , cpFrom :: String
+        , cpTo :: String
+        }
+    deriving (Eq, Show)
 
-data DirChange = DirRemoved | DirAdded
-               deriving (Eq, Show)
+data DirChange
+    = DirRemoved
+    | DirAdded
+    deriving (Eq, Show)
 
-data FileChange = FileRemoved
-                | FileAdded
-                | FileHunk { fchLine :: Int
-                           , fchRemove :: String
-                           , fchAdd :: String
-                           }
-                | FileBinary
-                | FileReplace { fchFind :: String
-                              , fchReplace :: String
-                              }
-                deriving (Eq, Show)
+data FileChange
+    = FileRemoved
+    | FileAdded
+    | FileHunk
+        { fchLine :: Int
+        , fchRemove :: String
+        , fchAdd :: String
+        }
+    | FileBinary
+    | FileReplace
+        { fchFind :: String
+        , fchReplace :: String
+        }
+    deriving (Eq, Show)
 
-data PatchChanges = PatchChanges { pPatch :: PatchLog
-                                 , pChanges :: [PatchChange]
-                                 }
-                    deriving (Eq, Show)
+data PatchChanges =
+    PatchChanges
+        { pPatch :: PatchLog
+        , pChanges :: [PatchChange]
+        }
+    deriving (Eq, Show)
 
 
 toLog :: P.Named p -> PatchLog
-toLog p = PatchLog (take 20 $ make_filename i)
-                   (readTime defaultTimeLocale "%c" (calendarTimeToString $ pi_date i))
-                   (pi_name i)
-                   (pi_author i)
-                   False
-                   (doMarkdown . unlines $ pi_log i)
-                   (map (take 20 . make_filename) (P.getdeps p))
+toLog p =
+    PatchLog
+        (take 20 $ make_filename i)
+        (readTime defaultTimeLocale "%c" (calendarTimeToString $ pi_date i))
+        (pi_name i)
+        (pi_author i)
+        False
+        (doMarkdown . unlines $ pi_log i)
+        (map (take 20 . make_filename) (P.getdeps p))
   where
     i = P.patch2patchinfo p
-    doMarkdown = writeHtmlString defaultWriterOptions . readMarkdown defaultParserState
+    doMarkdown
+        = writeHtmlString defaultWriterOptions
+        . readMarkdown defaultParserState
 
 findUsers :: [PatchLog] -> IO [PatchLog]
 findUsers = findUsers' []
-    where
-        emailFrom = reverse . takeWhile (/= '<') . tail . reverse
-        authorFrom a = let name = takeWhile (/= '<') a
-                       in if last name == ' '
-                             then init name
-                             else name
+  where
+    emailFrom = reverse . takeWhile (/= '<') . tail . reverse
+    authorFrom a = let name = takeWhile (/= '<') a
+                   in if last name == ' '
+                         then init name
+                         else name
 
-        findUsers' :: [(String, Maybe String)] -> [PatchLog] -> IO [PatchLog]
-        findUsers' _ [] = return []
-        findUsers' checked (p:ps) =
-            case lookup (pAuthor p) checked of
-                 Just (Just n) -> do
-                    rest <- findUsers' checked ps
-                    return (p { pAuthor = n, pIsUser = True } : rest)
-                 Just Nothing -> do
-                    rest <- findUsers' checked ps
-                    return (p { pAuthor = authorFrom (pAuthor p) } : rest)
-                 Nothing -> do
-                    mu <- getUserByEmail (emailFrom (pAuthor p))
-                    case mu of
-                         Just u -> do
-                             rest <- findUsers' ((pAuthor p, Just (uName u)) : checked) ps
-                             return (p { pAuthor = uName u, pIsUser = True } : rest)
-                         Nothing -> do
-                             rest <- findUsers' ((pAuthor p, Nothing) : checked) ps
-                             return (p { pAuthor = authorFrom (pAuthor p) } : rest)
+    findUsers' :: [(String, Maybe String)] -> [PatchLog] -> IO [PatchLog]
+    findUsers' _ [] = return []
+    findUsers' checked (p:ps) =
+        case lookup (pAuthor p) checked of
+            Just (Just n) -> do
+                rest <- findUsers' checked ps
+                return (p { pAuthor = n, pIsUser = True } : rest)
+            Just Nothing -> do
+                rest <- findUsers' checked ps
+                return (p { pAuthor = authorFrom (pAuthor p) } : rest)
+            Nothing -> do
+                mu <- getUserByEmail (emailFrom (pAuthor p))
+                case mu of
+                    Just u -> do
+                        rest <- findUsers' ((pAuthor p, Just (uName u)) : checked) ps
+                        return (p { pAuthor = uName u, pIsUser = True } : rest)
+                    Nothing -> do
+                        rest <- findUsers' ((pAuthor p, Nothing) : checked) ps
+                        return (p { pAuthor = authorFrom (pAuthor p) } : rest)
 
 toChanges :: P.Effect p => P.Named p -> IO PatchChanges
-toChanges p = fmap (PatchChanges (toLog p)) $ simplify [] . map primToChange . WO.unsafeUnFL $ P.effect p
-  where simplify a [] = return (reverse a)
-        simplify a (c@(FileChange n t):cs) | t `elem` [FileAdded, FileRemoved, FileBinary]
-          = simplify (c:filter (notFile n) a) (filter (notFile n) cs)
-        simplify a (c@(FileChange _ (FileReplace _ _)):cs)
-          = simplify (c:a) cs
-        simplify a (FileChange n (FileHunk l f t):cs) = do
-            hf <- highlight False n f
-            ht <- highlight False n t
-            simplify (FileChange n (FileHunk l hf ht):a) cs
-        simplify a (c@(PrefChange _ _ _):cs) = simplify (c:a) cs
-        simplify a (_:cs) = simplify a cs
+toChanges p =
+    fmap (PatchChanges (toLog p)) $
+        simplify [] . map primToChange . WO.unsafeUnFL $ P.effect p
+  where
+    simplify a [] = return (reverse a)
+    simplify a (c@(FileChange n t):cs)
+        | t `elem` [FileAdded, FileRemoved, FileBinary] =
+            simplify (c:filter (notFile n) a) (filter (notFile n) cs)
+    simplify a (c@(FileChange _ (FileReplace _ _)):cs) =
+        simplify (c:a) cs
+    simplify a (FileChange n (FileHunk l f t):cs) = do
+        hf <- highlight False n f
+        ht <- highlight False n t
+        simplify (FileChange n (FileHunk l hf ht):a) cs
+    simplify a (c@(PrefChange _ _ _):cs) = simplify (c:a) cs
+    simplify a (_:cs) = simplify a cs
 
-        notFile n (FileChange { cfName = n' }) | n == n' = False
-        notFile _ _ = True
+    notFile n (FileChange { cfName = n' })
+        | n == n' = False
+    notFile _ _ = True
 
 primToChange :: Prim -> PatchChange
 primToChange (Move f t) = Moved (drop 2 $ fn2fp f) (drop 2 $ fn2fp t)
@@ -152,39 +176,44 @@ fromFP (Binary _ _) = FileBinary
 fromFP (TokReplace _ f r) = FileReplace f r
 
 getChanges :: String -> Int -> IO ([PatchLog], Int)
-getChanges dir page = R.withRepositoryDirectory [] dir $ \dr ->
-  do pset <- R.read_repo dr
-     let ps = fromPS pset
-         patches = map toLog (paginate 30 page ps)
+getChanges dir page = R.withRepositoryDirectory [] dir $ \dr -> do
+    pset <- R.read_repo dr
 
-     prettyLog <- findUsers patches
+    let ps = fromPS pset
+        patches = map toLog (paginate 30 page ps)
 
-     return (prettyLog, ceiling ((fromIntegral (length ps) :: Double) / 30))
+    prettyLog <- findUsers patches
+
+    return
+        ( prettyLog
+        , ceiling ((fromIntegral (length ps) :: Double) / 30)
+        )
 
 getPatch :: String -> String -> IO PatchChanges
-getPatch dir patch = R.withRepositoryDirectory [] dir $ \dr ->
-  do pset <- R.read_repo dr
-     let ps = fromPS pset
-         p = head $ filter (\p' -> patch == take 20 (P.patchname p')) ps
+getPatch dir patch = R.withRepositoryDirectory [] dir $ \dr -> do
+    pset <- R.read_repo dr
 
-     cs <- toChanges p
+    let ps = fromPS pset
+        p = head $ filter (\p' -> patch == take 20 (P.patchname p')) ps
 
-     [l] <- findUsers [pPatch cs]
-     return cs { pPatch = l }
+    cs <- toChanges p
+
+    [l] <- findUsers [pPatch cs]
+    return cs { pPatch = l }
 
 fromPS :: P.RepoPatch p => R.PatchSet p -> [P.Named p]
 fromPS = WO.unsafeUnRL . WO.reverseFL . R.patchSetToPatches
 
 summarize :: [PatchChange] -> [Summary]
 summarize = nub . reverse . summarize'
-    where
-        summarize' [] = []
-        summarize' (FileChange n FileRemoved:cs) = (Removed n) : summarize cs
-        summarize' (FileChange n FileAdded:cs) = (Added n) : summarize cs
-        summarize' (FileChange n (FileReplace f t):cs) = (Replaced n f t) : summarize cs
-        summarize' (FileChange n _:cs) = (Modified n) : summarize cs
-        summarize' (PrefChange n f t:cs) = (Preference n f t) : summarize cs
-        summarize' (_:cs) = summarize cs
+  where
+    summarize' [] = []
+    summarize' (FileChange n FileRemoved:cs) = (Removed n) : summarize cs
+    summarize' (FileChange n FileAdded:cs) = (Added n) : summarize cs
+    summarize' (FileChange n (FileReplace f t):cs) = (Replaced n f t) : summarize cs
+    summarize' (FileChange n _:cs) = (Modified n) : summarize cs
+    summarize' (PrefChange n f t:cs) = (Preference n f t) : summarize cs
+    summarize' (_:cs) = summarize cs
 
 isModification :: PatchChange -> Bool
 isModification (FileChange _ (FileHunk _ _ _)) = True
@@ -193,30 +222,34 @@ isModification _ = False
 -- The following is ported over from Camp.
 findAllDeps :: Commute p => FL (PatchInfoAnd p) -> [(String, [PatchInfoAnd p])]
 findAllDeps = f NilRL
-    where f :: Commute p => RL (PatchInfoAnd p) -> FL (PatchInfoAnd p) -> [(String, [PatchInfoAnd p])]
-          f _ NilFL = []
-          f past (p :>: ps) = (make_filename (info p), findDeps past p) : f (p :<: past) ps
+  where
+    f :: Commute p => RL (PatchInfoAnd p) -> FL (PatchInfoAnd p) -> [(String, [PatchInfoAnd p])]
+    f _ NilFL = []
+    f past (p :>: ps) =
+        (make_filename (info p), findDeps past p) : f (p :<: past) ps
 
 findDeps :: Commute p => RL (PatchInfoAnd p) -> PatchInfoAnd p -> [PatchInfoAnd p]
 findDeps NilRL _ = []
-findDeps (p :<: ps) me = case commute (p :> me) of
-                            Just (me' :> _) -> findDeps ps me'
-                            Nothing ->
-                                case commuteOut ps p of
-                                HiddenFrom ps' ->
-                                    p : findDeps ps' me
+findDeps (p :<: ps) me =
+    case commute (p :> me) of
+        Just (me' :> _) -> findDeps ps me'
+        Nothing ->
+            case commuteOut ps p of
+                HiddenFrom ps' ->
+                    p : findDeps ps' me
 
 data HiddenFrom seq p
     where HiddenFrom :: seq p -> HiddenFrom seq p
 
 commuteOut :: Commute p => RL (PatchInfoAnd p) -> PatchInfoAnd p -> HiddenFrom RL (PatchInfoAnd p)
 commuteOut NilRL _ = HiddenFrom NilRL
-commuteOut (p :<: ps) me = case commute (p :> me) of
-                              Just (me' :> p') ->
-                                  case commuteOut ps me' of
-                                  HiddenFrom ps' ->
-                                      HiddenFrom (p' :<: ps')
-                              Nothing ->
-                                  case commuteOut ps p of
-                                  HiddenFrom ps' ->
-                                      commuteOut ps' me
+commuteOut (p :<: ps) me =
+    case commute (p :> me) of
+        Just (me' :> p') ->
+            case commuteOut ps me' of
+                HiddenFrom ps' ->
+                    HiddenFrom (p' :<: ps')
+        Nothing ->
+           case commuteOut ps p of
+               HiddenFrom ps' ->
+                   commuteOut ps' me

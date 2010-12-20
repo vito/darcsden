@@ -7,16 +7,16 @@ import Darcs.Hopefully (hopefully, info)
 import Darcs.Patch.Info (make_filename)
 import Darcs.Patch.Permutations
 import Darcs.Repository
-  ( ($-)
-  , applyToWorking
-  , finalizeRepositoryChanges
-  , identifyRepositoryFor
-  , invalidateIndex
-  , read_repo
-  , tentativelyMergePatches
-  , withGutsOf
-  , withRepoLock
-  )
+    ( ($-)
+    , applyToWorking
+    , finalizeRepositoryChanges
+    , identifyRepositoryFor
+    , invalidateIndex
+    , read_repo
+    , tentativelyMergePatches
+    , withGutsOf
+    , withRepoLock
+    )
 import Darcs.SelectChanges (filterOutConflicts)
 import Darcs.Utils (withCurrentDirectory)
 import Darcs.Witnesses.Ordered
@@ -46,11 +46,17 @@ getForkChanges r = do
 
     let (_, _ :\/: them) = get_common_and_uncommon (pps, cps)
         depends = findAllDeps (reverseRL them)
-        cs = map (\p ->
-            let l = toLog (hopefully p)
-            in case lookup (make_filename (info p)) depends of
-                Just ds -> l { pDepends = map (take 20 . make_filename . info) ds }
-                Nothing -> l) (unsafeUnRL them)
+        cs =
+            map
+                (\p ->
+                    let l = toLog (hopefully p)
+                    in case lookup (make_filename (info p)) depends of
+                        Just ds -> l
+                            { pDepends =
+                                map (take 20 . make_filename . info) ds
+                            }
+                        Nothing -> l)
+                (unsafeUnRL them)
 
     changes <- findUsers cs
 
@@ -58,30 +64,38 @@ getForkChanges r = do
 
 mergePatches :: Repository -> [String] -> Session -> IO Bool
 mergePatches r ps s = do
-  Just parent <- getRepositoryByID (fromJust (rForkOf r))
-  withCurrentDirectory (origin parent) $ withRepoLock [] $- \pr -> do
-      cr <- identifyRepositoryFor pr fork
+    Just parent <- getRepositoryByID (fromJust (rForkOf r))
+    withCurrentDirectory (origin parent) $ withRepoLock [] $- \pr -> do
+        cr <- identifyRepositoryFor pr fork
 
-      pps <- read_repo pr
-      cps <- read_repo cr
+        pps <- read_repo pr
+        cps <- read_repo cr
 
-      let (_, us :\/: them) = get_common_and_uncommon (pps, cps)
-          (chosen :> _) = partitionFL ((`elem` ps) . take 20 . make_filename . info)
-                                      (reverseRL them)
+        let (_, us :\/: them) = get_common_and_uncommon (pps, cps)
+            (chosen :> _) = partitionFL ((`elem` ps) . take 20 . make_filename . info)
+                                        (reverseRL them)
 
-      (conflicts, Sealed merge) <- filterOutConflicts [SkipConflicts] us pr chosen
+        (conflicts, Sealed merge) <- filterOutConflicts [SkipConflicts] us pr chosen
 
-      if conflicts || lengthFL merge < length ps
-         then do warn ("Patches for fork \"" ++ rOwner r ++ "/" ++ rName r ++ "\" could not be applied cleanly and have been skipped.") s
-                 return False
-         else do
-      check_paths [] merge
+        if conflicts || lengthFL merge < length ps
+            then do
+                flip warn s . unwords $
+                    [ "Patches for fork"
+                    , "\"" ++ rOwner r ++ "/" ++ rName r ++ "\""
+                    , "could not be applied cleanly and have been skipped."
+                    ]
+                return False
+            else do
 
-      Sealed pw <- tentativelyMergePatches pr "pull" [] (reverseRL us) merge
-      invalidateIndex pr
-      withGutsOf pr $ do finalizeRepositoryChanges pr
-                         applyToWorking pr [] pw
+        check_paths [] merge
 
-      return True
-  where origin p = repoDir (rOwner p) (rName p)
-        fork = repoDir (rOwner r) (rName r)
+        Sealed pw <- tentativelyMergePatches pr "pull" [] (reverseRL us) merge
+        invalidateIndex pr
+        withGutsOf pr $ do
+            finalizeRepositoryChanges pr
+            applyToWorking pr [] pw
+
+        return True
+  where
+    origin p = repoDir (rOwner p) (rName p)
+    fork = repoDir (rOwner r) (rName r)

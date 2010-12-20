@@ -14,20 +14,27 @@ baseURL :: String
 baseURL = "http://" ++ baseDomain
 
 recursively :: (FilePath -> IO ()) -> FilePath -> IO ()
-recursively f p = do dir <- doesDirectoryExist p
-                     if dir
-                       then do f p
-                               contents <- getDirectoryContents p
-                               mapM_ (recursively f . ((p ++ "/") ++)) $ filter (\d -> d /= "." && d /= "..") contents
-                       else f p
+recursively f p = do
+    dir <- doesDirectoryExist p
+    if dir
+        then do
+            f p
+            contents <- getDirectoryContents p
+            mapM_ (recursively f . ((p ++ "/") ++)) $
+                filter (\d -> d /= "." && d /= "..") contents
+        else f p
 
 recursivelyOnDirs :: (FilePath -> IO ()) -> FilePath -> IO ()
-recursivelyOnDirs f = recursively (\p -> do dir <- doesDirectoryExist p
-                                            when dir (f p))
+recursivelyOnDirs f =
+    recursively $ \p -> do
+        dir <- doesDirectoryExist p
+        when dir (f p)
 
 recursivelyOnFiles :: (FilePath -> IO ()) -> FilePath -> IO ()
-recursivelyOnFiles f = recursively (\p -> do dir <- doesDirectoryExist p
-                                             unless dir (f p))
+recursivelyOnFiles f =
+    recursively $ \p -> do
+        dir <- doesDirectoryExist p
+        unless dir (f p)
 
 toMaybe :: [a] -> Maybe [a]
 toMaybe [] = Nothing

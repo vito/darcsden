@@ -17,7 +17,11 @@ getRepo = R.maybeIdentifyRepository []
 highlight :: Bool -> String -> String -> IO String
 highlight lineNums fn s =
     highlightAs (filter isAlphaNum (takeExtension fn)) $
-        highlightAs "text" (return $ "<div class=\"highlight\"><pre>" ++ renderHtmlFragment s ++ "</pre></div>")
+        highlightAs "text" $ return . concat $
+            [ "<div class=\"highlight\"><pre>"
+            ,     renderHtmlFragment s
+            , "</pre></div>"
+            ]
   where
     args l =
         [ "-l " ++ l

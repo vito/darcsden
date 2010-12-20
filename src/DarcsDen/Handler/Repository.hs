@@ -38,8 +38,14 @@ doInitialize s@(Session { sUser = Nothing }) = do
     warn "You must be logged in to create a repository." s
     redirectTo "/login"
 doInitialize s@(Session { sUser = Just n }) = validate
-    [ iff (nonEmpty "name" `And` predicate "name" isSane "contain only alphanumeric characters, underscores, and hyphens")
-          (\(OK i) -> io "destination repository already exists" $ fmap (== Nothing) (getRepository (n, i ! "name")))
+    [ iff
+        (And (nonEmpty "name") $
+            predicate "name" isSane
+                "contain only alphanumeric characters, -, or _")
+        (\(OK i) ->
+            io "destination repository already exists" $
+                fmap (== Nothing) (getRepository (n, i ! "name")))
+
     , io "user is not valid" (fmap (/= Nothing) (getUser n))
     ]
     (\(OK r) -> do
@@ -47,18 +53,18 @@ doInitialize s@(Session { sUser = Just n }) = validate
         desc <- input "description" ""
         site <- input "website" ""
         private <- getParam "private"
-        new <- newRepository
-            Repository { rID = Nothing
-                       , rRev = Nothing
-                       , rName = r ! "name"
-                       , rOwner = n
-                       , rDescription = desc
-                       , rWebsite = site
-                       , rCreated = now
-                       , rForkOf = Nothing
-                       , rMembers = []
-                       , rIsPrivate = isJust private
-                       }
+        new <- newRepository Repository
+            { rID = Nothing
+            , rRev = Nothing
+            , rName = r ! "name"
+            , rOwner = n
+            , rDescription = desc
+            , rWebsite = site
+            , rCreated = now
+            , rForkOf = Nothing
+            , rMembers = []
+            , rIsPrivate = isJust private
+            }
 
         url <- input "bootstrap" ""
         when (length url > 0) (bootstrapRepository new url)
@@ -75,12 +81,17 @@ browse s = do
     page <- input "page" "1"
 
     let p = read page :: Int
-        paginated rs = (paginate 50 p (sortBy (comparing (map toLower . rName . fst)) rs))
+        paginated rs =
+            paginate 50 p $
+                sortBy (comparing (map toLower . rName . fst)) rs
 
     rs <- fmap groupForks getRepositories
+
     let totalPages = ceiling ((fromIntegral (length rs) :: Double) / 50)
+
     doPage (Page.browse (paginated rs) p totalPages) s
   where
+    -- TODO: needs multiple passes or better algorithm
     groupForks [] = []
     groupForks (r@(Repository { rForkOf = Just d }):rs) =
         addFork d r (groupForks rs)
@@ -114,9 +125,10 @@ browseRepo u r s = do
         (Just fs', _) -> do
             readme <- liftIO $ getReadme dr f
 
-            let files = map (\i -> i
-                    { iPath = pathToFile (f ++ [iName i])
-                    }) fs'
+            let files =
+                    map (\i -> i
+                        { iPath = pathToFile (f ++ [iName i])
+                        }) fs'
 
             doPage (Page.repo u r files (crumb f) readme member) s
         (_, Just big) | isTooLarge big ->
@@ -141,34 +153,36 @@ browseRepo u r s = do
 
 repoChanges :: User -> Repository -> Page
 repoChanges u r s = do
-  p <- input "page" "1"
-  let page = read p
-  (patches, totalPages) <- liftIO $ getChanges (repoDir (rOwner r) (rName r)) page
+    p <- input "page" "1"
+    let page = read p
+    (patches, totalPages) <- liftIO $ getChanges (repoDir (rOwner r) (rName r)) page
 
-  doPage (Page.changes u r patches page totalPages) s
+    doPage (Page.changes u r patches page totalPages) s
 
 repoChangesAtom :: User -> Repository -> Page
 repoChangesAtom u r s = do
-  (patches, _) <- liftIO $ getChanges (repoDir (rOwner r) (rName r)) 1
-  doAtomPage (Page.changesAtom u r patches) s
+    (patches, _) <- liftIO $ getChanges (repoDir (rOwner r) (rName r)) 1
+    doAtomPage (Page.changesAtom u r patches) s
 
 repoPatch :: User -> Repository -> Page
 repoPatch u r s = do
-  p <- input "id" ""
-  when (null p) (errorPage "No patch ID specified.")
+    p <- input "id" ""
+    when (null p) (errorPage "No patch ID specified.")
 
-  patch <- liftIO $ getPatch (repoDir (rOwner r) (rName r)) p
+    patch <- liftIO $ getPatch (repoDir (rOwner r) (rName r)) p
 
-  doPage (Page.patch
-             u
-             r
-             (pPatch patch)
-             (summarize (pChanges patch))
-             (filter isModification (pChanges patch))) s
+    doPage
+        (Page.patch u r
+            (pPatch patch)
+            (summarize (pChanges patch))
+            (filter isModification (pChanges patch)))
+        s
 
 editRepo :: User -> Repository -> Page
 editRepo u r s = validate
-    [ io "you do not own this repository" (return $ Just (rOwner r) == sUser s) ]
+    [ io "you do not own this repository" $
+        return $ Just (rOwner r) == sUser s
+    ]
     (\(OK _) -> do
         ms <- mapM getUserByID (rMembers r)
 
@@ -179,9 +193,13 @@ editRepo u r s = validate
 
 doEditRepo :: User -> Repository -> Page
 doEditRepo _ r s = validate
-    [ io "you do not own this repository" (return $ Just (rOwner r) == sUser s)
+    [ io "you do not own this repository" $
+        return $ Just (rOwner r) == sUser s
+
     , nonEmpty "name"
-    , predicate "name" isSane "contain only alphanumeric characters, underscores, and hyphens"
+
+    , predicate "name" isSane
+        "contain only alphanumeric characters, -, or _"
     ]
     (\(OK i) -> do
         removed <- removeMembers r (rMembers r)
@@ -205,66 +223,71 @@ doEditRepo _ r s = validate
     (\(Invalid f) -> do
         notify Warning s f
         redirectTo ("/" ++ (rOwner r) ++ "/" ++ (rName r) ++ "/edit"))
-    where
-        strip = strip' . strip'
-        strip' = reverse . dropWhile isSpace
+  where
+    strip = strip' . strip'
+    strip' = reverse . dropWhile isSpace
 
-        rename r' n
-            = if rName r' /= n
-                 then do
-                     res <- renameRepository n r'
-                     case res of
-                          Nothing -> do
-                              warn "There was an error renaming the repository." s
-                              return r'
-                          Just r'' -> return r''
-                 else return r'
+    rename r' n
+        = if rName r' /= n
+             then do
+                 res <- renameRepository n r'
+                 case res of
+                     Nothing -> do
+                         warn "There was an error renaming the repository." s
+                         return r'
+                     Just r'' -> return r''
+             else return r'
 
-        addMembers r' [] = return r'
-        addMembers r' (m:ms) = do
-            user <- getUser m
-            case user of
-                 Just u@(User { uID = Just uid }) -> do
-                     done <- addMember r' uid
-                     case done of
-                          Just r'' ->
-                              addMembers r'' ms
-                          Nothing -> do
-                              warn ("There was an error adding member " ++ uName u ++ ".") s
-                              return r'
-                 _ -> do
-                     warn ("Could not add member " ++ m ++ "; user does not exist.") s
-                     addMembers r' ms
+    addMembers r' [] = return r'
+    addMembers r' (m:ms) = do
+        user <- getUser m
+        case user of
+             Just u@(User { uID = Just uid }) -> do
+                 done <- addMember r' uid
+                 case done of
+                     Just r'' ->
+                         addMembers r'' ms
+                     Nothing -> do
+                         warn ("There was an error adding member " ++ uName u ++ ".") s
+                         return r'
+             _ -> do
+                 warn ("Could not add member " ++ m ++ "; user does not exist.") s
+                 addMembers r' ms
 
-        removeMembers r' [] = return r'
-        removeMembers r' (m:ms) = do
-            remove <- getParam (toBS $ "remove-" ++ show m)
-            case remove of
-                 Just _ -> do
-                     removed <- removeMember r m
-                     case removed of
-                          Just r'' ->
-                              removeMembers r'' ms
-                          Nothing -> do
-                              user <- getUserByID m
-                              case user of
-                                   Just u' -> do
-                                       warn ("There was an error removing member " ++ uName u' ++ ".") s
-                                       removeMembers r' ms
-                                   Nothing -> do
-                                       warn "There was an error removing a member that doesn't exist. So I can't tell you who it was. Way to go." s
-                                       removeMembers r' ms
-                 Nothing -> removeMembers r' ms
+    removeMembers r' [] = return r'
+    removeMembers r' (m:ms) = do
+        remove <- getParam (toBS $ "remove-" ++ show m)
+        maybe (removeMembers r' ms) (\_ -> do
+            removed <- removeMember r m
+            flip maybe (flip removeMembers ms) (do
+                user <- getUserByID m
+                case user of
+                     Just u' -> do
+                         warn ("There was an error removing member " ++ uName u' ++ ".") s
+                         removeMembers r' ms
+                     Nothing -> do
+                         warn failDunno s
+                         removeMembers r' ms) removed) remove
+
+    failDunno = unwords
+        [ "There was an error removing a member that doesn't exist."
+        , "So I can't tell you who it was. Way to go."
+        ]
+
 
 deleteRepo :: User -> Repository -> Page
 deleteRepo u r s = validate
-    [ io "you do not own this repository" (return $ Just (rOwner r) == sUser s) ]
+    [ io "you do not own this repository" $
+        return $ Just (rOwner r) == sUser s
+    ]
     (\(OK _) -> doPage (Page.delete u r) s)
     (\(Invalid f) -> notify Warning s f >> redirectTo "/")
 
 doDeleteRepo :: User -> Repository -> Page
 doDeleteRepo _ r s = validate
-    [ io "you do not own this repository" (return $ Just (rOwner r) == sUser s) ]
+    [ io "you do not own this repository" $
+        return $ Just (rOwner r) == sUser s
+    ]
     (\(OK _) -> do
         destroyed <- destroyRepository r
 
@@ -280,10 +303,13 @@ doDeleteRepo _ r s = validate
         redirectTo ('/' : rOwner r ++ "/" ++ rName r))
 
 forkRepo :: User -> Repository -> Page
-forkRepo _ _ s@(Session { sUser = Nothing }) = warn "You must be logged in to fork a repository." s >> redirectTo "/"
-forkRepo u r s@(Session { sUser = Just n })
-  = validate
-    [ io "destination repository already exists" $ fmap (== Nothing) (getRepository (n, rName r)) ]
+forkRepo _ _ s@(Session { sUser = Nothing }) = do
+    warn "You must be logged in to fork a repository." s
+    redirectTo "/"
+forkRepo u r s@(Session { sUser = Just n }) = validate
+    [ io "destination repository already exists" $
+        fmap (== Nothing) (getRepository (n, rName r))
+    ]
     (\(OK _) -> do
         forked <- forkRepository n (rName r) r
         success "Repository forked." s
@@ -291,11 +317,13 @@ forkRepo u r s@(Session { sUser = Just n })
     (\(Invalid _) -> doPage (Page.fork u r (rName r)) s)
 
 forkRepoAs :: User -> Repository -> Page
-forkRepoAs _ _ s@(Session { sUser = Nothing }) = warn "You must be logged in to fork a repository." s >> redirectTo "/"
-forkRepoAs u r s@(Session { sUser = Just n })
-  = validate
-    [ iff (nonEmpty "name")
-          (\(OK i) -> io "destination repository already exists" $ fmap (== Nothing) (getRepository (n, i ! "name")))
+forkRepoAs _ _ s@(Session { sUser = Nothing }) = do
+    warn "You must be logged in to fork a repository." s
+    redirectTo "/"
+forkRepoAs u r s@(Session { sUser = Just n }) = validate
+    [ iff (nonEmpty "name") $ \(OK i) ->
+        io "destination repository already exists" $
+            fmap (== Nothing) (getRepository (n, i ! "name"))
     ]
     (\(OK i) -> do
         forked <- forkRepository n (i ! "name") r
@@ -320,9 +348,10 @@ repoForks u r s = do
     privateFork _ = False
 
 mergeForks :: User -> Repository -> Page
-mergeForks _ r s
-  = validate
-    [ io "you do not own this repository" (return $ Just (rOwner r) == sUser s) ]
+mergeForks _ r s = validate
+    [ io "you do not own this repository" $
+        return $ Just (rOwner r) == sUser s
+    ]
     (\(OK _) -> do
         is <- getInputs
         let ps = map (\(n, _) ->

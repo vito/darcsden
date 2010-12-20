@@ -39,7 +39,8 @@ doRegister s = validate
           (\(OK r) -> io "name is already in use" $ do
               u <- getUser (r ! "name")
               return (u == Nothing))
-    , predicate "name" isSane "contain only alphanumeric characters, underscores, and hyphens"
+    , predicate "name" isSane
+        "contain only alphanumeric characters, underscores, and hyphens"
     , nonEmpty "email"
     , iff (nonEmpty "password1" `And` nonEmpty "password2")
           (const $ equal "password1" "password2")
@@ -75,14 +76,14 @@ login s = doPage (Page.login []) s
 
 doLogin :: Page
 doLogin s = validate
-    [ iff (nonEmpty "name" `And` nonEmpty "password")
-          (\(OK r) ->
-            io "invalid username or password" $ do
-              c <- getUser (r ! "name")
-              case c of
-                Nothing -> return False
-                Just u -> let hashed = hashPassword (r ! "password") (uSalt u)
-                          in return $ uPassword u == hashed)
+    [ iff (nonEmpty "name" `And` nonEmpty "password") $ \(OK r) ->
+          io "invalid username or password" $ do
+          c <- getUser (r ! "name")
+          case c of
+              Nothing -> return False
+              Just u ->
+                  let hashed = hashPassword (r ! "password") (uSalt u)
+                  in return $ uPassword u == hashed
     ]
     (\(OK r) -> do
         setUser (Just $ r ! "name") s
@@ -100,8 +101,9 @@ logout s = do
     redirectTo "/"
 
 settings :: Page
-settings s@(Session { sUser = Nothing }) =
-    warn "You must be logged in to change your settings." s >> redirectTo "/login"
+settings s@(Session { sUser = Nothing }) = do
+    warn "You must be logged in to change your settings." s
+    redirectTo "/login"
 settings s@(Session { sUser = Just n }) = validate
     [ io "you do not exist" $ fmap (/= Nothing) (getUser n) ]
     (\(OK _) -> do
@@ -110,8 +112,9 @@ settings s@(Session { sUser = Just n }) = validate
     (\(Invalid f) -> notify Warning s f >> redirectTo "/")
 
 doSettings :: Page
-doSettings s@(Session { sUser = Nothing }) =
-    warn "You must be logged in to change your settings." s >> redirectTo "/login"
+doSettings s@(Session { sUser = Nothing }) = do
+    warn "You must be logged in to change your settings." s
+    redirectTo "/login"
 doSettings s@(Session { sUser = Just n }) = validate
     [ io "you do not exist" $ fmap (/= Nothing) (getUser n) ]
     (\(OK _) -> do
@@ -120,10 +123,11 @@ doSettings s@(Session { sUser = Just n }) = validate
         fullName <- input "full_name" (uFullName u)
         website <- input "website" (uWebsite u)
         keys <- input "keys" (unlines (uKeys u))
-        updateUser (u { uFullName = fullName
-                      , uWebsite = website
-                      , uKeys = lines keys
-                      })
+        updateUser u
+            { uFullName = fullName
+            , uWebsite = website
+            , uKeys = lines keys
+            }
 
         success "Settings updated." s
 
