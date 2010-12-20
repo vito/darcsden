@@ -76,8 +76,8 @@ doInitialize s@(Session { sUser = Just n }) = validate
         notify Warning s f
             >>= doPage (Page.init is))
 
-browse :: Page
-browse s = do
+explore :: Page
+explore s = do
     page <- input "page" "1"
 
     let p = read page :: Int
@@ -89,7 +89,7 @@ browse s = do
 
     let totalPages = ceiling ((fromIntegral (length rs) :: Double) / 50)
 
-    doPage (Page.browse (paginated rs) p totalPages) s
+    doPage (Page.explore (paginated rs) p totalPages) s
   where
     groupForks rs = foldr addFork (map (flip (,) []) roots) forks
       where

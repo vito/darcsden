@@ -160,38 +160,29 @@ form .cancel-buttons a.cancel {
 
 .links {
 	float: right;
-}
-.repo .links {
-    float: left;
     width: 10em;
-    margin-bottom: 2em;
-    text-align: right;
-    margin-left: -12em;
 }
-.repo .links li {
+.links li {
     padding: .5em 0;
+	font-size: 1.5em;
+	display: inline-block;
+	margin-left: .5em;
     margin-bottom: .25em;
 }
-.repo .links li a {
+.links li a {
+	font-family: monospace;
     margin-right: .25em;
     padding: .4em .5em .4em 2em;
     border: .1em solid #ddd;
+    text-decoration: none;
 }
-.repo .links li a:hover {
+.links li a:hover {
     position: relative;
     top: -3px;
     left: -3px;
     -webkit-box-shadow: 1px 1px 0 #eee, 2px 2px #eee, 3px 3px #eee;
+    -moz-box-shadow: 1px 1px 0 #eee, 2px 2px #eee, 3px 3px #eee;
     -webkit-transition: all 0.125s ease-out;
-}
-.links li {
-	font-size: 1.5em;
-	display: inline-block;
-	margin-left: .5em;
-}
-.links li a {
-	font-family: monospace;
-	padding: .5em 0 .5em 21px;
 }
 .links li.edit a {
 	background: #fff url('/public/images/edit.gif') no-repeat 6px 5px;
@@ -205,22 +196,29 @@ form .cancel-buttons a.cancel {
 .links li.changes a {
 	background: #fff url('/public/images/log.gif') no-repeat 6px 6px;
 }
-.links.nav li {
-	font-size: 2em;
-    line-height: 1em;
-	font-weight: bold;
+.links li.settings a {
+	background: url('/public/images/settings.gif') no-repeat 6px 5px;
 }
-.links.nav li.settings a {
-	background: url('/public/images/settings.gif') no-repeat left 13px;
+.links li.logout a {
+	background: url('/public/images/logout.gif') no-repeat 6px 5px;
 }
-.links.nav li.logout a {
-	background: url('/public/images/logout.gif') no-repeat left 13px;
+.links li.login a {
+	background: url('/public/images/login.gif') no-repeat left 6px 5px;
 }
-.links.nav li.login a {
-	background: url('/public/images/login.gif') no-repeat left 13px;
+.links li.register a {
+	background: url('/public/images/register.gif') no-repeat 6px 5px;
 }
-.links.nav li.register a {
-	background: url('/public/images/register.gif') no-repeat left 13px;
+.links li.explore a {
+	background: url('/public/images/explore.gif') no-repeat 6px 5px;
+}
+.repo .links {
+    float: left;
+    text-align: right;
+    margin-left: -12em;
+}
+.links.nav {
+    float: right;
+    margin-right: -12em;
 }
 
 .repo-desc,

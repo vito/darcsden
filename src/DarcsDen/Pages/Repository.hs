@@ -423,16 +423,16 @@ blob u r fs b = repoBase u r
         file :: RepoItem
         file = last fs
 
-browse :: [(Repository, [Repository])] -> Int -> Int -> HSPage
-browse rs p tp = base
-    "browse"
-    <span>browse</span>
-    <div class="browse">
+explore :: [(Repository, [Repository])] -> Int -> Int -> HSPage
+explore rs p tp = base
+    "explore"
+    <span>explore</span>
+    <div class="explore">
         <h1>all repositories</h1>
         <ul class="repo-list">
             <% map repo' rs %>
         </ul>
-        <% paginate "/browse" p tp %>
+        <% paginate "/explore" p tp %>
     </div>
     where
         repo' :: (Repository, [Repository]) -> HSP XML

@@ -33,13 +33,13 @@ base title crumb content sess =
             <script src="/public/js/main.js" type="text/javascript"></script>
         </head>
         <body>
-            <% nav (sUser sess /= Nothing) %>
-
             <h1 class="head">
                 <a href="/">darcsden</a>
                 <% cdata " :: " %>
                 <% crumb %>
             </h1>
+
+            <% nav (sUser sess /= Nothing) %>
 
             <% map notification (sNotifications sess) %>
 
@@ -56,11 +56,13 @@ base title crumb content sess =
   where
     nav True =
         <ul class="links nav">
+            <li class="explore"><a href="/explore">explore</a></li>
             <li class="settings"><a href="/settings">settings</a></li>
             <li class="logout"><a href="/logout">log out</a></li>
         </ul>
     nav False =
         <ul class="links nav">
+            <li class="explore"><a href="/explore">explore</a></li>
             <li class="login"><a href="/login">log in</a></li>
             <li class="register"><a href="/register">register</a></li>
         </ul>

@@ -42,8 +42,8 @@ handler =
 routes :: Session -> [(BS.ByteString, Snap ())]
 routes s =
     [ -- Main
-      ("browse", browse s)
-    , ("browse/page/:page", browse s)
+      ("explore", explore s)
+    , ("explore/page/:page", explore s)
     , ("init", method GET (initialize s) <|> method POST (doInitialize s))
 
     -- Users
