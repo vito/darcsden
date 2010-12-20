@@ -47,7 +47,6 @@ executable darcsden
     , old-time
     , pandoc
     , process
-    , QuickCheck >= 2.0
     , random
     , redis
     , SHA
