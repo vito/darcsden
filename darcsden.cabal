@@ -1,7 +1,11 @@
 name:            darcsden
 version:         0.4
 synopsis:        Darcs web service
-description:     DarcsDen is a website for hosting Darcs-2 repositories and collaborating with others.
+description:
+    A web and SSH server for hosting darcs projects and collaborating with
+    others.
+    .
+    See darcsden --readme for installation instructions.
 cabal-version:   >=1.6
 build-type:      Simple
 license:         GPL
