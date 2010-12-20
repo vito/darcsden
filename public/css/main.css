@@ -159,7 +159,6 @@ form .cancel-buttons a.cancel {
 }
 
 .links {
-	float: right;
     width: 10em;
 }
 .links li {
@@ -175,6 +174,7 @@ form .cancel-buttons a.cancel {
     padding: .4em .5em .4em 2em;
     border: .1em solid #ddd;
     text-decoration: none;
+    background: #fff;
 }
 .links li a:hover {
     position: relative;
@@ -183,6 +183,9 @@ form .cancel-buttons a.cancel {
     -webkit-box-shadow: 1px 1px 0 #eee, 2px 2px #eee, 3px 3px #eee;
     -moz-box-shadow: 1px 1px 0 #eee, 2px 2px #eee, 3px 3px #eee;
     -webkit-transition: all 0.125s ease-out;
+}
+.links li a:active {
+    background-color: #eee !important;
 }
 .links li.edit a {
 	background: #fff url('/public/images/edit.gif') no-repeat 6px 5px;
@@ -461,31 +464,24 @@ div.markdown pre {
     padding-bottom: .4em;
     line-height: 1em;
 }
-.repo-list li .repo-forks {
+.repo-forks.links {
     margin: 0;
+    width: auto;
 }
-.repo-list li .repo-forks li a {
-    float: left;
-    display: block;
+.repo-forks.links li {
+    margin: 0;
+    padding: 0;
     font-size: 1.1em;
+    display: block;
+}
+.repo-forks.links li a {
+    float: left;
     margin: 0 1em 1em 0;
     padding: .5em .75em;
-    background: #fff;
-    border: .1em solid #ddd;
-    font-family: monospace;
-    text-decoration: none;
     font-weight: bold;
 }
-.repo-list li .repo-forks li a:hover {
-    position: relative;
-    top: -3px;
-    left: -3px;
+.repo-forks.links li a:hover {
     color: #555;
-    -webkit-box-shadow: #eee 1px 1px 0, #eee 2px 2px 0, #eee 3px 3px 0;
-    -webkit-transition: all 0.125s ease-out;
-}
-.repo-list li .repo-forks li a:active {
-    background: #eee;
 }
 
 .user-repos li {

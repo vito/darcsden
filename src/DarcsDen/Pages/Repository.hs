@@ -450,7 +450,7 @@ explore rs p tp = base
                             <%
                                 <div class="repo-forks-wrap">
                                     <h3>forks</h3>
-                                    <ul class="repo-forks">
+                                    <ul class="repo-forks links">
                                         <% map (\f -> <% <li><a href=(repoURL f)><% rOwner f %>'s <% rName f %></a></li> %>) fs %>
                                     </ul>
                                     <div class="clear"></div>
