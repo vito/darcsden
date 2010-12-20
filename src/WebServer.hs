@@ -22,6 +22,38 @@ main = do
 
     as <- getArgs
     case as of
+        ("--readme":_) ->
+            putStr . unlines $
+                [ "You will need:"
+                , "- CouchDB, with the databases and views described below."
+                , "- Redis"
+                , ""
+                , "Both should be running on their default port, or just edit"
+                , "DarcsDen/State/Util.hs to point to different ones."
+                , ""
+                , ""
+                , "To install:"
+                , ""
+                , "    cabal install"
+                , "    mkdir -p /srv/darcs"
+                , "    adduser --system --home /srv/darcs --no-create-home --shell /bin/bash --group --gecos DarcsDen darcsden"
+                , "    ssh-keygen -- save to /srv/darcs/.ssh/id_rsa"
+                , "    chown -R darcsden:darcsden /srv/darcs"
+                , ""
+                , "    -- make sure CouchDB is running"
+                , "    darcsden --install"
+                , ""
+                , ""
+                , "To start:"
+                , "This package provides separate executables for the web and SSH servers,"
+                , "`darcsden' and `darcsden-ssh', respectively. I recommend running them in"
+                , "screen as user 'darcsden'."
+                , ""
+                , "The web server should be started from the directory containing /public, or"
+                , "you can run it behind nginx or something that'll handle /public requests by"
+                , "pointing to that directory."
+                ]
+
         ("--install":_) -> runDB $ do
             liftIO (putStrLn "creating databases...")
 
@@ -47,6 +79,7 @@ main = do
         _ ->
             putStr . unlines $
                 [ "usage:"
+                , "  darcsden --readme    : figure out how to use this thing"
                 , "  darcsden --install   : set up CouchDB databases"
                 , "  darcsden --port PORT : start webserver on given port"
                 , "  darcsden             : start webserver on port 8080"
