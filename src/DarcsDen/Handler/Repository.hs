@@ -4,10 +4,10 @@ module DarcsDen.Handler.Repository where
 import Control.Monad (when)
 import Control.Monad.IO.Class
 import Data.Char (isSpace, toLower)
-import Data.List (groupBy, inits, isPrefixOf, sortBy)
+import Data.List (groupBy, inits, isPrefixOf, partition, sortBy)
 import Data.List.Split (wordsBy)
 import Data.Map ((!))
-import Data.Maybe (fromJust, isJust)
+import Data.Maybe (fromJust, isJust, isNothing)
 import Data.Ord (comparing)
 import Data.Time (getCurrentTime)
 import Database.CouchDB (doc)
@@ -44,7 +44,7 @@ doInitialize s@(Session { sUser = Just n }) = validate
                 "contain only alphanumeric characters, -, or _")
         (\(OK i) ->
             io "destination repository already exists" $
-                fmap (== Nothing) (getRepository (n, i ! "name")))
+                fmap isNothing (getRepository (n, i ! "name")))
 
     , io "user is not valid" (fmap (/= Nothing) (getUser n))
     ]
@@ -91,16 +91,14 @@ browse s = do
 
     doPage (Page.browse (paginated rs) p totalPages) s
   where
-    -- TODO: needs multiple passes or better algorithm
-    groupForks [] = []
-    groupForks (r@(Repository { rForkOf = Just d }):rs) =
-        addFork d r (groupForks rs)
-    groupForks (r:rs) = (r, []) : groupForks rs
+    groupForks rs = foldr addFork (map (flip (,) []) roots) forks
+      where
+        (forks, roots) = partition (isJust . rForkOf) rs
 
-    addFork _ f [] = [(f, [])]
-    addFork x f ((r@(Repository { rID = y }), fs):rs)
-        | Just x == y = ((r, (f:fs)) : rs)
-        | otherwise = (r, fs) : addFork x f rs
+    addFork f [] = [(f, [])]
+    addFork f ((r@(Repository { rID = y }), fs):rs)
+        | rForkOf f == y = ((r, (f:fs)) : rs)
+        | otherwise = (r, fs) : addFork f rs
 
 browseRepo :: User -> Repository -> Page
 browseRepo u r s = do
@@ -308,7 +306,7 @@ forkRepo _ _ s@(Session { sUser = Nothing }) = do
     redirectTo "/"
 forkRepo u r s@(Session { sUser = Just n }) = validate
     [ io "destination repository already exists" $
-        fmap (== Nothing) (getRepository (n, rName r))
+        fmap isNothing (getRepository (n, rName r))
     ]
     (\(OK _) -> do
         forked <- forkRepository n (rName r) r
@@ -323,7 +321,7 @@ forkRepoAs _ _ s@(Session { sUser = Nothing }) = do
 forkRepoAs u r s@(Session { sUser = Just n }) = validate
     [ iff (nonEmpty "name") $ \(OK i) ->
         io "destination repository already exists" $
-            fmap (== Nothing) (getRepository (n, i ! "name"))
+            fmap isNothing (getRepository (n, i ! "name"))
     ]
     (\(OK i) -> do
         forked <- forkRepository n (i ! "name") r
