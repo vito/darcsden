@@ -256,24 +256,16 @@ findDeps :: Commute p => RL (PatchInfoAnd p) -> PatchInfoAnd p -> [PatchInfoAnd 
 findDeps NilRL _ = []
 findDeps (p :<: ps) me =
     case commute (p :> me) of
-        Just (me' :> _) -> findDeps ps me'
+        Just (me' :> _) ->
+            findDeps ps me'
         Nothing ->
-            case commuteOut ps p of
-                HiddenFrom ps' ->
-                    p : findDeps ps' me
+            p : findDeps (commuteOut ps p) me
 
-data HiddenFrom seq p
-    where HiddenFrom :: seq p -> HiddenFrom seq p
-
-commuteOut :: Commute p => RL (PatchInfoAnd p) -> PatchInfoAnd p -> HiddenFrom RL (PatchInfoAnd p)
-commuteOut NilRL _ = HiddenFrom NilRL
+commuteOut :: Commute p => RL (PatchInfoAnd p) -> PatchInfoAnd p -> RL (PatchInfoAnd p)
+commuteOut NilRL _ = NilRL
 commuteOut (p :<: ps) me =
     case commute (p :> me) of
         Just (me' :> p') ->
-            case commuteOut ps me' of
-                HiddenFrom ps' ->
-                    HiddenFrom (p' :<: ps')
+            p' :<: (commuteOut ps me')
         Nothing ->
-           case commuteOut ps p of
-               HiddenFrom ps' ->
-                   commuteOut ps' me
+            commuteOut (commuteOut ps p) me
