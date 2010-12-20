@@ -1,6 +1,8 @@
 {-# LANGUAGE GADTs #-}
 module DarcsDen.Handler.Repository.Changes where
 
+import Control.Concurrent
+import Control.Monad
 import Darcs.Patch.Info (pi_date, pi_name, pi_author, pi_log, make_filename)
 import Darcs.Patch.FileName (fn2fp)
 import Darcs.Patch.Patchy (Commute(..))
@@ -15,6 +17,7 @@ import Text.Pandoc
 import qualified Darcs.Patch as P
 import qualified Darcs.Repository as R
 import qualified Darcs.Witnesses.Ordered as WO
+import qualified Data.HashTable as HT
 
 import DarcsDen.Handler.Repository.Util
 import DarcsDen.State.User
@@ -136,20 +139,41 @@ findUsers = findUsers' []
                         return (p { pAuthor = authorFrom (pAuthor p) } : rest)
 
 toChanges :: P.Effect p => P.Named p -> IO PatchChanges
-toChanges p =
-    fmap (PatchChanges (toLog p)) $
-        simplify [] . map primToChange . WO.unsafeUnFL $ P.effect p
+toChanges p = do
+    wait <- newChan
+    cs <- HT.new (==) fromIntegral :: IO (HT.HashTable Int PatchChange)
+
+    count <- simplify [] changes cs wait
+
+    replicateM_ count (readChan wait)
+
+    fmap (PatchChanges (toLog p) . map snd) (HT.toList cs)
   where
-    simplify a [] = return (reverse a)
+    changes = map primToChange (WO.unsafeUnFL (P.effect p))
+
+    simplify a [] = \cs wait -> do
+        forM_ (zip a [0..]) $ \(c, n) ->
+            case c of
+                FileChange fn (FileHunk l f t) -> do
+                    forkIO $ do
+                        hf <- highlight False fn f
+                        ht <- highlight False fn t
+                        HT.insert cs n (FileChange fn (FileHunk l hf ht))
+                        writeChan wait n
+
+                    return ()
+
+                _ -> do
+                    HT.insert cs n c
+                    writeChan wait n
+
+        return (length a)
     simplify a (c@(FileChange n t):cs)
         | t `elem` [FileAdded, FileRemoved, FileBinary] =
             simplify (c:filter (notFile n) a) (filter (notFile n) cs)
     simplify a (c@(FileChange _ (FileReplace _ _)):cs) =
-        simplify (c:a) cs
-    simplify a (FileChange n (FileHunk l f t):cs) = do
-        hf <- highlight False n f
-        ht <- highlight False n t
-        simplify (FileChange n (FileHunk l hf ht):a) cs
+        simplify (c:c:a) cs
+    simplify a (c@(FileChange _ _):cs) = simplify (c:a) cs
     simplify a (c@(PrefChange _ _ _):cs) = simplify (c:a) cs
     simplify a (_:cs) = simplify a cs
 
