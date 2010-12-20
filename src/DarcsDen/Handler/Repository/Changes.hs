@@ -172,7 +172,7 @@ toChanges p = do
         | t `elem` [FileAdded, FileRemoved, FileBinary] =
             simplify (c:filter (notFile n) a) (filter (notFile n) cs)
     simplify a (c@(FileChange _ (FileReplace _ _)):cs) =
-        simplify (c:c:a) cs
+        simplify (c:a) cs
     simplify a (c@(FileChange _ _):cs) = simplify (c:a) cs
     simplify a (c@(PrefChange _ _ _):cs) = simplify (c:a) cs
     simplify a (_:cs) = simplify a cs
