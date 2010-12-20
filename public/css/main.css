@@ -203,7 +203,7 @@ form .cancel-buttons a.cancel {
 	background: url('/public/images/logout.gif') no-repeat 6px 5px;
 }
 .links li.login a {
-	background: url('/public/images/login.gif') no-repeat left 6px 5px;
+	background: url('/public/images/login.gif') no-repeat 6px 5px;
 }
 .links li.register a {
 	background: url('/public/images/register.gif') no-repeat 6px 5px;
