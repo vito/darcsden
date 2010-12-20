@@ -10,8 +10,8 @@ To install:
 
     cabal install
     mkdir -p /srv/darcs
-    cp /path/to/id_rsa /srv/darcs/.keypair -- for the SSH server
     adduser --system --home /srv/darcs --no-create-home --shell /bin/bash --group --gecos "DarcsDen" darcsden
+    ssh-keygen -- save to /srv/darcs/.ssh/id_rsa
     chown -R darcsden:darcsden /srv/darcs
 
 

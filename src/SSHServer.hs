@@ -33,7 +33,7 @@ main = do
             (p:_) -> return (fromIntegral (read p :: Int))
             _ -> return 5022
 
-    kp <- rsaKeyPairFromFile (userRoot </> ".keypair")
+    kp <- rsaKeyPairFromFile (userRoot </> ".ssh" </> "id_rsa")
     startSSH kp port
   where
     startSSH kp = SSH.start
