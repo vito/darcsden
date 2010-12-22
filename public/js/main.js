@@ -28,28 +28,43 @@ $(function(){
     var canvas = document.getElementById("depends_canvas").getContext("2d");
     var dependency_displayed = [];
 
+    function setChecked(ele, checked) {
+        console.log("setting checked", ele, checked);
+        ele.attr("checked", checked);
+        var depends = rowDependencies(ele.closest(".change"));
+        $(depends).each(function(i, dep){
+            console.log("setting checked for", dep);
+            setChecked($("#change-"+ dep +" :checkbox"), checked);
+        });
+    }
+
+    function rowDependencies(ele) {
+        console.log("dependencies for", ele);
+        return ele.attr("class").split(" ").slice(1).map(function(c){
+            return c.replace(/depends-on-/, "");
+        });
+    }
+
     $(".fork-log .change").each(function(){
         var change = $(this);
-        var depends = $(this).attr("class").split(" ").slice(1).map(function(c) { return c.replace(/depends-on-/, "") });
+
         $(this).find(":checkbox").click(function(){
-            var checked = $(this).attr("checked");
-            $(depends).each(function(i, dep){
-                $("#change-"+ dep +" :checkbox").trigger("click");
-            });
+            setChecked($(this), $(this).attr("checked"));
         });
 
         canvas.fillStyle = "#000";
         canvas.strokeStyle = "#ccc";
         canvas.lineWidth = 2;
 
+        var depends = rowDependencies($(this));
         $(depends).each(function(i, dep){
             var depend = $("#change-"+ dep);
 
             var line_from_x = 300;
-            var line_from_y = change.offset().top - $(".fork-log").offset().top + 12;
+            var line_from_y = change.offset().top - $(".fork-log").offset().top + (change.height() / 2) - 1;
 
             var line_to_x = 299;
-            var line_to_y = depend.offset().top - $(".fork-log").offset().top + 12;
+            var line_to_y = depend.offset().top - $(".fork-log").offset().top + (change.height() / 2) - 1;
 
             var height = line_to_y - line_from_y;
             var width = line_to_x - line_from_x;
