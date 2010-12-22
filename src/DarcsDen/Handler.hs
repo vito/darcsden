@@ -69,8 +69,8 @@ routes s =
             method POST (doEditRepo u r s'))
         , (":user/:repo/fork", forkRepo)
         , (":user/:repo/fork-as", forkRepoAs)
-        , (":user/:repo/forks", repoForks)
-        , (":user/:repo/merge", mergeForks)
+        , (":user/:repo/patches", repoPatches)
+        , (":user/:repo/merge", repoMerge)
         , (":user/:repo/patch/:id", repoPatch)
         ]
 

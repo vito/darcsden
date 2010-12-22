@@ -1,3 +1,4 @@
+{-# LANGUAGE GADTs, RankNTypes #-}
 module DarcsDen.Handler.Repository.Changes where
 
 import Control.Concurrent

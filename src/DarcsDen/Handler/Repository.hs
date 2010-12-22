@@ -331,22 +331,22 @@ forkRepoAs u r s@(Session { sUser = Just n }) = validate
         name <- input "name" (rName r)
         doPage (Page.fork u r name) s)
 
-repoForks :: User -> Repository -> Page
-repoForks u r s = do
+repoPatches :: User -> Repository -> Page
+repoPatches u r s = do
     fs <- getRepositoryForks (fromJust $ rID r)
     forks <- liftIO $ mapM getForkChanges fs
 
     ownPrivFs <- fmap (filter privateFork) (getOwnerRepositories (uName u))
     ownPrivForks <- liftIO $ mapM getForkChanges ownPrivFs
 
-    doPage (Page.forks u r forks ownPrivForks) s
+    doPage (Page.patches u r forks ownPrivForks) s
   where
     privateFork (Repository { rIsPrivate = True, rForkOf = f }) =
         f == rID r
     privateFork _ = False
 
-mergeForks :: User -> Repository -> Page
-mergeForks _ r s = validate
+repoMerge :: User -> Repository -> Page
+repoMerge _ r s = validate
     [ io "you do not own this repository" $
         return $ Just (rOwner r) == sUser s
     ]

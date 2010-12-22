@@ -193,11 +193,14 @@ form .cancel-buttons a.cancel {
 .links li.delete a {
 	background: #fff url('/public/images/delete.gif') no-repeat 6px 5px;
 }
+.links li.changes a {
+	background: #fff url('/public/images/log.gif') no-repeat 6px 6px;
+}
 .links li.fork a {
 	background: #fff url('/public/images/fork.gif') no-repeat 6px 5px;
 }
-.links li.changes a {
-	background: #fff url('/public/images/log.gif') no-repeat 6px 6px;
+.links li.patches a {
+	background: #fff url('/public/images/patches.gif') no-repeat 6px 5px;
 }
 .links li.settings a {
 	background: url('/public/images/settings.gif') no-repeat 6px 5px;

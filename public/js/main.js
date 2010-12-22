@@ -29,17 +29,14 @@ $(function(){
     var dependency_displayed = [];
 
     function setChecked(ele, checked) {
-        console.log("setting checked", ele, checked);
         ele.attr("checked", checked);
         var depends = rowDependencies(ele.closest(".change"));
         $(depends).each(function(i, dep){
-            console.log("setting checked for", dep);
             setChecked($("#change-"+ dep +" :checkbox"), checked);
         });
     }
 
     function rowDependencies(ele) {
-        console.log("dependencies for", ele);
         return ele.attr("class").split(" ").slice(1).map(function(c){
             return c.replace(/depends-on-/, "");
         });

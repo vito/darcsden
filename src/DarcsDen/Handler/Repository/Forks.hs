@@ -30,7 +30,11 @@ import DarcsDen.State.Repository
 import DarcsDen.State.Session
 import DarcsDen.State.Util
 
-data Fork = Fork Repository [PatchLog]
+data Fork =
+    Fork
+        { fRepo :: Repository
+        , fPatches :: [PatchLog]
+        }
 
 
 getForkChanges :: Repository -> IO Fork

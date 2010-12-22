@@ -1,7 +1,6 @@
 {-# OPTIONS_GHC -F -pgmF trhsx #-}
 module DarcsDen.Pages.Repository where
 
-import Control.Monad (when)
 import Control.Monad.Trans
 import Data.List (sortBy)
 import Data.Maybe (fromJust)
@@ -101,15 +100,17 @@ repoBase _ r t b c s = base
         links :: Bool -> HSP XML
         links True =
             <ul class="links">
+                <li class="changes"><a href=(repoURL r ++ "/changes")>changes</a></li>
+                <li class="fork"><a href=(repoURL r ++ "/fork")>fork</a></li>
+                <li class="patches"><a href=(repoURL r ++ "/patches")>patches</a></li>
                 <li class="edit"><a href=(repoURL r ++ "/edit")>edit</a></li>
                 <li class="delete"><a href=(repoURL r ++ "/delete")>delete</a></li>
-                <li class="fork"><a href=(repoURL r ++ "/fork")>fork</a></li>
-                <li class="changes"><a href=(repoURL r ++ "/changes")>changes</a></li>
             </ul>
         links False =
             <ul class="links">
                 <li class="fork"><a href=(repoURL r ++ "/fork")>fork</a></li>
                 <li class="changes"><a href=(repoURL r ++ "/changes")>changes</a></li>
+                <li class="patches"><a href=(repoURL r ++ "/patches")>patches</a></li>
             </ul>
 
 init :: [(String, String)] -> HSPage
@@ -265,25 +266,25 @@ fork u r n = repoBase u r
         </form>
     </div>
 
-forks :: User -> Repository -> [Fork] -> [Fork] -> HSPage
-forks u r fs opfs s = repoBase u r
-    "forks"
-    <span> -> forks</span>
-    <div class="repo-forks">
+patches :: User -> Repository -> [Fork] -> [Fork] -> HSPage
+patches u r fs opfs s = repoBase u r
+    "patches"
+    <span> -> patches</span>
+    <div class="repo-patches">
         <%
-            if not (null fs)
-               then forksForm
+            if any (not . null . fPatches) fs
+               then patchesForm
                else
-                   <div class="no-forks">
-                       <h1>no forks!</h1>
-                       <p class="blurb">so ronery.</p>
+                   <div class="no-patches">
+                       <h1>no patches!</h1>
+                       <p class="blurb">there doesn't seem to be anything new.</p>
                    </div>
         %>
     </div>
     s
     where
-        forksForm :: HSP XML
-        forksForm =
+        patchesForm :: HSP XML
+        patchesForm =
             <form action=(repoURL r ++ "/merge") class="subtle" method="post">
                 <fieldset>
                     <% map fork' opfs %>
