@@ -121,3 +121,6 @@ Main
 # miscellaneous stuff
 TODO
 ^dist$
+^mypyg/dist$
+^mypyg/build$
+^mypyg/.*.egg-info$
