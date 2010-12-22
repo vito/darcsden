@@ -1,5 +1,6 @@
 module DarcsDen.State.Repository where
 
+import Control.Monad (forM_)
 import Control.Monad.Trans
 import Darcs.Commands (commandCommand)
 import Darcs.Flags (DarcsFlag(All, FixFilePath, Quiet))
@@ -190,7 +191,12 @@ updateRepository r =
 deleteRepository :: MonadIO m => Repository -> m Bool
 deleteRepository r =
     case (rID r, rRev r) of
-        (Just id', Just rev') ->
+        (Just id', Just rev') -> do
+            -- orphan a repository's forks
+            fs <- getRepositoryForks id'
+            forM_ fs $ \f ->
+                updateRepository f { rForkOf = Nothing }
+
             liftIO $ runDB (deleteDoc (db "repositories") (id', rev'))
         _ -> return False
 
