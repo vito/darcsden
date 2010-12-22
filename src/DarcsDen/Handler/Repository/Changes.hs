@@ -1,15 +1,15 @@
-{-# LANGUAGE GADTs #-}
 module DarcsDen.Handler.Repository.Changes where
 
 import Control.Concurrent
 import Control.Monad
-import Darcs.Patch.Info (pi_date, pi_name, pi_author, pi_log, make_filename)
+import Darcs.Patch.Info (PatchInfo(..), piDate, makeFilename)
 import Darcs.Patch.FileName (fn2fp)
+import Darcs.Patch.PatchInfoAnd (PatchInfoAnd, info)
 import Darcs.Patch.Patchy (Commute(..))
+import Darcs.Patch.Permutations (commuteWhatWeCanFL)
 import Darcs.Patch.Prim (Prim(..), DirPatchType(..), FilePatchType(..))
-import Darcs.Hopefully (PatchInfoAnd, info)
 import Darcs.Witnesses.Ordered
-import Data.List (nub)
+import Data.List (isPrefixOf, nub)
 import Data.Time (UTCTime, readTime)
 import System.Locale (defaultTimeLocale)
 import System.Time (calendarTimeToString)
@@ -93,18 +93,17 @@ data PatchChanges =
     deriving (Eq, Show)
 
 
-toLog :: P.Named p -> PatchLog
-toLog p =
+toLog :: (PatchInfo, [PatchInfo]) -> PatchLog
+toLog (i, ds) =
     PatchLog
-        (take 20 $ make_filename i)
-        (readTime defaultTimeLocale "%c" (calendarTimeToString $ pi_date i))
-        (pi_name i)
-        (pi_author i)
+        (take 20 $ makeFilename i)
+        (readTime defaultTimeLocale "%c" (calendarTimeToString (piDate i)))
+        (fromBS $ _piName i)
+        (fromBS $ _piAuthor i)
         False
-        (doMarkdown . unlines $ pi_log i)
-        (map (take 20 . make_filename) (P.getdeps p))
+        (doMarkdown . unlines . filter (not . ("Ignore-this" `isPrefixOf`)) . map fromBS $ _piLog i)
+        (map (take 20 . makeFilename) ds)
   where
-    i = P.patch2patchinfo p
     doMarkdown
         = writeHtmlString defaultWriterOptions
         . readMarkdown defaultParserState
@@ -138,8 +137,8 @@ findUsers = findUsers' []
                         rest <- findUsers' ((pAuthor p, Nothing) : checked) ps
                         return (p { pAuthor = authorFrom (pAuthor p) } : rest)
 
-toChanges :: P.Effect p => P.Named p -> IO PatchChanges
-toChanges p = do
+toChanges :: ((PatchInfo, [PatchInfo]), [PatchChange])  -> IO PatchChanges
+toChanges (p, changes) = do
     wait <- newChan
     cs <- HT.new (==) fromIntegral :: IO (HT.HashTable Int PatchChange)
 
@@ -149,8 +148,6 @@ toChanges p = do
 
     fmap (PatchChanges (toLog p) . map snd) (HT.toList cs)
   where
-    changes = map primToChange (WO.unsafeUnFL (P.effect p))
-
     simplify a [] = \cs wait -> do
         forM_ (zip a [0..]) $ \(c, n) ->
             case c of
@@ -181,18 +178,18 @@ toChanges p = do
         | n == n' = False
     notFile _ _ = True
 
-primToChange :: Prim -> PatchChange
+primToChange :: Prim x y -> PatchChange
 primToChange (Move f t) = Moved (drop 2 $ fn2fp f) (drop 2 $ fn2fp t)
 primToChange (DP f t) = DirChange (drop 2 $ fn2fp f) (fromDP t)
 primToChange (FP f t) = FileChange (drop 2 $ fn2fp f) (fromFP t)
 primToChange (ChangePref n f t) = PrefChange n f t
 primToChange a = error ("primToChange not supported for " ++ show a)
 
-fromDP :: DirPatchType -> DirChange
+fromDP :: DirPatchType x y -> DirChange
 fromDP RmDir = DirRemoved
 fromDP AddDir = DirAdded
 
-fromFP :: FilePatchType -> FileChange
+fromFP :: FilePatchType x y -> FileChange
 fromFP RmFile = FileRemoved
 fromFP AddFile = FileAdded
 fromFP (Hunk l rs as) = FileHunk l (unlines $ map fromBS rs) (unlines $ map fromBS as)
@@ -201,9 +198,9 @@ fromFP (TokReplace _ f r) = FileReplace f r
 
 getChanges :: String -> Int -> IO ([PatchLog], Int)
 getChanges dir page = R.withRepositoryDirectory [] dir $ \dr -> do
-    pset <- R.read_repo dr
+    pset <- R.readRepo dr
 
-    let ps = fromPS pset
+    let ps = fromPS (\np -> (P.patch2patchinfo np, P.getdeps np)) pset
         patches = map toLog (paginate 30 page ps)
 
     prettyLog <- findUsers patches
@@ -215,18 +212,18 @@ getChanges dir page = R.withRepositoryDirectory [] dir $ \dr -> do
 
 getPatch :: String -> String -> IO PatchChanges
 getPatch dir patch = R.withRepositoryDirectory [] dir $ \dr -> do
-    pset <- R.read_repo dr
+    pset <- R.readRepo dr
 
-    let ps = fromPS pset
-        p = head $ filter (\p' -> patch == take 20 (P.patchname p')) ps
+    let ps = fromPS (\np -> (P.patchname np, ((P.patch2patchinfo np, P.getdeps np), WO.mapFL primToChange (P.effect np)))) pset
+        (_, p) = head $ filter (\(n, _) -> patch == take 20 n) ps
 
     cs <- toChanges p
 
     [l] <- findUsers [pPatch cs]
     return cs { pPatch = l }
 
-fromPS :: P.RepoPatch p => R.PatchSet p -> [P.Named p]
-fromPS = WO.unsafeUnRL . WO.reverseFL . R.patchSetToPatches
+fromPS :: P.RepoPatch p => (forall w z. P.Named p w z -> b) -> R.PatchSet p x y -> [b]
+fromPS f = WO.mapRL f . WO.reverseFL . R.patchSetToPatches
 
 summarize :: [PatchChange] -> [Summary]
 summarize = nub . reverse . summarize'
@@ -243,29 +240,23 @@ isModification :: PatchChange -> Bool
 isModification (FileChange _ (FileHunk _ _ _)) = True
 isModification _ = False
 
--- The following is ported over from Camp.
-findAllDeps :: Commute p => FL (PatchInfoAnd p) -> [(String, [PatchInfoAnd p])]
-findAllDeps = f NilRL
-  where
-    f :: Commute p => RL (PatchInfoAnd p) -> FL (PatchInfoAnd p) -> [(String, [PatchInfoAnd p])]
-    f _ NilFL = []
-    f past (p :>: ps) =
-        (make_filename (info p), findDeps past p) : f (p :<: past) ps
+findAllDeps :: Commute p => RL (PatchInfoAnd p) wX wY -> [(PatchInfo, [PatchInfo])]
+findAllDeps NilRL = []
+findAllDeps (p :<: ps) = (info p, findDeps ps NilFL p) : findAllDeps ps
 
-findDeps :: Commute p => RL (PatchInfoAnd p) -> PatchInfoAnd p -> [PatchInfoAnd p]
-findDeps NilRL _ = []
-findDeps (p :<: ps) me =
-    case commute (p :> me) of
-        Just (me' :> _) ->
-            findDeps ps me'
-        Nothing ->
-            p : findDeps (commuteOut ps p) me
+findDeps :: Commute p => RL (PatchInfoAnd p) wX wY -> FL (PatchInfoAnd p) wY wZ -> PatchInfoAnd p wZ wT -> [PatchInfo]
+findDeps NilRL _ _ = []
+findDeps (p :<: ps) deps me =
+    case commuteWhatWeCanFL (p :> deps) of
+        deps' :> p' :> NilFL ->
+            case commute (p' :> me) of
+                Just (me' :> _) ->
+                    -- not a dependency
+                    findDeps ps deps' me'
 
-commuteOut :: Commute p => RL (PatchInfoAnd p) -> PatchInfoAnd p -> RL (PatchInfoAnd p)
-commuteOut NilRL _ = NilRL
-commuteOut (p :<: ps) me =
-    case commute (p :> me) of
-        Just (me' :> p') ->
-            p' :<: (commuteOut ps me')
-        Nothing ->
-            commuteOut (commuteOut ps p) me
+                Nothing ->
+                    -- a direct dependency
+                    info p' : findDeps ps (p :>: deps) me
+        _ ->
+            -- an indirect dependency
+            findDeps ps (p :>: deps) me

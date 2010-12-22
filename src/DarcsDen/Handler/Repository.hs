@@ -2,7 +2,7 @@
 module DarcsDen.Handler.Repository where
 
 import Control.Monad (when)
-import Control.Monad.IO.Class
+import Control.Monad.Trans
 import Data.Char (isSpace, toLower)
 import Data.List (groupBy, inits, isPrefixOf, partition, sortBy)
 import Data.List.Split (wordsBy)

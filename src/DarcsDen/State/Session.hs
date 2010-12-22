@@ -1,6 +1,6 @@
 module DarcsDen.State.Session where
 
-import Control.Monad.IO.Class
+import Control.Monad.Trans
 import Database.Redis.Monad hiding (expireAt)
 import Data.Time
 import Data.Time.Clock.POSIX

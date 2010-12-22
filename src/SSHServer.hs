@@ -1,9 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
-import Control.Monad (when)
-import Control.Monad.IO.Class
-import Control.Monad.Trans.State
+import Control.Monad.State
 import Data.List (isPrefixOf)
 import Data.Time
 import SSH.Channel

@@ -1,18 +1,24 @@
 module DarcsDen.Handler.Repository.Util where
 
 import Control.Concurrent
+import Darcs.Repository.Internal (IdentifyRepo(..))
+import Darcs.Patch.V1 (Patch)
 import Data.Char (isAlphaNum)
 import System.Exit (ExitCode(ExitSuccess))
 import System.FilePath (takeExtension)
 import System.IO
 import System.Process
 import Text.XHtml.Strict (renderHtmlFragment)
-import qualified Darcs.Patch as P
 import qualified Darcs.Repository as R
 
 
-getRepo :: String -> IO (Either String (R.Repository P.Patch))
-getRepo = R.maybeIdentifyRepository []
+getRepo :: String -> IO (Either String (R.Repository Patch r u t))
+getRepo p = do
+    r <- R.maybeIdentifyRepository [] p
+    case r of
+        GoodRepository r -> return (Right r)
+        BadRepository s -> return (Left s)
+        NonRepository s -> return (Left s)
 
 highlight :: Bool -> String -> String -> IO String
 highlight lineNums fn s =

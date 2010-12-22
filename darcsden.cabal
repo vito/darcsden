@@ -35,7 +35,7 @@ executable darcsden
     , bytestring
     , CouchDB
     , containers
-    , darcs >= 2 && < 2.5
+    , darcs >= 2.5.1
     , directory
     , filepath
     , harp
@@ -51,12 +51,11 @@ executable darcsden
     , redis
     , SHA
     , ssh >= 0.2.5
-    , snap-core >= 0.2.12
-    , snap-server >= 0.2.12
+    , snap-core >= 0.3
+    , snap-server >= 0.3
     , system-uuid
     , split
     , time
-    , transformers
     , xhtml
     }
 

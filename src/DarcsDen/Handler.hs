@@ -3,7 +3,7 @@ module DarcsDen.Handler where
 
 import Control.Applicative ((<|>))
 import Control.Arrow (second)
-import Control.Monad.IO.Class
+import Control.Monad.Trans
 import Snap.Types
 import Snap.Util.FileServe
 import qualified Data.ByteString as BS

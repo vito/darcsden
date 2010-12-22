@@ -1,6 +1,6 @@
 module DarcsDen.State.User where
 
-import Control.Monad.IO.Class
+import Control.Monad.Trans
 import Control.Monad (replicateM)
 import Data.Digest.Pure.SHA (sha512, bytestringDigest)
 import Data.Time (UTCTime, formatTime, readTime)

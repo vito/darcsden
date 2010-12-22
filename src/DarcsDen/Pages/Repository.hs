@@ -1,12 +1,13 @@
 {-# OPTIONS_GHC -F -pgmF trhsx #-}
 module DarcsDen.Pages.Repository where
 
+import Control.Monad (when)
+import Control.Monad.Trans
 import Data.List (sortBy)
 import Data.Maybe (fromJust)
 import Data.Time (UTCTime, formatTime)
 import HSP
 import System.Locale (defaultTimeLocale)
-import qualified Control.Monad.Trans as MT
 
 import DarcsDen.Handler.Repository.Browse (RepoItem(..))
 import DarcsDen.Handler.Repository.Changes
@@ -64,7 +65,7 @@ repoBase _ r t b c s = base
             <% rDescription r %>
 
             <% do
-                f <- MT.liftIO (rFork r)
+                f <- liftIO (rFork r)
                 case f of
                      Just f' ->
                          <%

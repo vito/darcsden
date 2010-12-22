@@ -2,7 +2,7 @@
 module DarcsDen.Handler.User where
 
 import Control.Monad (when)
-import Control.Monad.IO.Class
+import Control.Monad.Trans
 import Data.Time (getCurrentTime)
 import Data.Map ((!))
 import Data.Maybe (fromJust)

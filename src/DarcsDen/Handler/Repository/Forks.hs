@@ -1,10 +1,11 @@
 module DarcsDen.Handler.Repository.Forks where
 
-import Darcs.CommandsAux (check_paths)
+import Darcs.CommandsAux (checkPaths)
 import Darcs.Flags (DarcsFlag(SkipConflicts))
-import Darcs.Patch.Depends (get_common_and_uncommon)
-import Darcs.Hopefully (hopefully, info)
-import Darcs.Patch.Info (make_filename)
+import Darcs.Patch.Depends (findUncommon)
+import Darcs.Patch.Info (makeFilename)
+import Darcs.Patch.Named (getdeps)
+import Darcs.Patch.PatchInfoAnd (hopefully, info)
 import Darcs.Patch.Permutations
 import Darcs.Repository
     ( ($-)
@@ -12,7 +13,7 @@ import Darcs.Repository
     , finalizeRepositoryChanges
     , identifyRepositoryFor
     , invalidateIndex
-    , read_repo
+    , readRepo
     , tentativelyMergePatches
     , withGutsOf
     , withRepoLock
@@ -41,22 +42,24 @@ getForkChanges r = do
     Right pr <- getRepo pdir
     Right cr <- getRepo cdir
 
-    pps <- read_repo pr
-    cps <- read_repo cr
+    pps <- readRepo pr
+    cps <- readRepo cr
 
-    let (_, _ :\/: them) = get_common_and_uncommon (pps, cps)
-        depends = findAllDeps (reverseRL them)
-        cs =
-            map
-                (\p ->
-                    let l = toLog (hopefully p)
-                    in case lookup (make_filename (info p)) depends of
-                        Just ds -> l
-                            { pDepends =
-                                map (take 20 . make_filename . info) ds
-                            }
-                        Nothing -> l)
-                (unsafeUnRL them)
+    let cs =
+            case findUncommon pps cps of
+                _ :\/: them ->
+                    let depends = map (\(p, ds) -> (makeFilename p, ds)) (findAllDeps (reverseFL them))
+                    in
+                        mapRL
+                            (\p ->
+                                let l = toLog (info p, getdeps (hopefully p))
+                                in case lookup (makeFilename (info p)) depends of
+                                    Just ds -> l
+                                        { pDepends =
+                                            map (take 20 . makeFilename) ds
+                                        }
+                                    Nothing -> l)
+                            (reverseFL them)
 
     changes <- findUsers cs
 
@@ -68,34 +71,35 @@ mergePatches r ps s = do
     withCurrentDirectory (origin parent) $ withRepoLock [] $- \pr -> do
         cr <- identifyRepositoryFor pr fork
 
-        pps <- read_repo pr
-        cps <- read_repo cr
+        pps <- readRepo pr
+        cps <- readRepo cr
 
-        let (_, us :\/: them) = get_common_and_uncommon (pps, cps)
-            (chosen :> _) = partitionFL ((`elem` ps) . take 20 . make_filename . info)
-                                        (reverseRL them)
+        case findUncommon pps cps of
+            us :\/: them ->
+                case partitionFL ((`elem` ps) . take 20 . makeFilename . info) them of
+                    chosen :> _ -> do
+                        (conflicts, Sealed merge) <- filterOutConflicts [SkipConflicts] (reverseFL us) pr chosen
 
-        (conflicts, Sealed merge) <- filterOutConflicts [SkipConflicts] us pr chosen
+                        if conflicts || lengthFL merge < length ps
+                            then do
+                                flip warn s . unwords $
+                                    [ "Patches for fork"
+                                    , "\"" ++ rOwner r ++ "/" ++ rName r ++ "\""
+                                    , "could not be applied cleanly and have been skipped."
+                                    ]
+                                return False
+                            else do
 
-        if conflicts || lengthFL merge < length ps
-            then do
-                flip warn s . unwords $
-                    [ "Patches for fork"
-                    , "\"" ++ rOwner r ++ "/" ++ rName r ++ "\""
-                    , "could not be applied cleanly and have been skipped."
-                    ]
-                return False
-            else do
+                        checkPaths [] merge
 
-        check_paths [] merge
+                        Sealed pw <- tentativelyMergePatches pr "pull" [] us merge
+                        invalidateIndex pr
+                        withGutsOf pr $ do
+                            finalizeRepositoryChanges pr
+                            applyToWorking pr [] pw
+                            return ()
 
-        Sealed pw <- tentativelyMergePatches pr "pull" [] (reverseRL us) merge
-        invalidateIndex pr
-        withGutsOf pr $ do
-            finalizeRepositoryChanges pr
-            applyToWorking pr [] pw
-
-        return True
+                        return True
   where
     origin p = repoDir (rOwner p) (rName p)
     fork = repoDir (rOwner r) (rName r)

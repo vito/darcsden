@@ -1,6 +1,6 @@
 module DarcsDen.State.Util where
 
-import Control.Monad.IO.Class
+import Control.Monad.Trans
 import Database.CouchDB
 import Database.Redis.Monad.State (RedisM, runWithRedis)
 import Text.JSON

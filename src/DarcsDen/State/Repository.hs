@@ -1,6 +1,6 @@
 module DarcsDen.State.Repository where
 
-import Control.Monad.IO.Class
+import Control.Monad.Trans
 import Darcs.Commands (commandCommand)
 import Darcs.Flags (DarcsFlag(All, FixFilePath, Quiet))
 import Darcs.RepoPath (getCurrentDirectory)

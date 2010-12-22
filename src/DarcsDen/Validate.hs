@@ -1,6 +1,6 @@
 module DarcsDen.Validate where
 
-import Control.Monad.IO.Class
+import Control.Monad.Trans
 import Data.Either (lefts)
 import Snap.Types
 import qualified Data.Map as M

@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module DarcsDen.WebUtils where
 
-import Control.Monad.IO.Class
+import Control.Monad.Trans
 import Data.List (find)
 import HSP (XML, evalHSP, renderXML, renderAsHTML)
 import Snap.Types

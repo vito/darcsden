@@ -86,13 +86,13 @@ main = do
                 , "  darcsden             : start webserver on port 8080"
                 ]
   where
-    startHTTP p = httpServe
-        "*"
-        p
-        "127.0.0.1"
-        (Just "/srv/darcs/access.log")
-        (Just "/srv/darcs/error.log")
-        handler
+    startHTTP p = httpServe (config p) handler
+
+    config p
+        = addListen (ListenHttp "127.0.0.1" p)
+        . setAccessLog (Just "/srv/darcs/access.log")
+        . setErrorLog (Just "/srv/darcs/error.log")
+        $ defaultConfig
 
     checkDBs = do
         putStrLn "checking couchdb..."
