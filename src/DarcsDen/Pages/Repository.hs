@@ -17,10 +17,11 @@ import DarcsDen.Handler.Repository.Changes
     )
 import DarcsDen.Handler.Repository.Forks (Fork(..))
 import DarcsDen.Pages.Base
+import DarcsDen.State.Issue
 import DarcsDen.State.Repository
 import DarcsDen.State.Session
 import DarcsDen.State.User
-import DarcsDen.Util (baseDomain, baseURL)
+import DarcsDen.Util (baseDomain, baseURL, doMarkdown)
 
 
 author :: PatchLog -> HSP XML
@@ -92,26 +93,28 @@ repoBase _ r t b c s = base
         <% c %>
     </div>
     s
-    where
-        rFork :: Repository -> IO (Maybe Repository)
-        rFork (Repository { rForkOf = Nothing }) = return Nothing
-        rFork (Repository { rForkOf = Just id' }) = getRepositoryByID id'
+  where
+    rFork :: Repository -> IO (Maybe Repository)
+    rFork (Repository { rForkOf = Nothing }) = return Nothing
+    rFork (Repository { rForkOf = Just id' }) = getRepositoryByID id'
 
-        links :: Bool -> HSP XML
-        links True =
-            <ul class="links">
-                <li class="changes"><a href=(repoURL r ++ "/changes")>changes</a></li>
-                <li class="fork"><a href=(repoURL r ++ "/fork")>fork</a></li>
-                <li class="patches"><a href=(repoURL r ++ "/patches")>patches</a></li>
-                <li class="edit"><a href=(repoURL r ++ "/edit")>edit</a></li>
-                <li class="delete"><a href=(repoURL r ++ "/delete")>delete</a></li>
-            </ul>
-        links False =
-            <ul class="links">
-                <li class="fork"><a href=(repoURL r ++ "/fork")>fork</a></li>
-                <li class="changes"><a href=(repoURL r ++ "/changes")>changes</a></li>
-                <li class="patches"><a href=(repoURL r ++ "/patches")>patches</a></li>
-            </ul>
+    links :: Bool -> HSP XML
+    links True =
+        <ul class="links">
+            <li class="changes"><a href=(repoURL r ++ "/changes")>changes</a></li>
+            <li class="fork"><a href=(repoURL r ++ "/fork")>fork</a></li>
+            <li class="patches"><a href=(repoURL r ++ "/patches")>patches</a></li>
+            <li class="issues"><a href=(repoURL r ++ "/issues")>issues</a></li>
+            <li class="edit"><a href=(repoURL r ++ "/edit")>edit</a></li>
+            <li class="delete"><a href=(repoURL r ++ "/delete")>delete</a></li>
+        </ul>
+    links False =
+        <ul class="links">
+            <li class="fork"><a href=(repoURL r ++ "/fork")>fork</a></li>
+            <li class="changes"><a href=(repoURL r ++ "/changes")>changes</a></li>
+            <li class="patches"><a href=(repoURL r ++ "/patches")>patches</a></li>
+            <li class="issues"><a href=(repoURL r ++ "/issues")>issues</a></li>
+        </ul>
 
 init :: [(String, String)] -> HSPage
 init is = base
@@ -138,61 +141,61 @@ repo u r files path readme member sess = repoBase u r
     <span> -> browse</span>
     (filesList (null files))
     sess
-    where
-        filesList :: Bool -> HSP XML
-        filesList True =
-            <div class="repo-browse no-files">
-                <h1>nothing here yet!</h1>
-                <%
-                    if Just (rOwner r) == sUser sess
-                        then ownerMessage
-                        else if member
-                            then memberMessage
-                            else otherMessage
-                %>
-            </div>
-          where
-            ownerMessage =
-                <p class="repo-empty">
-                    push your code to <code><% uName u %>@<% baseDomain %>:<% rName r %></code> to get started
-                </p>
-            memberMessage =
-                <p class="repo-empty">
-                    push your code to <code><% fromJust (sUser sess) %><% baseDomain %>:<% rOwner r %>/<% rName r %></code> to get started
-                </p>
-            otherMessage =
-                <p class="repo-empty">move along, citizen</p>
-        filesList False =
-            <div class="repo-browse">
-                <h1 class="path">
-                    <a href=(repoURL r ++ "/browse")>root</a>
-                    <% map (\p -> <span class="path-item"> / <a href=(repoURL r ++ "/browse" ++ iPath p)><% iName p %></a></span>) path %>
-                </h1>
+  where
+    filesList :: Bool -> HSP XML
+    filesList True =
+        <div class="repo-browse no-files">
+            <h1>nothing here yet!</h1>
+            <%
+                if Just (rOwner r) == sUser sess
+                    then ownerMessage
+                    else if member
+                        then memberMessage
+                        else otherMessage
+            %>
+        </div>
+      where
+        ownerMessage =
+            <p class="repo-empty">
+                push your code to <code><% uName u %>@<% baseDomain %>:<% rName r %></code> to get started
+            </p>
+        memberMessage =
+            <p class="repo-empty">
+                push your code to <code><% fromJust (sUser sess) %><% baseDomain %>:<% rOwner r %>/<% rName r %></code> to get started
+            </p>
+        otherMessage =
+            <p class="repo-empty">move along, citizen</p>
+    filesList False =
+        <div class="repo-browse">
+            <h1 class="path">
+                <a href=(repoURL r ++ "/browse")>root</a>
+                <% map (\p -> <span class="path-item"> / <a href=(repoURL r ++ "/browse" ++ iPath p)><% iName p %></a></span>) path %>
+            </h1>
 
-                <ul class="repo-files">
-                    <% map file files %>
-                </ul>
+            <ul class="repo-files">
+                <% map file files %>
+            </ul>
 
-                <%
-                    case readme of
-                         Nothing -> <% "" %>
-                         Just s ->
-                             <%
-                                 <div class="repo-readme">
-                                     <h1>readme</h1>
-                                     <div class="markdown">
-                                         <% cdata s %>
-                                     </div>
+            <%
+                case readme of
+                     Nothing -> <% "" %>
+                     Just s ->
+                         <%
+                             <div class="repo-readme">
+                                 <h1>readme</h1>
+                                 <div class="markdown">
+                                     <% cdata s %>
                                  </div>
-                             %>
-                %>
-            </div>
+                             </div>
+                         %>
+            %>
+        </div>
 
-        file :: RepoItem -> HSP XML
-        file f =
-            <li class=(if iIsDirectory f then "directory" else "file")>
-                <a href=(repoURL r ++ "/browse" ++ iPath f)><% iName f %></a>
-            </li>
+    file :: RepoItem -> HSP XML
+    file f =
+        <li class=(if iIsDirectory f then "directory" else "file")>
+            <a href=(repoURL r ++ "/browse" ++ iPath f)><% iName f %></a>
+        </li>
 
 edit :: User -> Repository -> [User] -> [(String, String)] -> HSPage
 edit u r ms is = repoBase u r
@@ -266,6 +269,78 @@ fork u r n = repoBase u r
         </form>
     </div>
 
+issues :: User -> Repository -> [Issue] -> HSPage
+issues u r is s = repoBase u r
+    "issues"
+    <span> -> issues</span>
+    <div class="repo-issues">
+        <a href=(repoURL r ++ "/new-issue") class="new-issue button">new issue</a>
+        <%
+            if not (null is)
+               then
+                   <ul class="issues-list">
+                       <% map issue is %>
+                   </ul>
+               else
+                   <div class="no-issues">
+                       <h1>no issues!</h1>
+                       <p class="blurb">there doesn't seem to be anything new.</p>
+                   </div>
+        %>
+    </div>
+    s
+  where
+    issue i =
+        <li class="issue">
+            <h2><a href=(repoURL r ++ "/issue/" ++ iURL i)><% iSummary i %></a></h2>
+            <div class="meta">
+                reported by <a href=("/" ++ iOwner i)><% iOwner i %></a>
+                <% cdata " " %>
+                <span class="relatize date"><% formatTime defaultTimeLocale "%c" (iCreated i) %></span>
+                <% if not (iCreated i == iUpdated i)
+                    then <% <span class="updated-date">, updated <span class="relatize date"><% formatTime defaultTimeLocale "%c" (iUpdated i) %></span></span> %>
+                    else <% "" %>
+                %>
+                <% if not (null (iTags i))
+                    then
+                        <%
+                            <ul class="tags">
+                                <% map (\t -> <li><a href=(repoURL r ++ "/issues/tag/" ++ t)><% t %></a></li>) (iTags i) %>
+                            </ul>
+                        %>
+                    else <% "" %>
+                %>
+            </div>
+        </li>
+
+issue :: User -> Repository -> Issue -> HSPage
+issue u r i s = repoBase u r
+    (iSummary i)
+    <span> -> issue</span>
+    <div class="issue">
+        <h1><% iSummary i %></h1>
+        <div class="markdown">
+            <% cdata $ doMarkdown (iDescription i) %>
+        </div>
+    </div>
+    s
+
+newIssue :: User -> Repository -> HSPage
+newIssue u r = repoBase u r
+    "new issue"
+    <span> -> new issue</span>
+    <div class="new-issue">
+        <h1>new issue</h1>
+        <form action=(repoURL r ++ "/new-issue") method="post">
+            <fieldset>
+                <% field (input "summary" "") "summary" "" %>
+                <% field (textarea 12 "description" "") "description" "" %>
+                <% field (input "tags" "") "tags" "comma separated" %>
+                <% submit "create issue" %>
+            </fieldset>
+        </form>
+    </div>
+
 patches :: User -> Repository -> [Fork] -> [Fork] -> HSPage
 patches u r fs opfs s = repoBase u r
     "patches"
@@ -282,61 +357,61 @@ patches u r fs opfs s = repoBase u r
         %>
     </div>
     s
-    where
-        patchesForm :: HSP XML
-        patchesForm =
-            <form action=(repoURL r ++ "/merge") class="subtle" method="post">
-                <fieldset>
-                    <% map fork' opfs %>
-                    <% map fork' fs %>
-                    <%
-                        if Just (rOwner r) == sUser s
-                           then
-                               <%
-                                   <div class="merge-button">
-                                       <br />
-                                       <% submit "merge selected" %>
-                                   </div>
-                               %>
-                           else <% "" %>
-                    %>
-                </fieldset>
-            </form>
-
-        fork' (Fork _ []) = <% "" %>
-        fork' (Fork f cs) =
-            <%
-                <div class="fork">
-                    <h1><a href=(repoURL f)><% rName f %></a> :: <% rOwner f %></h1>
-                    <table class="fork-log">
-                        <% map (change' f) cs %>
-                    </table>
-                </div>
-            %>
-
-        change' :: Repository -> PatchLog -> HSP XML
-        change' f p =
-            <tr id=("change-" ++ pID p) class=("change" ++ concatMap (" depends-on-" ++) (pDepends p))>
+  where
+    patchesForm :: HSP XML
+    patchesForm =
+        <form action=(repoURL r ++ "/merge") class="subtle" method="post">
+            <fieldset>
+                <% map fork' opfs %>
+                <% map fork' fs %>
                 <%
                     if Just (rOwner r) == sUser s
                        then
                            <%
-                               <td class="merge">
-                                   <input type="checkbox" name=("merge:" ++ show (fromJust (rID f)) ++ ":" ++ pID p) />
-                               </td>
+                               <div class="merge-button">
+                                   <br />
+                                   <% submit "merge selected" %>
+                               </div>
                            %>
                        else <% "" %>
                 %>
-                <td class="name">
-                    <p><a href=(repoURL f ++ "/patch/" ++ pID p)><% pName p %></a></p>
-                </td>
-                <td class="author">
-                    <% author p %>
-                </td>
-                <td class="date">
-                    <span class="relatize date"><% formatTime defaultTimeLocale "%c" (pDate p) %></span>
-                </td>
-            </tr>
+            </fieldset>
+        </form>
+
+    fork' (Fork _ []) = <% "" %>
+    fork' (Fork f cs) =
+        <%
+            <div class="fork">
+                <h1><a href=(repoURL f)><% rName f %></a> :: <% rOwner f %></h1>
+                <table class="fork-log">
+                    <% map (change' f) cs %>
+                </table>
+            </div>
+        %>
+
+    change' :: Repository -> PatchLog -> HSP XML
+    change' f p =
+        <tr id=("change-" ++ pID p) class=("change" ++ concatMap (" depends-on-" ++) (pDepends p))>
+            <%
+                if Just (rOwner r) == sUser s
+                   then
+                       <%
+                           <td class="merge">
+                               <input type="checkbox" name=("merge:" ++ show (fromJust (rID f)) ++ ":" ++ pID p) />
+                           </td>
+                       %>
+                   else <% "" %>
+            %>
+            <td class="name">
+                <p><a href=(repoURL f ++ "/patch/" ++ pID p)><% pName p %></a></p>
+            </td>
+            <td class="author">
+                <% author p %>
+            </td>
+            <td class="date">
+                <span class="relatize date"><% formatTime defaultTimeLocale "%c" (pDate p) %></span>
+            </td>
+        </tr>
 
 changes :: User -> Repository -> [PatchLog] -> Int -> Int -> HSPage
 changes u r cs p tp = repoBase u r
@@ -374,32 +449,32 @@ changesAtom u r cs _ =
 
         <% map entry cs %>
     </feed>
-    where
-        asAtomDate :: UTCTime -> String
-        asAtomDate = formatTime defaultTimeLocale "%FT%TZ"
+  where
+    asAtomDate :: UTCTime -> String
+    asAtomDate = formatTime defaultTimeLocale "%FT%TZ"
 
-        latest :: UTCTime
-        latest = head . sortBy (flip compare) . map pDate $ cs
+    latest :: UTCTime
+    latest = head . sortBy (flip compare) . map pDate $ cs
 
-        entry :: PatchLog -> HSP XML
-        entry p =
-            <entry>
-                <title><% pName p %></title>
-                <id><% baseURL ++ repoURL r ++ "/patch/" ++ pID p %></id>
-                <updated><% asAtomDate (pDate p) %></updated>
-                <author>
-                    <name><% pAuthor p %></name>
-                    <%
-                        if pIsUser p
-                           then <% <uri><% baseURL ++ "/" ++ pAuthor p %></uri> %>
-                           else <% "" %>
-                    %>
-                </author>
-                <summary>
-                    <% pName p %>
-                </summary>
-                <link href=(baseURL ++ repoURL r ++ "/patch/" ++ pID p) />
-            </entry>
+    entry :: PatchLog -> HSP XML
+    entry p =
+        <entry>
+            <title><% pName p %></title>
+            <id><% baseURL ++ repoURL r ++ "/patch/" ++ pID p %></id>
+            <updated><% asAtomDate (pDate p) %></updated>
+            <author>
+                <name><% pAuthor p %></name>
+                <%
+                    if pIsUser p
+                       then <% <uri><% baseURL ++ "/" ++ pAuthor p %></uri> %>
+                       else <% "" %>
+                %>
+            </author>
+            <summary>
+                <% pName p %>
+            </summary>
+            <link href=(baseURL ++ repoURL r ++ "/patch/" ++ pID p) />
+        </entry>
 
 blob :: User -> Repository -> [RepoItem] -> Maybe String -> HSPage
 blob u r fs b = repoBase u r
@@ -421,9 +496,9 @@ blob u r fs b = repoBase u r
                      </div>
         %>
     </div>
-    where
-        file :: RepoItem
-        file = last fs
+  where
+    file :: RepoItem
+    file = last fs
 
 explore :: [(Repository, [Repository])] -> Int -> Int -> HSPage
 explore rs p tp = base
@@ -436,31 +511,31 @@ explore rs p tp = base
         </ul>
         <% paginate "/explore" p tp %>
     </div>
-    where
-        repo' :: (Repository, [Repository]) -> HSP XML
-        repo' (r, fs) =
-            <li>
-                <div class="title">
-                    <a class="repo-name" href=(repoURL r)><% rName r %></a> :: <a href=(repoOwnerURL r)><% rOwner r %></a>
-                </div>
-                <p class="repo-desc">
-                    <% rDescription r %>
-                </p>
-                <%
-                    if length fs > 0
-                        then
-                            <%
-                                <div class="repo-forks-wrap">
-                                    <h3>forks</h3>
-                                    <ul class="repo-forks links">
-                                        <% map (\f -> <% <li><a href=(repoURL f)><% rOwner f %>'s <% rName f %></a></li> %>) fs %>
-                                    </ul>
-                                    <div class="clear"></div>
-                               </div>
-                            %>
-                        else <% "" %>
-                %>
-            </li>
+  where
+    repo' :: (Repository, [Repository]) -> HSP XML
+    repo' (r, fs) =
+        <li>
+            <div class="title">
+                <a class="repo-name" href=(repoURL r)><% rName r %></a> :: <a href=(repoOwnerURL r)><% rOwner r %></a>
+            </div>
+            <p class="repo-desc">
+                <% rDescription r %>
+            </p>
+            <%
+                if length fs > 0
+                    then
+                        <%
+                            <div class="repo-forks-wrap">
+                                <h3>forks</h3>
+                                <ul class="repo-forks links">
+                                    <% map (\f -> <% <li><a href=(repoURL f)><% rOwner f %>'s <% rName f %></a></li> %>) fs %>
+                                </ul>
+                                <div class="clear"></div>
+                           </div>
+                        %>
+                    else <% "" %>
+            %>
+        </li>
 
 patch :: User -> Repository -> PatchLog -> [Summary] -> [PatchChange]-> HSPage
 patch u r p ss cs = repoBase u r
@@ -484,57 +559,57 @@ patch u r p ss cs = repoBase u r
                else <% "" %>
         %>
     </div>
-    where
-        summaries :: HSP XML
-        summaries =
-            <div class="summary">
-                <h1>summary</h1>
-                <ul class="patch-summary">
-                    <% map summary ss %>
-                </ul>
-            </div>
+  where
+    summaries :: HSP XML
+    summaries =
+        <div class="summary">
+            <h1>summary</h1>
+            <ul class="patch-summary">
+                <% map summary ss %>
+            </ul>
+        </div>
 
-        summary :: Summary -> HSP XML
-        summary (Removed n) =
-            <li class="summary-removed"><% n %></li>
-        summary (Added n) =
-            <li class="summary-added">
-                <a href=(repoURL r ++ "/browse/" ++ n)><% n %></a>
-            </li>
-        summary (Replaced n f t) =
-            <li class="summary-replaced">
-                <a href=(repoURL r ++ "/browse/" ++ n)><% n %></a>
-                replaced <code><% f %></code>
-                with <code><% t %></code>
-            </li>
-        summary (Modified f) =
-            <li class="summary-modified">
-                <a href=("#" ++ f)><% f %></a>
-            </li>
-        summary (Preference n f t) =
-            <li class="summary-preference">
-                changed "<% n %>" preference
-                from "<% f %>"
-                to "<% t %>"
-            </li>
+    summary :: Summary -> HSP XML
+    summary (Removed n) =
+        <li class="summary-removed"><% n %></li>
+    summary (Added n) =
+        <li class="summary-added">
+            <a href=(repoURL r ++ "/browse/" ++ n)><% n %></a>
+        </li>
+    summary (Replaced n f t) =
+        <li class="summary-replaced">
+            <a href=(repoURL r ++ "/browse/" ++ n)><% n %></a>
+            replaced <code><% f %></code>
+            with <code><% t %></code>
+        </li>
+    summary (Modified f) =
+        <li class="summary-modified">
+            <a href=("#" ++ f)><% f %></a>
+        </li>
+    summary (Preference n f t) =
+        <li class="summary-preference">
+            changed "<% n %>" preference
+            from "<% f %>"
+            to "<% t %>"
+        </li>
 
-        diffs :: HSP XML
-        diffs =
-            <div class="patch-diffs">
-                <h1>changes</h1>
-                <ul class="patch-changes">
-                    <% map diff cs %>
-                </ul>
-            </div>
+    diffs :: HSP XML
+    diffs =
+        <div class="patch-diffs">
+            <h1>changes</h1>
+            <ul class="patch-changes">
+                <% map diff cs %>
+            </ul>
+        </div>
 
-        diff :: PatchChange -> HSP XML
-        diff c =
-            <li id=(cfName c)>
-                <h2>
-                    <a href=(repoURL r ++ "/browse/" ++ cfName c)><% cfName c %></a>
-                    <% cdata " :: " %>
-                    <span class="line">line <% show (fchLine (cfType c)) %></span>
-                </h2>
-                <div class="removed"><% cdata $ fchRemove (cfType c) %></div>
-                <div class="added"><% cdata $ fchAdd (cfType c) %></div>
-            </li>
+    diff :: PatchChange -> HSP XML
+    diff c =
+        <li id=(cfName c)>
+            <h2>
+                <a href=(repoURL r ++ "/browse/" ++ cfName c)><% cfName c %></a>
+                <% cdata " :: " %>
+                <span class="line">line <% show (fchLine (cfType c)) %></span>
+            </h2>
+            <div class="removed"><% cdata $ fchRemove (cfType c) %></div>
+            <div class="added"><% cdata $ fchAdd (cfType c) %></div>
+        </li>

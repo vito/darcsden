@@ -14,7 +14,6 @@ import Data.List (isPrefixOf, nub)
 import Data.Time (UTCTime, readTime)
 import System.Locale (defaultTimeLocale)
 import System.Time (calendarTimeToString)
-import Text.Pandoc
 import qualified Darcs.Patch as P
 import qualified Darcs.Repository as R
 import qualified Darcs.Witnesses.Ordered as WO
@@ -104,10 +103,6 @@ toLog (i, ds) =
         False
         (doMarkdown . unlines . filter (not . ("Ignore-this" `isPrefixOf`)) . map fromBS $ _piLog i)
         (map (take 20 . makeFilename) ds)
-  where
-    doMarkdown
-        = writeHtmlString defaultWriterOptions
-        . readMarkdown defaultParserState
 
 findUsers :: [PatchLog] -> IO [PatchLog]
 findUsers = findUsers' []

@@ -72,6 +72,11 @@ routes s =
         , (":user/:repo/patches", repoPatches)
         , (":user/:repo/merge", repoMerge)
         , (":user/:repo/patch/:id", repoPatch)
+        , (":user/:repo/issues", repoIssues)
+        , (":user/:repo/issue/:url", repoIssue)
+        , (":user/:repo/new-issue", \u r s' ->
+            method GET (newIssue u r s') <|>
+            method POST (doNewIssue u r s'))
         ]
 
 validateRepo :: Session -> (User -> Repository -> Page) -> Snap ()

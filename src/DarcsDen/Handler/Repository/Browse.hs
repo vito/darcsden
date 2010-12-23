@@ -7,7 +7,6 @@ import Data.Data (Data)
 import Data.List (intercalate, isPrefixOf, isSuffixOf, sort)
 import Data.Maybe (isJust, listToMaybe)
 import Data.Typeable (Typeable)
-import Text.Pandoc
 import qualified Darcs.Patch as P
 import qualified Darcs.Repository as R
 import qualified Darcs.Repository.InternalTypes as RI
@@ -87,9 +86,6 @@ getReadme dr f = do
     findReadmes
         = maybe Nothing listToMaybe
         . fmap (filter isReadme . map (fromAnchored . fst) . T.list)
-    doMarkdown
-        = writeHtmlString defaultWriterOptions
-        . readMarkdown defaultParserState
 
     isReadme s = "readme" `isPrefixOf` (map toLower s)
     isMarkdown s = or

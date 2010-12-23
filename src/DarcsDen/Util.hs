@@ -1,8 +1,9 @@
 module DarcsDen.Util where
 
 import Control.Monad (unless, when)
-import Data.Char (chr, ord)
+import Data.Char (isSpace)
 import System.Directory
+import Text.Pandoc
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
 
@@ -44,19 +45,29 @@ paginate :: Int -> Int -> [a] -> [a]
 paginate perpage page = take perpage . drop (perpage * (page - 1))
 
 toBS :: String -> BS.ByteString
-toBS = BS.pack . map (fromIntegral . ord)
+toBS = BS.pack . map (fromIntegral . fromEnum)
 
 fromBS :: BS.ByteString -> String
-fromBS = map (chr . fromIntegral) . BS.unpack
+fromBS = map (toEnum . fromIntegral) . BS.unpack
 
 toLBS :: String -> LBS.ByteString
-toLBS = LBS.pack . map (fromIntegral . ord)
+toLBS = LBS.pack . map (fromIntegral . fromEnum)
 
 fromLBS :: LBS.ByteString -> String
-fromLBS = map (chr . fromIntegral) . LBS.unpack
+fromLBS = map (toEnum . fromIntegral) . LBS.unpack
 
 strictLBS :: LBS.ByteString -> BS.ByteString
 strictLBS = BS.concat . LBS.toChunks
 
 strictTake :: Integral n => n -> LBS.ByteString -> BS.ByteString
 strictTake n = strictLBS . LBS.take (fromIntegral n)
+
+strip :: String -> String
+strip = strip' . strip'
+  where
+    strip' = reverse . dropWhile isSpace
+
+doMarkdown :: String -> String
+doMarkdown
+    = writeHtmlString defaultWriterOptions
+    . readMarkdown defaultParserState

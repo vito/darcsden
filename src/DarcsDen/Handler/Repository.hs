@@ -3,7 +3,7 @@ module DarcsDen.Handler.Repository where
 
 import Control.Monad (when)
 import Control.Monad.Trans
-import Data.Char (isSpace, toLower)
+import Data.Char (toLower)
 import Data.List (groupBy, inits, isPrefixOf, partition, sortBy)
 import Data.List.Split (wordsBy)
 import Data.Map ((!))
@@ -17,6 +17,7 @@ import DarcsDen.Handler.Repository.Util
 import DarcsDen.Handler.Repository.Browse
 import DarcsDen.Handler.Repository.Changes
 import DarcsDen.Handler.Repository.Forks
+import DarcsDen.State.Issue
 import DarcsDen.State.Repository
 import DarcsDen.State.Session
 import DarcsDen.State.User
@@ -176,6 +177,59 @@ repoPatch u r s = do
             (filter isModification (pChanges patch)))
         s
 
+repoIssues :: User -> Repository -> Page
+repoIssues u r s = do
+    issues <- getIssues r
+    doPage (Page.issues u r issues) s
+
+repoIssue :: User -> Repository -> Page
+repoIssue u r s = validate
+    [ nonEmpty "url"
+    ]
+    (\(OK i) -> do
+        mi <- getIssue (fromJust (rID r)) (i ! "url")
+        case mi of
+            Nothing -> notFound
+            Just i -> doPage (Page.issue u r i) s)
+    (\(Invalid f) -> do
+        notify Warning s f
+        redirectTo (repoURL r))
+
+newIssue :: User -> Repository -> Page
+newIssue _ _ s@(Session { sUser = Nothing }) = do
+    warn "You must be logged in to create an issue." s
+    redirectTo "/"
+newIssue u r s =
+    doPage (Page.newIssue u r) s
+
+doNewIssue :: User -> Repository -> Page
+doNewIssue _ _ s@(Session { sUser = Nothing }) = do
+    warn "You must be logged in to create an issue." s
+    redirectTo "/"
+doNewIssue _ r s@(Session { sUser = Just un }) = validate
+    [ nonEmpty "summary"
+    , Predicate "description" (const True) "be provided"
+    , Predicate "tags" (const True) "be provided"
+    ]
+    (\(OK i) -> do
+        now <- liftIO getCurrentTime
+        addIssue Issue
+            { iID = Nothing
+            , iRev = Nothing
+            , iSummary = i ! "summary"
+            , iOwner = un
+            , iDescription = i ! "description"
+            , iTags = map strip $ wordsBy (== ',') (i ! "tags")
+            , iURL = issueURLFor (i ! "summary")
+            , iCreated = now
+            , iUpdated = now
+            , iIsClosed = False
+            , iRepository = fromJust (rID r)
+            } >>= issueURL >>= redirectTo)
+    (\(Invalid f) -> do
+        notify Warning s f
+        redirectTo (repoURL r ++ "/new-issue"))
+
 editRepo :: User -> Repository -> Page
 editRepo u r s = validate
     [ io "you do not own this repository" $
@@ -222,9 +276,6 @@ doEditRepo _ r s = validate
         notify Warning s f
         redirectTo ("/" ++ (rOwner r) ++ "/" ++ (rName r) ++ "/edit"))
   where
-    strip = strip' . strip'
-    strip' = reverse . dropWhile isSpace
-
     rename r' n
         = if rName r' /= n
              then do

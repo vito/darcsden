@@ -1,7 +1,7 @@
 body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,code,form,fieldset,legend,input,textarea,p,blockquote,th,td { margin: 0; padding: 0; }
 table { border-collapse: collapse; border-spacing: 0; }
 fieldset,img { border: 0; }
-address,caption,cite,code,dfn,em,strong,th,var { font-style: normal; font-weight: normal; }
+address,caption,cite,code,dfn,em,strong,th,var { font-style: inherit; font-weight: inherit; }
 li { list-style: none; }
 caption,th { text-align: left; }
 h1,h2,h3,h4,h5,h6 { font-size: 100%; font-weight: normal; }
@@ -163,12 +163,12 @@ form .cancel-buttons a.cancel {
 }
 .links li {
     padding: .5em 0;
-	font-size: 1.5em;
-	display: inline-block;
 	margin-left: .5em;
-    margin-bottom: .25em;
 }
-.links li a {
+.links li a,
+a.button {
+    display: inline-block;
+    font-size: 1.5em;
 	font-family: monospace;
     margin-right: .25em;
     padding: .4em .5em .4em 2em;
@@ -176,7 +176,8 @@ form .cancel-buttons a.cancel {
     text-decoration: none;
     background: #fff;
 }
-.links li a:hover {
+.links li a:hover,
+a.button:hover {
     position: relative;
     top: -3px;
     left: -3px;
@@ -184,7 +185,8 @@ form .cancel-buttons a.cancel {
     -moz-box-shadow: 1px 1px 0 #eee, 2px 2px #eee, 3px 3px #eee;
     -webkit-transition: all 0.125s ease-out;
 }
-.links li a:active {
+.links li a:active,
+a.button:active {
     background-color: #eee !important;
 }
 .links li.edit a {
@@ -201,6 +203,9 @@ form .cancel-buttons a.cancel {
 }
 .links li.patches a {
 	background: #fff url('/public/images/patches.gif') no-repeat 6px 5px;
+}
+.links li.issues a {
+	background: #fff url('/public/images/issues.gif') no-repeat 6px 5px;
 }
 .links li.settings a {
 	background: url('/public/images/settings.gif') no-repeat 6px 5px;
@@ -351,7 +356,7 @@ div.markdown .highlight pre {
 }
 
 div.markdown {
-	padding: 1em;
+	padding: 1em 1em 0;
 }
 div.markdown p,
 div.markdown ul {
@@ -376,6 +381,15 @@ div.markdown pre {
     color: #fff;
     padding: .6em 1em;
     margin-bottom: 1em;
+}
+div.markdown em {
+    font-style: italic;
+}
+div.markdown strong {
+    font-weight: bold;
+}
+div.markdown code {
+    font-family: monospace;
 }
 
 
@@ -479,7 +493,6 @@ div.markdown pre {
 .repo-forks.links li {
     margin: 0;
     padding: 0;
-    font-size: 1.1em;
     display: block;
 }
 .repo-forks.links li a {
@@ -487,6 +500,7 @@ div.markdown pre {
     margin: 0 1em 1em 0;
     padding: .5em .75em;
     font-weight: bold;
+    font-size: 1.1em;
 }
 .repo-forks.links li a:hover {
     color: #555;
@@ -527,6 +541,46 @@ div.markdown pre {
 .fork-log tr td.date {
     width: 22%;
     text-align: right;
+}
+
+.new-issue.button {
+    background: #fff url('/public/images/new.gif') no-repeat 6px 5px;
+    margin-bottom: 1.5em;
+}
+.issues-list .issue {
+    padding: 1em;
+    margin-bottom: 2em;
+	-webkit-box-shadow: #ddd 0 0 1em;
+	-moz-box-shadow: #ddd 0 0 1em;
+}
+.issues-list .issue h2 {
+    line-height: 1em;
+    font-size: 1.4em;
+    margin-bottom: .5em;
+}
+.issues-list .tags {
+    margin-top: .5em;
+}
+.issues-list .tags li {
+    display: inline;
+    margin-right: .5em;
+}
+.issues-list .tags li a {
+    font-family: monospace;
+    padding: .25em .5em;
+    background: #444;
+    color: #fff;
+    text-decoration: none;
+    border-radius: .5em;
+}
+.issues-list .tags li a:hover {
+    position: relative;
+    top: -2px;
+    left: -2px;
+    background: #666;
+    -webkit-box-shadow: 1px 1px 0 #eee, 2px 2px #eee;
+    -moz-box-shadow: 1px 1px 0 #eee, 2px 2px #eee;
+    -webkit-transition: all 0.125s ease-out;
 }
 
 .clear {

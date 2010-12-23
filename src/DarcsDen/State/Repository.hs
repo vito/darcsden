@@ -171,7 +171,7 @@ getRepositoriesByOwner design on =
 addRepository :: MonadIO m => Repository -> m Repository
 addRepository r = do
     (id', rev') <- liftIO $ runDB (newDoc (db "repositories") r)
-    return (r { rID = Just id', rRev = Just rev' })
+    return r { rID = Just id', rRev = Just rev' }
 
 updateRepository :: MonadIO m => Repository -> m (Maybe Repository)
 updateRepository r =
