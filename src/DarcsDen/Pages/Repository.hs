@@ -293,15 +293,8 @@ issues u r is s = repoBase u r
   where
     renderIssue i =
         <li class="issue">
-            <h2><a href=(repoURL r ++ "/issue/" ++ iURL i)><% iSummary i %></a></h2>
-            <div class="meta">
-                reported by <a href=("/" ++ iOwner i)><% iOwner i %></a>
-                <% cdata " " %>
-                <span class="relatize date"><% formatTime defaultTimeLocale "%c" (iCreated i) %></span>
-                <% if not (iCreated i == iUpdated i)
-                    then <% <span class="updated-date">, updated <span class="relatize date"><% formatTime defaultTimeLocale "%c" (iUpdated i) %></span></span> %>
-                    else <% "" %>
-                %>
+            <div class="header">
+                <h2><a href=(repoURL r ++ "/issue/" ++ iURL i)><% iSummary i %></a></h2>
                 <% if not (null (iTags i))
                     then
                         <%
@@ -309,6 +302,15 @@ issues u r is s = repoBase u r
                                 <% map (\t -> <li><a href=(repoURL r ++ "/issues/tag/" ++ t)><% t %></a></li>) (iTags i) %>
                             </ul>
                         %>
+                    else <% "" %>
+                %>
+            </div>
+            <div class="meta">
+                reported by <a href=("/" ++ iOwner i)><% iOwner i %></a>
+                <% cdata " " %>
+                <span class="relatize date"><% formatTime defaultTimeLocale "%c" (iCreated i) %></span>
+                <% if not (iCreated i == iUpdated i)
+                    then <% <span class="updated-date">, updated <span class="relatize date"><% formatTime defaultTimeLocale "%c" (iUpdated i) %></span></span> %>
                     else <% "" %>
                 %>
             </div>

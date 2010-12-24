@@ -553,19 +553,28 @@ div.markdown code {
 	-webkit-box-shadow: #ddd 0 0 1em;
 	-moz-box-shadow: #ddd 0 0 1em;
 }
-.issues-list .issue h2 {
-    line-height: 1em;
-    font-size: 1.4em;
+.issues-list .issue .header {
     margin-bottom: .5em;
+    background: #f5f5f5;
+    padding: .75em;
+    margin: -1em -1em 1em;
+    position: relative;
 }
-.issues-list .tags {
+.issues-list .issue .header h2 {
+    font-size: 1.4em;
+    line-height: 1em;
+}
+.issues-list .issue .header .tags {
+    position: absolute;
+    top: .1em;
+    right: .6em;
     margin-top: .5em;
 }
-.issues-list .tags li {
+.issues-list .issue .header .tags li {
     display: inline;
-    margin-right: .5em;
+    margin-left: .5em;
 }
-.issues-list .tags li a {
+.issues-list .issue .header .tags li a {
     font-family: monospace;
     padding: .25em .5em;
     background: #444;
@@ -573,13 +582,13 @@ div.markdown code {
     text-decoration: none;
     border-radius: .5em;
 }
-.issues-list .tags li a:hover {
+.issues-list .issue .header .tags li a:hover {
     position: relative;
     top: -2px;
     left: -2px;
     background: #666;
-    -webkit-box-shadow: 1px 1px 0 #eee, 2px 2px #eee;
-    -moz-box-shadow: 1px 1px 0 #eee, 2px 2px #eee;
+    -webkit-box-shadow: 1px 1px 0 #000, 2px 2px #000;
+    -moz-box-shadow: 1px 1px 0 #000, 2px 2px #000;
     -webkit-transition: all 0.125s ease-out;
 }
 
