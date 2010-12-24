@@ -17,7 +17,7 @@ import System.Time (calendarTimeToString)
 import qualified Darcs.Patch as P
 import qualified Darcs.Repository as R
 import qualified Darcs.Witnesses.Ordered as WO
-import qualified Data.HashTable as HT
+import qualified Data.ByteString as BS
 
 import DarcsDen.Handler.Repository.Util
 import DarcsDen.State.User
@@ -75,8 +75,8 @@ data FileChange
     | FileAdded
     | FileHunk
         { fchLine :: Int
-        , fchRemove :: String
-        , fchAdd :: String
+        , fchRemove :: BS.ByteString
+        , fchAdd :: BS.ByteString
         }
     | FileBinary
     | FileReplace
@@ -133,39 +133,18 @@ findUsers = findUsers' []
                         rest <- findUsers' ((pAuthor p, Nothing) : checked) ps
                         return (p { pAuthor = authorFrom (pAuthor p) } : rest)
 
-toChanges :: ((PatchInfo, [PatchInfo]), [PatchChange])  -> IO PatchChanges
-toChanges (p, changes) = do
-    wait <- newChan
-    cs <- HT.new (==) fromIntegral :: IO (HT.HashTable Int PatchChange)
-
-    count <- simplify [] changes cs wait
-
-    replicateM_ count (readChan wait)
-
-    fmap (PatchChanges (toLog p) . map snd) (HT.toList cs)
+toChanges :: ((PatchInfo, [PatchInfo]), [PatchChange])  -> PatchChanges
+toChanges (p, changes) =
+    PatchChanges (toLog p) (simplify [] changes)
   where
-    simplify a [] = \cs wait -> do
-        forM_ (zip a [0..]) $ \(c, n) ->
-            case c of
-                FileChange fn (FileHunk l f t) -> do
-                    forkIO $ do
-                        hf <- highlight False fn f
-                        ht <- highlight False fn t
-                        HT.insert cs n (FileChange fn (FileHunk l hf ht))
-                        writeChan wait n
-
-                    return ()
-
-                _ -> do
-                    HT.insert cs n c
-                    writeChan wait n
-
-        return (length a)
+    simplify a [] = reverse a
     simplify a (c@(FileChange n t):cs)
         | t `elem` [FileAdded, FileRemoved, FileBinary] =
             simplify (c:filter (notFile n) a) (filter (notFile n) cs)
     simplify a (c@(FileChange _ (FileReplace _ _)):cs) =
         simplify (c:a) cs
+    simplify a (FileChange n (FileHunk l f t):cs) =
+        simplify (FileChange n (FileHunk l (highlight False n f) (highlight False n t)):a) cs
     simplify a (c@(FileChange _ _):cs) = simplify (c:a) cs
     simplify a (c@(PrefChange _ _ _):cs) = simplify (c:a) cs
     simplify a (_:cs) = simplify a cs
@@ -188,7 +167,9 @@ fromDP AddDir = DirAdded
 fromFP :: FilePatchType x y -> FileChange
 fromFP RmFile = FileRemoved
 fromFP AddFile = FileAdded
-fromFP (Hunk l rs as) = FileHunk l (unlines $ map fromBS rs) (unlines $ map fromBS as)
+fromFP (Hunk l rs as) = FileHunk l (unlinesBS rs) (unlinesBS as)
+  where
+    unlinesBS = BS.concat . map (`BS.append` toBS "\n") 
 fromFP (Binary _ _) = FileBinary
 fromFP (TokReplace _ f r) = FileReplace f r
 
@@ -212,8 +193,7 @@ getPatch dir patch = R.withRepositoryDirectory [] dir $ \dr -> do
 
     let ps = fromPS (\np -> (P.patchname np, ((P.patch2patchinfo np, P.getdeps np), WO.mapFL primToChange (P.effect np)))) pset
         (_, p) = head $ filter (\(n, _) -> patch == take 20 n) ps
-
-    cs <- toChanges p
+        cs = toChanges p
 
     [l] <- findUsers [pPatch cs]
     return cs { pPatch = l }

@@ -4,8 +4,10 @@ import Control.Monad (unless, when)
 import Data.Char (isSpace)
 import System.Directory
 import Text.Pandoc
+import Data.Text.Encoding
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
+import qualified Data.Text as T
 
 
 baseDomain :: String
@@ -45,16 +47,16 @@ paginate :: Int -> Int -> [a] -> [a]
 paginate perpage page = take perpage . drop (perpage * (page - 1))
 
 toBS :: String -> BS.ByteString
-toBS = BS.pack . map (fromIntegral . fromEnum)
+toBS = encodeUtf8 . T.pack
 
 fromBS :: BS.ByteString -> String
-fromBS = map (toEnum . fromIntegral) . BS.unpack
+fromBS = T.unpack . decodeUtf8
 
 toLBS :: String -> LBS.ByteString
-toLBS = LBS.pack . map (fromIntegral . fromEnum)
+toLBS = LBS.fromChunks . (:[]) . encodeUtf8 . T.pack
 
 fromLBS :: LBS.ByteString -> String
-fromLBS = map (toEnum . fromIntegral) . LBS.unpack
+fromLBS = fromBS . strictLBS
 
 strictLBS :: LBS.ByteString -> BS.ByteString
 strictLBS = BS.concat . LBS.toChunks

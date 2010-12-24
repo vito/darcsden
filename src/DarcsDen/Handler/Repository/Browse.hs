@@ -74,14 +74,15 @@ getReadme dr f = do
         Nothing -> return Nothing
         Just r -> do
             s <- getBlob dr (f ++ [r])
-            case s of
-                Nothing -> return Nothing
-                Just big | isTooLarge big ->
-                    return (Just "README file too large. Sorry.")
-                Just md | isMarkdown r ->
-                    return . Just . doMarkdown . fromLBS $ md
-                Just source ->
-                    fmap Just $ highlight False r . fromLBS $ source
+            return $
+                case s of
+                    Nothing -> Nothing
+                    Just big | isTooLarge big ->
+                        Just "README file too large. Sorry."
+                    Just md | isMarkdown r ->
+                        Just . doMarkdown . fromLBS $ md
+                    Just source ->
+                        Just . fromBS . highlight False r . strictLBS $ source
   where
     findReadmes
         = maybe Nothing listToMaybe

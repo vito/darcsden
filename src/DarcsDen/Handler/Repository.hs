@@ -132,9 +132,12 @@ browseRepo u r s = do
             doPage (Page.repo u r files (crumb f) readme member) s
         (_, Just big) | isTooLarge big ->
             doPage (Page.blob u r (crumb f) Nothing) s
-        (_, Just source) -> do
-            hl <- liftIO $ highlightBlob (last f) (fromLBS source)
-            doPage (Page.blob u r (crumb f) (Just hl)) s
+        (_, Just source) ->
+            doPage
+                (Page.blob u r
+                    (crumb f)
+                    (Just (highlightBlob (last f) (strictLBS source))))
+                s
   where
     filePath = do
         rq <- getRequest

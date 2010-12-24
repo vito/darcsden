@@ -7,6 +7,7 @@ import Data.Maybe (fromJust)
 import Data.Time (UTCTime, formatTime)
 import HSP
 import System.Locale (defaultTimeLocale)
+import qualified Data.ByteString as BS
 
 import DarcsDen.Handler.Repository.Browse (RepoItem(..))
 import DarcsDen.Handler.Repository.Changes
@@ -21,7 +22,7 @@ import DarcsDen.State.Issue
 import DarcsDen.State.Repository
 import DarcsDen.State.Session
 import DarcsDen.State.User
-import DarcsDen.Util (baseDomain, baseURL, doMarkdown)
+import DarcsDen.Util (baseDomain, baseURL, doMarkdown, fromBS)
 
 
 author :: PatchLog -> HSP XML
@@ -279,7 +280,7 @@ issues u r is s = repoBase u r
             if not (null is)
                then
                    <ul class="issues-list">
-                       <% map issue is %>
+                       <% map renderIssue is %>
                    </ul>
                else
                    <div class="no-issues">
@@ -290,7 +291,7 @@ issues u r is s = repoBase u r
     </div>
     s
   where
-    issue i =
+    renderIssue i =
         <li class="issue">
             <h2><a href=(repoURL r ++ "/issue/" ++ iURL i)><% iSummary i %></a></h2>
             <div class="meta">
@@ -476,7 +477,7 @@ changesAtom u r cs _ =
             <link href=(baseURL ++ repoURL r ++ "/patch/" ++ pID p) />
         </entry>
 
-blob :: User -> Repository -> [RepoItem] -> Maybe String -> HSPage
+blob :: User -> Repository -> [RepoItem] -> Maybe BS.ByteString -> HSPage
 blob u r fs b = repoBase u r
     (iName file)
     <span> -> blob</span>
@@ -492,7 +493,7 @@ blob u r fs b = repoBase u r
                      <p class="blurb">sorry! this file is too gigantic to display. click the filename above to view the source.</p>
                  Just source ->
                      <div class="code">
-                         <% cdata source %>
+                         <% cdata . fromBS $ source %>
                      </div>
         %>
     </div>
@@ -610,6 +611,6 @@ patch u r p ss cs = repoBase u r
                 <% cdata " :: " %>
                 <span class="line">line <% show (fchLine (cfType c)) %></span>
             </h2>
-            <div class="removed"><% cdata $ fchRemove (cfType c) %></div>
-            <div class="added"><% cdata $ fchAdd (cfType c) %></div>
+            <div class="removed"><% cdata . fromBS $ fchRemove (cfType c) %></div>
+            <div class="added"><% cdata . fromBS $ fchAdd (cfType c) %></div>
         </li>
