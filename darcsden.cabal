@@ -41,8 +41,8 @@ executable darcsden
     , filepath
     , harp
     , hashed-storage
+    , highlighter
     , hsp
-    , hspygments
     , json
     , mtl
     , old-locale

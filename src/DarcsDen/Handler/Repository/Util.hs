@@ -1,16 +1,9 @@
 module DarcsDen.Handler.Repository.Util where
 
-import Control.Concurrent
 import Darcs.Repository.Internal (IdentifyRepo(..))
 import Darcs.Patch.V1 (Patch)
-import Data.Char (isAlphaNum)
-import Pygments
-import Pygments.Formatters.Html
-import System.Exit (ExitCode(ExitSuccess))
-import System.FilePath (takeExtension)
-import System.IO
-import System.Process
-import Text.Blaze (string)
+import Text.Highlighter
+import Text.Highlighter.Formatters.Html
 import Text.Blaze.Renderer.Utf8
 import qualified Darcs.Repository as R
 import qualified Data.ByteString as BS
@@ -20,8 +13,8 @@ import DarcsDen.Util (strictLBS)
 
 getRepo :: String -> IO (Either String (R.Repository Patch r u t))
 getRepo p = do
-    r <- R.maybeIdentifyRepository [] p
-    case r of
+    ir <- R.maybeIdentifyRepository [] p
+    case ir of
         GoodRepository r -> return (Right r)
         BadRepository s -> return (Left s)
         NonRepository s -> return (Left s)
