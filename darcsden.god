@@ -1,4 +1,5 @@
-DARCSDEN_ROOT = "/srv/darcs/.darcsden/darcsden"
+DARCSDEN_HOME = "/srv/darcs"
+DARCSDEN_ROOT = "#{DARCSDEN_HOME}/.darcsden/darcsden"
 
 LIMITS = { "darcsden" => 200.megabytes, "darcsden-ssh" => 100.megabytes }
 
@@ -11,6 +12,7 @@ LIMITS = { "darcsden" => 200.megabytes, "darcsden-ssh" => 100.megabytes }
     w.dir = DARCSDEN_ROOT
     w.start = "#{DARCSDEN_ROOT}/dist/build/#{exe}/#{exe}"
     w.log = "#{DARCSDEN_ROOT}/#{exe}.log"
+    w.env = { "PATH" => "#{DARCSDEN_HOME}/.cabal/bin:" + ENV["PATH"] }
 
     w.start_if { |start|
       start.condition(:process_running) { |c|
