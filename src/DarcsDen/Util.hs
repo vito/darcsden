@@ -52,6 +52,12 @@ toBS = encodeUtf8 . T.pack
 fromBS :: BS.ByteString -> String
 fromBS = T.unpack . decodeUtf8
 
+toBLBS :: String -> LBS.ByteString
+toBLBS = LBS.pack . map (toEnum . fromEnum)
+
+fromBLBS :: LBS.ByteString -> String
+fromBLBS = map (toEnum . fromEnum) . LBS.unpack
+
 toLBS :: String -> LBS.ByteString
 toLBS = LBS.fromChunks . (:[]) . encodeUtf8 . T.pack
 

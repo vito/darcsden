@@ -17,7 +17,7 @@ import qualified SSH as SSH
 import DarcsDen.State.Repository
 import DarcsDen.State.User
 import DarcsDen.State.Util
-import DarcsDen.Util (toLBS)
+import DarcsDen.Util (toBLBS)
 
 
 main :: IO ()
@@ -51,8 +51,11 @@ sshAuthorize (PublicKey name key) = do
     case muser of
         Just (User { uKeys = keys }) -> do
             check <- mapM keyMatch keys
+            liftIO (putStrLn ("authorizing " ++ name ++ ": " ++ show check))
             return (or check)
-        Nothing -> return False
+        Nothing -> do
+            liftIO (putStrLn ("authorization failed for " ++ name))
+            return False
   where
     rsaPrefix = "ssh-rsa"
     dsaPrefix = "ssh-dsa"
@@ -61,8 +64,10 @@ sshAuthorize (PublicKey name key) = do
     keyMatch k =
         case words k of
             (algo:keyBlob:_) | algo `elem` [rsaPrefix, dsaPrefix] ->
-                return $ blobToKey (toLBS $ Base64.decode keyBlob) == key
-            _ -> return False
+                return $ blobToKey (toBLBS $ Base64.decode keyBlob) == key
+            _ -> do
+                liftIO (putStrLn ("unknown blob: " ++ k))
+                return False
 
 channelRequest :: Bool -> ChannelRequest -> Channel ()
 channelRequest wr (Execute cmd) =
