@@ -26,6 +26,7 @@ base title crumb content sess =
     <html>
         <head>
             <title><% title %><% if not (null title) then " :: " else "" %>darcsden</title>
+            <link rel="shortcut icon" href="/public/images/favicon.ico" />
             <link rel="stylesheet" href="/public/css/main.css" type="text/css" media="screen" />
             <link rel="stylesheet" href="/public/css/highlight.css" />
             <script src="/public/js/jquery.js" type="text/javascript"></script>
