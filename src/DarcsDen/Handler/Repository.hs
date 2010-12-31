@@ -47,6 +47,11 @@ doInitialize s@(Session { sUser = Just n }) = validate
             io "destination repository already exists" $
                 fmap isNothing (getRepository (n, i ! "name")))
 
+    , Or (isEmpty "bootstrap")
+        (Predicate "bootstrap"
+                   ((`elem` ["http", "https"]) . takeWhile (/= ':'))
+                   "start with http:// or https://")
+
     , io "user is not valid" (fmap (/= Nothing) (getUser n))
     ]
     (\(OK r) -> do

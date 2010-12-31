@@ -68,8 +68,8 @@ verify v@(Not t) = do
 verify (Or a b) = do
     x <- verify a
     case x of
-        Left _ -> return x
-        Right _ -> verify b
+        Left _ -> verify b
+        Right _ -> return x
 verify (And a b) = do
     x <- verify a
     y <- verify b
@@ -112,6 +112,9 @@ check = check' (ok [])
 -- Validators
 nonEmpty :: String -> Valid
 nonEmpty a = Predicate a (/= "") "not be empty"
+
+isEmpty :: String -> Valid
+isEmpty a = Predicate a (== "") "be empty"
 
 equal :: String -> String -> Valid
 equal a b = PredicateOp a b (==) "be the same"
