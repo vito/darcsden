@@ -88,11 +88,21 @@ settings u = base
     "settings"
     <span>settings</span>
     <div class="settings">
+        <h1>account settings</h1>
         <form class="big" action="/settings" method="post">
             <fieldset>
                 <% field (input "full_name" (uFullName u)) "full name" "" %>
                 <% field (input "website" (uWebsite u)) "website" "" %>
+
+                <h3>change password?</h3>
+                <% field (password' [] "password") "current password" "" %>
+                <% field (password' [] "password1") "new password" "" %>
+                <% field (password' [] "password2") "(again)" "" %>
+
+                <br />
+
                 <% field (textarea 10 "keys" (unlines (uKeys u))) "pubkeys" "" %>
+
                 <% submit "update settings" %>
             </fieldset>
         </form>

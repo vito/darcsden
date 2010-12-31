@@ -81,9 +81,7 @@ doLogin s = validate
           c <- getUser (r ! "name")
           case c of
               Nothing -> return False
-              Just u ->
-                  let hashed = hashPassword (r ! "password") (uSalt u)
-                  in return $ uPassword u == hashed
+              Just u -> return (checkPassword (r ! "password") u)
     ]
     (\(OK r) -> do
         setUser (Just $ r ! "name") s
@@ -105,7 +103,8 @@ settings s@(Session { sUser = Nothing }) = do
     warn "You must be logged in to change your settings." s
     redirectTo "/login"
 settings s@(Session { sUser = Just n }) = validate
-    [ io "you do not exist" $ fmap (/= Nothing) (getUser n) ]
+    [ io "you do not exist" $ fmap (/= Nothing) (getUser n)
+    ]
     (\(OK _) -> do
        Just u <- getUser n
        doPage (Page.settings u) s)
@@ -116,20 +115,39 @@ doSettings s@(Session { sUser = Nothing }) = do
     warn "You must be logged in to change your settings." s
     redirectTo "/login"
 doSettings s@(Session { sUser = Just n }) = validate
-    [ io "you do not exist" $ fmap (/= Nothing) (getUser n) ]
+    [ io "you do not exist" $ fmap (/= Nothing) (getUser n)
+    , onlyIf (nonEmpty "password1") $
+        And (nonEmpty "password2" `And` equal "password1" "password2") $
+            iff (nonEmpty "password") $ \(OK is) -> io "password incorrect" $ do
+                Just u <- getUser n
+                return (checkPassword (is ! "password") u)
+    ]
     (\(OK _) -> do
         Just u <- getUser n
 
         fullName <- input "full_name" (uFullName u)
         website <- input "website" (uWebsite u)
         keys <- input "keys" (unlines (uKeys u))
+
+        oldp <- input "password" ""
+        npass1 <- input "password1" ""
+        npass2 <- input "password2" ""
+        slt <- liftIO (salt 32)
+        let (npass, nsalt)
+                | not (null oldp || null npass1 || null npass2) && npass1 == npass2 =
+                    (hashPassword npass1 slt, slt)
+                | otherwise =
+                    (uPassword u, uSalt u)
+
         updateUser u
             { uFullName = fullName
             , uWebsite = website
             , uKeys = lines keys
+            , uPassword = npass
+            , uSalt = nsalt
             }
 
         success "Settings updated." s
 
         redirectTo "/settings")
-    (\(Invalid f) -> notify Warning s f >> redirectTo "/")
+    (\(Invalid f) -> notify Warning s f >> redirectTo "/settings")

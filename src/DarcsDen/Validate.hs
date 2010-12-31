@@ -128,6 +128,9 @@ predicate = Predicate
 iff :: Valid -> (OK -> Valid) -> Valid
 iff = If
 
+onlyIf :: Valid -> Valid -> Valid
+onlyIf p v = Or (Not p) v
+
 io :: String -> IO Bool -> Valid
 io = IOPred
 

@@ -103,6 +103,18 @@ form.big input[type="text"],
 form.big input[type="password"] {
 	margin-right: 8em;
 }
+form.big h3 {
+    margin-right: 7.25em;
+	float: right;
+	width: 12em;
+	font-size: 1.3em;
+}
+form hr {
+    width: 25em;
+    margin: 2em auto;
+    border: 0;
+    border-bottom: .1em dotted #bbb;
+}
 form .cancel-buttons {
 	font-size: 1.2em;
 	color: #777;

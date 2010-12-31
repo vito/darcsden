@@ -161,6 +161,9 @@ hashPassword p s
         | length a < length b = drop (length a) b
         | otherwise = drop (length b) a
 
+checkPassword :: String -> User -> Bool
+checkPassword p u = hashPassword p (uSalt u) == uPassword u
+
 newUser :: MonadIO m => User -> m User
 newUser u = do
     liftIO $ createDirectoryIfMissing True (userDir (uName u))
