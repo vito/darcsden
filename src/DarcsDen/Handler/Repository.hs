@@ -189,8 +189,8 @@ repoIssue :: User -> Repository -> Page
 repoIssue u r s = validate
     [ nonEmpty "url"
     ]
-    (\(OK i) -> do
-        mi <- getIssue (fromJust (rID r)) (i ! "url")
+    (\(OK is) -> do
+        mi <- getIssue (fromJust (rID r)) (is ! "url")
         case mi of
             Nothing -> notFound
             Just i -> doPage (Page.issue u r i) s)

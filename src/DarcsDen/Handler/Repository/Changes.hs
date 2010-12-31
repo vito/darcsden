@@ -1,8 +1,6 @@
 {-# LANGUAGE GADTs, RankNTypes #-}
 module DarcsDen.Handler.Repository.Changes where
 
-import Control.Concurrent
-import Control.Monad
 import Darcs.Patch.Info (PatchInfo(..), piDate, makeFilename)
 import Darcs.Patch.FileName (fn2fp)
 import Darcs.Patch.PatchInfoAnd (PatchInfoAnd, info)
