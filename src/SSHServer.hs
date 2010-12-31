@@ -78,7 +78,7 @@ channelRequest wr (Execute cmd) =
             saneRepo path darcsApply
         ["darcs", "apply", "--all", "--debug", "--repodir", path] ->
             saneRepo path darcsApply
-        [initialize, repoName] | "init" `isPrefixOf` initialize ->
+        (initialize:repoName:description) | "init" `isPrefixOf` initialize ->
             if null repoName || not (isSane repoName)
                 then errorWith "invalid repository name"
                 else saneUser $ \u -> do
@@ -91,7 +91,7 @@ channelRequest wr (Execute cmd) =
                                 , rRev = Nothing
                                 , rName = repoName
                                 , rOwner = uName u
-                                , rDescription = ""
+                                , rDescription = unwords description
                                 , rWebsite = ""
                                 , rCreated = now
                                 , rForkOf = Nothing
