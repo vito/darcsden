@@ -6,8 +6,6 @@ LIMITS = { "darcsden" => 200.megabytes, "darcsden-ssh" => 100.megabytes }
 ["darcsden", "darcsden-ssh"].each { |exe|
   God.watch { |w|
     w.name = "#{exe}"
-    w.uid = "darcsden"
-    w.gid = "darcsden"
     w.interval = 30.seconds
     w.dir = DARCSDEN_ROOT
     w.start = "#{DARCSDEN_ROOT}/dist/build/#{exe}/#{exe}"
