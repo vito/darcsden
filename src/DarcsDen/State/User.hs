@@ -38,10 +38,10 @@ instance JSON User where
         name <- getAttr o "name"
         password <- getAttr o "password"
         salt' <- getAttr o "salt"
-        fullName <- getAttr o "full_name"
-        website <- getAttr o "website"
-        email <- getAttr o "email"
-        keys <- getAttr o "keys"
+        fullName <- getAttrOr o "full_name" ""
+        website <- getAttrOr o "website" ""
+        email <- getAttrOr o "email" ""
+        keys <- getAttrOr o "keys" []
         joined <- getTime o "joined"
         return User
             { uID = Just id'

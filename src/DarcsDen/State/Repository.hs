@@ -40,12 +40,12 @@ instance JSON Repository where
         rev' <- getRev o
         name <- getAttr o "name"
         owner <- getAttr o "owner"
-        description <- getAttr o "description"
-        website <- getAttr o "website"
+        description <- getAttrOr o "description" ""
+        website <- getAttrOr o "website" ""
         created <- getTime o "created"
-        forkOf <- getAttr o "fork_of"
-        members <- getAttr o "members"
-        isPrivate <- getAttr o "is_private"
+        forkOf <- getAttrOr o "fork_of" Nothing
+        members <- getAttrOr o "members" []
+        isPrivate <- getAttrOr o "is_private" False
         issueCount <- getAttrOr o "issue_count" 0
         return Repository
             { rID = Just id'
