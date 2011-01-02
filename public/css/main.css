@@ -43,7 +43,7 @@ form {
 	border: .1em dotted;
 	float: left;
 }
-form.subtle {
+form.dependencies {
     padding: 0;
     border: 0;
     float: none;
@@ -327,10 +327,10 @@ a.button:active {
 	font-size: 1.2em;
 	line-height: 1.4em;
 }
-.repo-log li div.patch-notes {
+.repo-log li .patch-notes {
     margin-top: 2em;
 }
-.repo-log li div.patch-notes pre {
+.repo-log li .patch-notes pre {
     font-size: 1.2em;
     padding: 1em;
 }
@@ -356,51 +356,51 @@ table.highlighttable .code .highlight {
     padding: 0 .5em;
 }
 
-div.code,
-div.markdown {
+code,
+.markdown {
 	overflow: auto;
 	-webkit-box-shadow: #ddd 0 0 1em;
 	-moz-box-shadow: #ddd 0 0 1em;
 }
-div.markdown .highlight pre {
+.markdown .highlight pre {
     background: #fff;
     color: #000;
 }
 
-div.markdown {
+.markdown {
 	padding: 1em 1em 0;
 }
-div.markdown p,
-div.markdown ul {
+.markdown p,
+.markdown ul {
 	padding-bottom: 1em;
 }
-div.markdown ul li {
+.markdown ul li {
     list-style: square;
 }
-div.markdown h1 {
+.markdown h1 {
 	font-size: 3em;
     margin-top: .5em;
 }
-div.markdown h2 {
+.markdown h2 {
 	font-size: 2em;
 }
-div.markdown h3 {
+.markdown h3 {
 	font-size: 1.4em;
 }
-div.markdown pre {
+.markdown pre {
     font-size: 1.2em;
     background: #000;
     color: #fff;
     padding: .6em 1em;
     margin-bottom: 1em;
 }
-div.markdown em {
+.markdown em {
     font-style: italic;
 }
-div.markdown strong {
+.markdown strong {
     font-weight: bold;
 }
-div.markdown code {
+.markdown code {
     font-family: monospace;
 }
 
@@ -586,7 +586,8 @@ div.markdown code {
     display: inline;
     margin-left: .5em;
 }
-.issues-list .issue .header .tags li a {
+
+.tags li a {
     font-family: monospace;
     padding: .25em .5em;
     background: #444;
@@ -594,7 +595,7 @@ div.markdown code {
     text-decoration: none;
     border-radius: .5em;
 }
-.issues-list .issue .header .tags li a:hover {
+.tags li a:hover {
     position: relative;
     top: -2px;
     left: -2px;
@@ -602,6 +603,152 @@ div.markdown code {
     -webkit-box-shadow: 1px 1px 0 #000, 2px 2px #000;
     -moz-box-shadow: 1px 1px 0 #000, 2px 2px #000;
     -webkit-transition: all 0.125s ease-out;
+}
+
+.issue .description .user-info {
+    padding: .75em;
+    float: right;
+    background: #222;
+    color: #fff;
+    font-weight: bold;
+    text-align: center;
+    margin: 0 0 1em 1em;
+}
+.issue .description .user-info img {
+    display: block;
+    margin-bottom: .5em;
+    border: .5em solid #111;
+}
+.user-info a {
+    text-decoration: none;
+}
+
+.issue-comments {
+    margin-top: 2em;
+}
+.issue-comments .comment {
+    margin: 0 0 2em;
+}
+.issue-comments .user-info {
+    background: #f5f5f5;
+    /*color: #fff;*/
+    padding: .5em;
+    margin: -1em -1em 1em -1em;
+    font-weight: bold;
+}
+.issue-comments .user-info img {
+    border: .25em solid #ddd;
+    margin: -.5em;
+    vertical-align: middle;
+    margin-right: .75em;
+}
+.issue-comments .user-info .name {
+    position: relative;
+    bottom: -.1em;
+}
+.issue-comments .changes {
+    list-style: none;
+    font-family: monospace;
+    font-size: 1.2em;
+    margin-bottom: 1em;
+    padding: 1em 1em 1em 2.5em;
+    background: #f5f5ff;
+    -webkit-box-shadow: inset 0 0 1em #eee;
+}
+
+.issue-revise {
+    margin-top: 4em;
+}
+.issue-revise .issue-tags {
+    width: 12em;
+    float: right;
+    background: #f5f5ff;
+    -webkit-box-shadow: inset 0 0 1em #ddd;
+    padding: 2em;
+}
+.issue-revise label {
+    display: block;
+    font-weight: bold;
+}
+.issue-revise select {
+    margin-bottom: 2em;
+}
+.issue-revise .tags li {
+    margin-bottom: .5em;
+}
+.issue-revise .tags .kill {
+    margin-right: .75em;
+    -webkit-border-radius: .6em;
+    padding: 0;
+    background: #111 url('/public/images/delete-small.gif') no-repeat center center;
+    float: left;
+    width: 10px;
+    height: 10px;
+    margin-top: .35em;
+}
+.issue-revise .tags .kill:hover {
+    background-color: #444;
+    -webkit-box-shadow: none;
+    position: static;
+}
+.issue-revise .tags .kill:active {
+    background-color: #000;
+}
+
+form.issue-comment {
+    width: 40em;
+    float: none;
+}
+form.issue-comment input,
+form.issue-comment input[type="submit"],
+form.issue-comment textarea,
+form.issue-comment label {
+    float: none;
+}
+form.issue-comment input[type="text"] {
+    width: 20em;
+}
+form.issue-comment textarea {
+    width: 40em;
+    margin: 0;
+}
+form.issue-comment #summary {
+    background: #222;
+}
+form.issue-comment .buttons {
+    width: 20em;
+    margin: 0 auto;
+}
+form.issue-comment .buttons input {
+    position: relative;
+    border: 0;
+    padding: 1em;
+    color: #fff;
+    background: transparent;
+    width: 10em;
+    -webkit-border-radius: 1em;
+}
+form.issue-comment .buttons input:hover {
+    cursor: pointer;
+    -webkit-transition: all 0.125s ease-out;
+}
+form.issue-comment .buttons:hover #submit-comment {
+    background: #333;
+}
+form.issue-comment .buttons #submit-comment {
+    z-index: 2;
+    background: #000;
+    width: 13em;
+}
+form.issue-comment .buttons #submit-close {
+    z-index: 1;
+    background: #222;
+    padding: 1em 1em 1em 4em;
+    width: 10em;
+    margin-left: -3em;
+}
+form.issue-comment .buttons #submit-close:hover {
+    background: #333;
 }
 
 .clear {

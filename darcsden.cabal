@@ -48,6 +48,7 @@ executable darcsden
     , old-locale
     , old-time
     , pandoc
+    , pureMD5
     , process
     , random
     , redis

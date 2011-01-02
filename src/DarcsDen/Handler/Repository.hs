@@ -17,6 +17,7 @@ import DarcsDen.Handler.Repository.Util
 import DarcsDen.Handler.Repository.Browse
 import DarcsDen.Handler.Repository.Changes
 import DarcsDen.Handler.Repository.Forks
+import DarcsDen.State.Comment
 import DarcsDen.State.Issue
 import DarcsDen.State.Repository
 import DarcsDen.State.Session
@@ -181,59 +182,6 @@ repoPatch u r s = do
             (summarize (pChanges patch))
             (filter isModification (pChanges patch)))
         s
-
-repoIssues :: User -> Repository -> Page
-repoIssues u r s = do
-    issues <- getIssues r
-    doPage (Page.issues u r issues) s
-
-repoIssue :: User -> Repository -> Page
-repoIssue u r s = validate
-    [ nonEmpty "url"
-    ]
-    (\(OK is) -> do
-        mi <- getIssue (fromJust (rID r)) (is ! "url")
-        case mi of
-            Nothing -> notFound
-            Just i -> doPage (Page.issue u r i) s)
-    (\(Invalid f) -> do
-        notify Warning s f
-        redirectTo (repoURL r))
-
-newIssue :: User -> Repository -> Page
-newIssue _ _ s@(Session { sUser = Nothing }) = do
-    warn "You must be logged in to create an issue." s
-    redirectTo "/"
-newIssue u r s =
-    doPage (Page.newIssue u r) s
-
-doNewIssue :: User -> Repository -> Page
-doNewIssue _ _ s@(Session { sUser = Nothing }) = do
-    warn "You must be logged in to create an issue." s
-    redirectTo "/"
-doNewIssue _ r s@(Session { sUser = Just un }) = validate
-    [ nonEmpty "summary"
-    , Predicate "description" (const True) "be provided"
-    , Predicate "tags" (const True) "be provided"
-    ]
-    (\(OK i) -> do
-        now <- liftIO getCurrentTime
-        addIssue Issue
-            { iID = Nothing
-            , iRev = Nothing
-            , iSummary = i ! "summary"
-            , iOwner = un
-            , iDescription = i ! "description"
-            , iTags = map strip $ wordsBy (== ',') (i ! "tags")
-            , iURL = issueURLFor (i ! "summary")
-            , iCreated = now
-            , iUpdated = now
-            , iIsClosed = False
-            , iRepository = fromJust (rID r)
-            } >>= issueURL >>= redirectTo)
-    (\(Invalid f) -> do
-        notify Warning s f
-        redirectTo (repoURL r ++ "/new-issue"))
 
 editRepo :: User -> Repository -> Page
 editRepo u r s = validate
@@ -422,4 +370,137 @@ repoMerge _ r s = validate
         when (and merge) (success "Patches merged!" s >> return ())
 
         redirectTo ('/' : rOwner r ++ "/" ++ rName r ++ "/forks"))
-   (\(Invalid f) -> notify Warning s f >> redirectTo "/")
+    (\(Invalid f) -> notify Warning s f >> redirectTo "/")
+
+repoIssues :: User -> Repository -> Page
+repoIssues u r s = do
+    issues <- getIssues r
+    doPage (Page.issues u r issues) s
+
+repoIssue :: User -> Repository -> Page
+repoIssue u r s = validate
+    [ nonEmpty "url"
+    ]
+    (\(OK is) -> do
+        mi <- getIssue (fromJust (rID r)) (is ! "url")
+        case mi of
+            Just i -> do
+                cs <- getComments i
+                doPage (Page.issue u r i cs) s
+            Nothing -> notFound)
+    (\(Invalid f) -> do
+        notify Warning s f
+        redirectTo (repoURL r))
+
+newIssue :: User -> Repository -> Page
+newIssue _ _ s@(Session { sUser = Nothing }) = do
+    warn "You must be logged in to create an issue." s
+    redirectTo "/"
+newIssue u r s =
+    doPage (Page.newIssue u r) s
+
+doNewIssue :: User -> Repository -> Page
+doNewIssue _ _ s@(Session { sUser = Nothing }) = do
+    warn "You must be logged in to create an issue." s
+    redirectTo "/"
+doNewIssue _ r s@(Session { sUser = Just un }) = validate
+    [ nonEmpty "summary"
+    , Predicate "description" (const True) "be provided"
+    , Predicate "tags" (const True) "be provided"
+    ]
+    (\(OK i) -> do
+        now <- liftIO getCurrentTime
+        addIssue Issue
+            { iID = Nothing
+            , iRev = Nothing
+            , iSummary = i ! "summary"
+            , iOwner = un
+            , iDescription = i ! "description"
+            , iTags = map strip $ wordsBy (== ',') (i ! "tags")
+            , iURL = issueURLFor (i ! "summary")
+            , iCreated = now
+            , iUpdated = now
+            , iIsClosed = False
+            , iRepository = fromJust (rID r)
+            } >>= redirectTo . issueURL r)
+    (\(Invalid f) -> do
+        notify Warning s f
+        redirectTo (repoURL r ++ "/new-issue"))
+
+repoComment :: User -> Repository -> Page
+repoComment _ _ s@(Session { sUser = Nothing }) = do
+    warn "You must be logged in to comment on an issue." s
+    redirectTo "/"
+repoComment u r s@(Session { sUser = Just un }) = validate
+    [ iff (nonEmpty "url") $ \(OK is) -> io "issue does not exist" $ 
+        fmap isJust (getIssue (fromJust (rID r)) (is ! "url"))
+    ]
+    (\(OK is) -> do
+        Just i <- getIssue (fromJust (rID r)) (is ! "url")
+        submit <- input "submit" ""
+        summary <- input "summary" ""
+        c <- input "comment" ""
+        ts <- fmap (map strip . wordsBy (== ',')) $ input "tags" ""
+
+        let closed =
+                case submit of
+                    "and close" -> True
+                    "and reopen" -> False
+                    _ -> iIsClosed i
+
+            canChange = un `elem` (rOwner r:rMembers r)
+
+            issueChanged = or
+                [ iSummary i /= summary
+                , not (null (diffTags (iTags i) ts))
+                , iIsClosed i /= closed
+                ]
+
+            diffTags ots nts = concat
+                [ map AddTag (filter (`notElem` ots) nts)
+                , map RemoveTag (filter (`notElem` nts) ots)
+                ]
+
+            changes = concat
+                [ if iSummary i /= summary then [Summary summary] else []
+                , if iIsClosed i /= closed then [Closed closed] else []
+                , if iTags i /= ts then diffTags (iTags i) ts else []
+                ]
+
+        if (not canChange || not issueChanged) && null c
+            then do
+                warn "no changes and no comment" s
+                redirectTo (issueURL r i)
+            else do
+
+        now <- liftIO getCurrentTime
+        addComment Comment
+            { cID = Nothing
+            , cRev = Nothing
+            , cBody = c
+            , cChanges = changes
+            , cAuthor = un
+            , cIssue = fromJust (iID i)
+            , cCreated = now
+            , cUpdated = now
+            }
+
+        mni <-
+            if canChange && issueChanged
+                then updateIssue i
+                    { iSummary = summary
+                    , iTags = ts
+                    }
+                else return (Just i)
+
+        case mni of
+            Nothing -> do
+                warn "issue could not be updated" s
+                redirectTo (issueURL r i)
+            Just ni -> do
+                if not (null c)
+                    then success "comment added" s
+                    else success "issue updated" s
+
+                redirectTo (issueURL r ni))
+    (\(Invalid f) -> notify Warning s f >> redirectTo "/")

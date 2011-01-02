@@ -118,12 +118,9 @@ instance JSON Issue where
                 Just rev'' -> [("_rev", showJSON (show rev''))]
                 Nothing -> []
 
-issueURL :: MonadIO m => Issue -> m String
-issueURL i = do
-    mr <- getRepositoryByID (iRepository i)
-    case mr of
-        Just r -> return ("/" ++ rOwner r ++ "/" ++ rName r ++ "/issue/" ++ iURL i)
-        Nothing -> error "issueURL: repository not found"
+issueURL :: Repository -> Issue -> String
+issueURL r i =
+    "/" ++ rOwner r ++ "/" ++ rName r ++ "/issue/" ++ iURL i
 
 issueURLFor :: String -> String
 issueURLFor

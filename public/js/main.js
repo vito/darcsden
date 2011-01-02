@@ -15,7 +15,68 @@ $(function(){
         $(this).relatizeDate();
     });
 
-    $(document.createElement("canvas")).attr("id", "depends_canvas").prependTo("form.subtle");
+    if ($("form.dependencies").length)
+        dependencyCanvas();
+    
+    $(".issue-revise .issue-tags #assign").change(function(){
+        if (this.value == "")
+            return;
+
+        addTag("assign:" + this.value);
+    });
+    
+    $(".issue-revise .issue-tags #type").change(function(){
+        if (this.value == "")
+            return;
+
+        addTag("type:" + this.value);
+    });
+
+    $(".issue-revise .issue-tags .kill").live("click", function(){
+        $(this).parent().remove();
+    });
+
+    $(".issue-comment").submit(function(){
+        var tags = $(".issue-tags li").map(function(i, v){
+            return $(v).find("a:nth(1)").text();
+        }).toArray();
+
+        console.log(tags);
+
+        $(".issue-comment #tags").attr("value", tags.join(", "));
+    });
+});
+
+function addTag(tag) {
+    var url, link, kill, item;
+
+    url =
+        $(".issue-tags .tags li a:first")
+            .attr("href")
+            .replace(/tag\/.*/, "tag/" + tag)
+
+    link =
+        $(document.createElement("a"))
+            .attr("href", url)
+            .text(tag);
+
+    kill =
+        $(document.createElement("a"))
+            .attr("class", "kill")
+            .attr("href", "javascript:void(0)");
+
+    item = $(document.createElement("li"));
+    item.append(kill);
+    item.append(link);
+
+    $(".issue-tags .tags").append(item);
+}
+
+function dependencyCanvas() {
+    $(document.createElement("canvas"))
+        .attr("id", "depends_canvas")
+        .prependTo("form.subtle");
+
     $("#depends_canvas").css({
         float: "left",
         marginLeft: -300,
@@ -27,20 +88,6 @@ $(function(){
 
     var canvas = document.getElementById("depends_canvas").getContext("2d");
     var dependency_displayed = [];
-
-    function setChecked(ele, checked) {
-        ele.attr("checked", checked);
-        var depends = rowDependencies(ele.closest(".change"));
-        $(depends).each(function(i, dep){
-            setChecked($("#change-"+ dep +" :checkbox"), checked);
-        });
-    }
-
-    function rowDependencies(ele) {
-        return ele.attr("class").split(" ").slice(1).map(function(c){
-            return c.replace(/depends-on-/, "");
-        });
-    }
 
     $(".fork-log .change").each(function(){
         var change = $(this);
@@ -81,4 +128,18 @@ $(function(){
             canvas.stroke();
         });
     });
-});
+}
+
+function setChecked(ele, checked) {
+    ele.attr("checked", checked);
+    var depends = rowDependencies(ele.closest(".change"));
+    $(depends).each(function(i, dep){
+        setChecked($("#change-"+ dep +" :checkbox"), checked);
+    });
+}
+
+function rowDependencies(ele) {
+    return ele.attr("class").split(" ").slice(1).map(function(c){
+        return c.replace(/depends-on-/, "");
+    });
+}

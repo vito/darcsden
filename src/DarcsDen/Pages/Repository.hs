@@ -2,6 +2,7 @@
 module DarcsDen.Pages.Repository where
 
 import Control.Monad.Trans
+import Data.Digest.Pure.MD5 (md5)
 import Data.List (sortBy)
 import Data.Maybe (fromJust)
 import Data.Time (UTCTime, formatTime)
@@ -18,11 +19,12 @@ import DarcsDen.Handler.Repository.Changes
     )
 import DarcsDen.Handler.Repository.Forks (Fork(..))
 import DarcsDen.Pages.Base
+import DarcsDen.State.Comment
 import DarcsDen.State.Issue
 import DarcsDen.State.Repository
 import DarcsDen.State.Session
 import DarcsDen.State.User
-import DarcsDen.Util (baseDomain, baseURL, doMarkdown, fromBS)
+import DarcsDen.Util (baseDomain, baseURL, doMarkdown, fromBS, toLBS)
 
 
 author :: PatchLog -> HSP XML
@@ -299,7 +301,7 @@ issues u r is s = repoBase u r
                     then
                         <%
                             <ul class="tags">
-                                <% map (\t -> <li><a href=(repoURL r ++ "/issues/tag/" ++ t)><% t %></a></li>) (iTags i) %>
+                                <% map (\t -> <li><a href=(tagURL r t)><% t %></a></li>) (iTags i) %>
                             </ul>
                         %>
                     else <% "" %>
@@ -316,17 +318,130 @@ issues u r is s = repoBase u r
             </div>
         </li>
 
-issue :: User -> Repository -> Issue -> HSPage
-issue u r i s = repoBase u r
+issue :: User -> Repository -> Issue -> [Comment] -> HSPage
+issue u r i cs s = repoBase u r
     (iSummary i)
     <span> -> issue</span>
     <div class="issue">
         <h1><% iSummary i %></h1>
-        <div class="markdown">
+        <div class="description markdown">
+            <% do
+                mo <- getUser (iOwner i)
+                case mo of
+                    Just o ->
+                        <div class="user-info">
+                            <a href=(userURL o)><img src=(gravatar o 64) /></a>
+                            <a href=(userURL o)><% if not (null (uFullName u)) then uFullName u else uName u %></a>
+                        </div>
+                    Nothing ->
+                        <div class="user-info unknown">unknown</div>
+            %>
+
             <% cdata $ doMarkdown (iDescription i) %>
+
+            <div class="clear"></div>
         </div>
+
+        <ul class="issue-comments">
+            <% map comment cs %>
+        </ul>
+
+        <%
+            case sUser s of
+                Just n | rOwner r == n || iOwner i == n ->
+                    <div class="issue-revise">
+                        <div class="issue-tags">
+                            <label for="assign">assign to:</label>
+                            <select id="assign">
+                                <option value=""></option>
+                                <option value=(rOwner r)><% rOwner r %></option>
+                                <% map (\m -> <option value=m><% m %></option>) (rMembers r) %>
+                            </select>
+
+                            <label for="type">set type:</label>
+                            <select id="type">
+                                <option value=""></option>
+                                <option value="bug">bug</option>
+                                <option value="enhancement">enhancement</option>
+                            </select>
+
+                            <ul class="tags">
+                                <% map (\t -> <li><a href="javascript:void(0)" class="kill"></a><a href=(tagURL r t)><% t %></a></li>) (iTags i) %>
+                            </ul>
+                        </div>
+
+                        <form class="issue-comment" action=addComment method="post">
+                            <fieldset>
+                                <div class="field">
+                                    <textarea name="summary" id="summary" rows="2"><% iSummary i %></textarea>
+                                </div>
+                                <div class="field">
+                                    <textarea name="comment" id="comment" rows="12"></textarea>
+                                </div>
+                                <div class="buttons">
+                                    <input type="submit" name="submit" id="submit-comment" value="comment" />
+                                    <input type="submit" name="submit" id="submit-close" value="and close" />
+                                </div>
+
+                                <input type="hidden" name="tags" id="tags" />
+                            </fieldset>
+                        </form>
+                    </div>
+
+                Just _ ->
+                    <form class="issue-comment" action=addComment method="post">
+                        <fieldset>
+                            <% field (textarea 12 "comment" "") "comment" "" %>
+                            <% submit "comment" %>
+                        </fieldset>
+                    </form>
+
+                Nothing ->
+                    <span class="please-login">
+                        please <a href="/log-in">log in</a> to comment
+                    </span>
+        %>
     </div>
     s
+  where
+    addComment = repoURL r ++ "/issue/" ++ iURL i ++ "/comment"
+
+    comment c =
+        <li class="comment markdown">
+            <% do
+                mo <- getUser (cAuthor c)
+                case mo of
+                    Just o ->
+                        <div class="user-info">
+                            <a href=(userURL o)><img src=(gravatar o 16) /></a>
+                            <a href=(userURL o) class="name"><% if not (null (uFullName u)) then uFullName u else uName u %></a>
+                        </div>
+                    Nothing ->
+                        <div class="user-info unknown">unknown</div>
+            %>
+            <%
+                if not (null (cChanges c))
+                    then
+                        <%
+                            <ul class="changes">
+                                <% map change (cChanges c) %>
+                            </ul>
+                        %>
+                    else <% "" %>
+            %>
+            <% cdata (doMarkdown (cBody c)) %>
+        </li>
+
+    change (AddTag t) =
+        <li>added tag <strong><% t %></strong></li>
+    change (RemoveTag t) =
+        <li>removed tag <strong><% t %></strong></li>
+    change (Summary s) =
+        <li>summary changed to <strong>"<% s %>"</strong></li>
+    change (Closed True) =
+        <li>status set to <strong>closed</strong></li>
+    change (Closed False) =
+        <li>status set to <strong>open</strong></li>
 
 newIssue :: User -> Repository -> HSPage
 newIssue u r = repoBase u r
@@ -363,7 +478,7 @@ patches u r fs opfs s = repoBase u r
   where
     patchesForm :: HSP XML
     patchesForm =
-        <form action=(repoURL r ++ "/merge") class="subtle" method="post">
+        <form action=(repoURL r ++ "/merge") class="dependencies" method="post">
             <fieldset>
                 <% map fork' opfs %>
                 <% map fork' fs %>
@@ -616,3 +731,12 @@ patch u r p ss cs = repoBase u r
             <div class="removed"><% cdata . fromBS $ fchRemove (cfType c) %></div>
             <div class="added"><% cdata . fromBS $ fchAdd (cfType c) %></div>
         </li>
+
+gravatar :: User -> Int -> String
+gravatar u s =
+    "http://gravatar.com/avatar/" ++ email ++ "?s=" ++ show s ++ "&d=identicon"
+  where
+    email = show . md5 . toLBS $ uEmail u
+
+tagURL :: Repository -> String -> String
+tagURL r t = repoURL r ++ "/issues/tag/" ++ t
