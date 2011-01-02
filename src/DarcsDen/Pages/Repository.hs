@@ -406,12 +406,12 @@ issue u r i cs s = repoBase u r
     comment c =
         <li class="comment markdown">
             <% do
-                mo <- getUser (cAuthor c)
-                case mo of
-                    Just o ->
+                ma <- getUser (cAuthor c)
+                case ma of
+                    Just a ->
                         <div class="user-info">
-                            <a href=(userURL o)><img src=(gravatar o 24) /></a>
-                            <a href=(userURL o) class="name"><% if not (null (uFullName u)) then uFullName u else uName u %></a>
+                            <a href=(userURL a)><img src=(gravatar a 24) /></a>
+                            <a href=(userURL a) class="name"><% if not (null (uFullName a)) then uFullName a else uName a %></a>
                         </div>
                     Nothing ->
                         <div class="user-info unknown">unknown</div>
