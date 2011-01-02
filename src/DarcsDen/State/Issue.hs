@@ -17,6 +17,7 @@ data Issue =
     Issue
         { iID :: Maybe Doc
         , iRev :: Maybe Rev
+        , iNumber :: Int
         , iSummary :: String
         , iOwner :: String
         , iDescription :: String
@@ -33,6 +34,7 @@ instance JSON Issue where
     readJSON o = do
         id' <- getID o
         rev' <- getRev o
+        number <- getAttrOr o "number" 0
         summary <- getAttr o "summary"
         owner <- getAttr o "owner"
         description <- getAttr o "description"
@@ -45,6 +47,7 @@ instance JSON Issue where
         return Issue
             { iID = Just id'
             , iRev = Just rev'
+            , iNumber = number
             , iSummary = summary
             , iOwner = owner
             , iDescription = description

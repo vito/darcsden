@@ -576,13 +576,18 @@ table.highlighttable .code .highlight {
     font-size: 1.4em;
     line-height: 1em;
 }
-.issues-list .issue .header .tags {
-    position: absolute;
-    top: .1em;
-    right: .6em;
-    margin-top: .5em;
+.issues-list .issue .number {
+    float: right;
+    color: #ccc;
+    font-size: 2.5em;
+    margin-right: -.125em;
+    margin-left: .5em;
+    font-family: monospace;
 }
-.issues-list .issue .header .tags li {
+.issues-list .issue .tags {
+    float: right;
+}
+.issues-list .issue .tags li {
     display: inline;
     margin-left: .5em;
 }
@@ -605,6 +610,14 @@ table.highlighttable .code .highlight {
     -webkit-transition: all 0.125s ease-out;
 }
 
+.issue .number {
+    font-size: 2em;
+    float: right;
+    color: #ddd;
+    font-weight: bold;
+    margin-right: .25em;
+    margin-top: -.125em;
+}
 .issue .description .user-info {
     padding: .75em;
     float: right;
@@ -683,7 +696,6 @@ table.highlighttable .code .highlight {
 }
 .issue-tags input {
     float: none !important;
-    /*width: 5em;*/
 }
 .issue-tags #tag-name {
     width: 7em;

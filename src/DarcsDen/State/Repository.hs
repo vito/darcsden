@@ -30,6 +30,7 @@ data Repository =
         , rForkOf :: Maybe Doc
         , rMembers :: [String]
         , rIsPrivate :: Bool
+        , rIssueCount :: Int
         }
     deriving (Eq, Show)
 
@@ -45,6 +46,7 @@ instance JSON Repository where
         forkOf <- getAttr o "fork_of"
         members <- getAttr o "members"
         isPrivate <- getAttr o "is_private"
+        issueCount <- getAttrOr o "issue_count" 0
         return Repository
             { rID = Just id'
             , rRev = Just rev'
@@ -56,6 +58,7 @@ instance JSON Repository where
             , rForkOf = forkOf
             , rMembers = members
             , rIsPrivate = isPrivate
+            , rIssueCount = issueCount
             }
 
     showJSON r = JSObject . toJSObject $

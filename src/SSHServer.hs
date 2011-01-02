@@ -97,6 +97,7 @@ channelRequest wr (Execute cmd) =
                                 , rForkOf = Nothing
                                 , rMembers = []
                                 , rIsPrivate = False
+                                , rIssueCount = 0
                                 }
                             finishWith "repository created"
                         Just _ -> errorWith "repository already exists"

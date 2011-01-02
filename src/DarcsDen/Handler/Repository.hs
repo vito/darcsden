@@ -71,6 +71,7 @@ doInitialize s@(Session { sUser = Just n }) = validate
             , rForkOf = Nothing
             , rMembers = []
             , rIsPrivate = isJust private
+            , rIssueCount = 0
             }
 
         url <- input "bootstrap" ""
@@ -408,21 +409,28 @@ doNewIssue _ r s@(Session { sUser = Just un }) = validate
     , Predicate "description" (const True) "be provided"
     , Predicate "tags" (const True) "be provided"
     ]
-    (\(OK i) -> do
+    (\(OK is) -> do
         now <- liftIO getCurrentTime
-        addIssue Issue
+        i <- addIssue Issue
             { iID = Nothing
             , iRev = Nothing
-            , iSummary = i ! "summary"
+            , iNumber = rIssueCount r + 1
+            , iSummary = is ! "summary"
             , iOwner = un
-            , iDescription = i ! "description"
-            , iTags = map strip $ wordsBy (== ',') (i ! "tags")
-            , iURL = issueURLFor (i ! "summary")
+            , iDescription = is ! "description"
+            , iTags = map strip $ wordsBy (== ',') (is ! "tags")
+            , iURL = issueURLFor (is ! "summary")
             , iCreated = now
             , iUpdated = now
             , iIsClosed = False
             , iRepository = fromJust (rID r)
-            } >>= redirectTo . issueURL r)
+            }
+
+        updateRepository r
+            { rIssueCount = rIssueCount r + 1
+            }
+
+        redirectTo (issueURL r i))
     (\(Invalid f) -> do
         notify Warning s f
         redirectTo (repoURL r ++ "/new-issue"))
@@ -431,7 +439,7 @@ repoComment :: User -> Repository -> Page
 repoComment _ _ s@(Session { sUser = Nothing }) = do
     warn "You must be logged in to comment on an issue." s
     redirectTo "/"
-repoComment u r s@(Session { sUser = Just un }) = validate
+repoComment _ r s@(Session { sUser = Just un }) = validate
     [ iff (nonEmpty "url") $ \(OK is) -> io "issue does not exist" $ 
         fmap isJust (getIssue (fromJust (rID r)) (is ! "url"))
     ]

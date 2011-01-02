@@ -296,7 +296,15 @@ issues u r is s = repoBase u r
     renderIssue i =
         <li class="issue">
             <div class="header">
-                <h2><a href=(repoURL r ++ "/issue/" ++ iURL i)><% iSummary i %></a></h2>
+                <span class="number" href=(issueURL r i)>#<% show $ iNumber i %></span>
+
+                <h2>
+                    <a href=(issueURL r i)>
+                        <% iSummary i %>
+                    </a>
+                </h2>
+            </div>
+            <div class="meta">
                 <% if not (null (iTags i))
                     then
                         <%
@@ -306,8 +314,7 @@ issues u r is s = repoBase u r
                         %>
                     else <% "" %>
                 %>
-            </div>
-            <div class="meta">
+
                 reported by <a href=("/" ++ iOwner i)><% iOwner i %></a>
                 <% cdata " " %>
                 <span class="relatize date"><% formatTime defaultTimeLocale "%c" (iCreated i) %></span>
@@ -323,7 +330,12 @@ issue u r i cs s = repoBase u r
     (iSummary i)
     <span> -> issue</span>
     <div class="issue">
-        <h1><% iSummary i %></h1>
+        <h1>
+            <span class="number">
+                #<% show $ iNumber i %>
+            </span>
+            <% iSummary i %>
+        </h1>
         <div class="description markdown">
             <% do
                 mo <- getUser (iOwner i)
@@ -343,7 +355,7 @@ issue u r i cs s = repoBase u r
         </div>
 
         <ul class="issue-comments">
-            <% map comment cs %>
+            <% map renderComment cs %>
         </ul>
 
         <%
@@ -375,7 +387,7 @@ issue u r i cs s = repoBase u r
                             </form>
                         </div>
 
-                        <form class="issue-comment" action=addComment method="post">
+                        <form class="issue-comment" action=add method="post">
                             <fieldset>
                                 <div class="field">
                                     <textarea name="summary" id="summary" rows="2"><% iSummary i %></textarea>
@@ -401,9 +413,9 @@ issue u r i cs s = repoBase u r
     </div>
     s
   where
-    addComment = repoURL r ++ "/issue/" ++ iURL i ++ "/comment"
+    add = repoURL r ++ "/issue/" ++ iURL i ++ "/comment"
 
-    comment c =
+    renderComment c =
         <li class="comment markdown">
             <% do
                 ma <- getUser (cAuthor c)
@@ -421,7 +433,7 @@ issue u r i cs s = repoBase u r
                     then
                         <%
                             <ul class="changes">
-                                <% map change (cChanges c) %>
+                                <% map renderChange (cChanges c) %>
                             </ul>
                         %>
                     else <% "" %>
@@ -429,15 +441,15 @@ issue u r i cs s = repoBase u r
             <% cdata (doMarkdown (cBody c)) %>
         </li>
 
-    change (AddTag t) =
+    renderChange (AddTag t) =
         <li>added tag <strong><% t %></strong></li>
-    change (RemoveTag t) =
+    renderChange (RemoveTag t) =
         <li>removed tag <strong><% t %></strong></li>
-    change (Summary s) =
-        <li>summary changed to <strong>"<% s %>"</strong></li>
-    change (Closed True) =
+    renderChange (Summary n) =
+        <li>summary changed to <strong>"<% n %>"</strong></li>
+    renderChange (Closed True) =
         <li>status set to <strong>closed</strong></li>
-    change (Closed False) =
+    renderChange (Closed False) =
         <li>status set to <strong>open</strong></li>
 
 newIssue :: User -> Repository -> HSPage
