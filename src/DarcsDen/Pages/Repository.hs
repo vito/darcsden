@@ -368,6 +368,11 @@ issue u r i cs s = repoBase u r
                             <ul class="tags">
                                 <% map (\t -> <li><a href="javascript:void(0)" class="kill"></a><a href=(tagURL r t)><% t %></a></li>) (iTags i) %>
                             </ul>
+
+                            <form id="add-tag" action="javascript:void(0)">
+                                <input type="text" id="tag-name" name="add-tag" />
+                                <input type="submit" id="add-tag-submit" value="add" />
+                            </form>
                         </div>
 
                         <form class="issue-comment" action=addComment method="post">
@@ -439,14 +444,46 @@ newIssue :: User -> Repository -> HSPage
 newIssue u r = repoBase u r
     "new issue"
     <span> -> new issue</span>
-    <div class="new-issue">
+    <div class="issue-new">
         <h1>new issue</h1>
-        <form action=(repoURL r ++ "/new-issue") method="post">
+
+        <div class="issue-tags">
+            <label for="assign">assign to:</label>
+            <select id="assign">
+                <option value=""></option>
+                <option value=(rOwner r)><% rOwner r %></option>
+                <% map (\m -> <option value=m><% m %></option>) (rMembers r) %>
+            </select>
+
+            <label for="type">set type:</label>
+            <select id="type">
+                <option value=""></option>
+                <option value="bug">bug</option>
+                <option value="enhancement">enhancement</option>
+            </select>
+
+            <ul class="tags">
+            </ul>
+
+            <form id="add-tag" action="javascript:void(0)">
+                <input type="text" id="tag-name" name="add-tag" />
+                <input type="submit" id="add-tag-submit" value="add" />
+            </form>
+        </div>
+
+        <form class="issue-body" action=(repoURL r ++ "/new-issue") method="post">
             <fieldset>
-                <% field (input "summary" "") "summary" "" %>
-                <% field (textarea 12 "description" "") "description" "" %>
-                <% field (input "tags" "") "tags" "comma separated" %>
-                <% submit "create issue" %>
+                <div class="field">
+                    <textarea name="summary" id="summary" rows="2"></textarea>
+                </div>
+                <div class="field">
+                    <textarea name="description" id="description" rows="12"></textarea>
+                </div>
+                <div class="buttons">
+                    <input type="submit" name="submit" value="create issue" />
+                </div>
+
+                <input type="hidden" name="tags" id="tags" />
             </fieldset>
         </form>
     </div>

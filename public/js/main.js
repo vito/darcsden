@@ -18,32 +18,39 @@ $(function(){
     if ($("form.dependencies").length)
         dependencyCanvas();
     
-    $(".issue-revise .issue-tags #assign").change(function(){
-        if (this.value == "")
+    $(".issue-tags #assign").change(function(){
+        if ($(this).val() == "")
             return;
 
-        addTag("assign:" + this.value);
+        addTag("assign:" + $(this).val());
     });
     
-    $(".issue-revise .issue-tags #type").change(function(){
-        if (this.value == "")
+    $(".issue-tags #type").change(function(){
+        if ($(this).val() == "")
             return;
 
-        addTag("type:" + this.value);
+        addTag("type:" + $(this).val());
     });
 
-    $(".issue-revise .issue-tags .kill").live("click", function(){
+    $(".issue-tags .kill").live("click", function(){
         $(this).parent().remove();
     });
 
-    $(".issue-comment").submit(function(){
+    $(".issue-comment, .issue-body").submit(function(){
         var tags = $(".issue-tags li").map(function(i, v){
             return $(v).find("a:nth(1)").text();
         }).toArray();
 
         console.log(tags);
 
-        $(".issue-comment #tags").attr("value", tags.join(", "));
+        $("input#tags").val(tags.join(", "));
+    });
+
+    $("#add-tag").submit(function(){
+        console.log(this, $(this));
+        addTag($("#add-tag #tag-name").val());
+        $("#add-tag #tag-name").val("");
+        return false;
     });
 });
 
@@ -51,9 +58,7 @@ function addTag(tag) {
     var url, link, kill, item;
 
     url =
-        $(".issue-tags .tags li a:first")
-            .attr("href")
-            .replace(/tag\/.*/, "tag/" + tag)
+        $(".head a:nth(2)").attr("href") + "/issues/tag/" + tag;
 
     link =
         $(document.createElement("a"))

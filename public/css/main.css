@@ -658,24 +658,48 @@ table.highlighttable .code .highlight {
 .issue-revise {
     margin-top: 4em;
 }
-.issue-revise .issue-tags {
+.issue-revise .issue-tags,
+.issue-new .issue-tags {
     width: 12em;
     float: right;
     background: #f5f5ff;
     -webkit-box-shadow: inset 0 0 1em #ddd;
     padding: 2em;
 }
-.issue-revise label {
+.issue-revise .issue-tags label,
+.issue-new .issue-tags label {
     display: block;
     font-weight: bold;
 }
-.issue-revise select {
+.issue-revise .issue-tags select,
+.issue-new .issue-tags select {
     margin-bottom: 2em;
 }
-.issue-revise .tags li {
+.issue-tags form {
+    padding: 0;
+    border: 0;
+}
+.issue-tags form {
+    float: none;
+    margin-top: 2em;
+}
+.issue-tags input {
+    float: none !important;
+    /*width: 5em;*/
+}
+.issue-tags #tag-name {
+    width: 7em;
+    margin-right: 1em;
+    background: #fff;
+    -webkit-box-shadow: 0 0 .5em #ddd;
+    color: #000;
+}
+.issue-revise .tags li,
+.issue-new .tags li {
     margin-bottom: .5em;
 }
-.issue-revise .tags .kill {
+.issue-revise .tags .kill,
+.issue-new .tags .kill {
     margin-right: .75em;
     -webkit-border-radius: .6em;
     padding: 0;
@@ -685,40 +709,52 @@ table.highlighttable .code .highlight {
     height: 10px;
     margin-top: .35em;
 }
-.issue-revise .tags .kill:hover {
+.issue-revise .tags .kill:hover,
+.issue-new .tags .kill:hover {
     background-color: #444;
     -webkit-box-shadow: none;
     position: static;
 }
-.issue-revise .tags .kill:active {
+.issue-revise .tags .kill:active,
+.issue-new .tags .kill:active {
     background-color: #000;
 }
 
-form.issue-comment {
+form.issue-comment,
+form.issue-body {
     width: 40em;
     float: none;
 }
 form.issue-comment input,
 form.issue-comment input[type="submit"],
 form.issue-comment textarea,
-form.issue-comment label {
+form.issue-comment label,
+form.issue-body input, 
+form.issue-body input[type="submit"],
+form.issue-body textarea,
+form.issue-body label {
     float: none;
 }
-form.issue-comment input[type="text"] {
+form.issue-comment input[type="text"],
+form.issue-body input[type="text"] {
     width: 20em;
 }
-form.issue-comment textarea {
+form.issue-comment textarea,
+form.issue-body textarea {
     width: 40em;
     margin: 0;
 }
-form.issue-comment #summary {
+form.issue-comment #summary,
+form.issue-body #summary {
     background: #222;
 }
-form.issue-comment .buttons {
+form.issue-comment .buttons,
+form.issue-body .buttons {
     width: 20em;
     margin: 0 auto;
 }
-form.issue-comment .buttons input {
+form.issue-comment .buttons input,
+form.issue-body .buttons input {
     position: relative;
     border: 0;
     padding: 1em;
@@ -727,7 +763,8 @@ form.issue-comment .buttons input {
     width: 10em;
     -webkit-border-radius: 1em;
 }
-form.issue-comment .buttons input:hover {
+form.issue-comment .buttons input:hover,
+form.issue-body .buttons input:hover {
     cursor: pointer;
     -webkit-transition: all 0.125s ease-out;
 }
@@ -748,6 +785,13 @@ form.issue-comment .buttons #submit-close {
 }
 form.issue-comment .buttons #submit-close:hover {
     background: #333;
+}
+form.issue-body .buttons input {
+    background: #000;
+    width: 20em;
+}
+form.issue-body .buttons input:hover {
+    background: #222;
 }
 
 .clear {
