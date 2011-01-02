@@ -5,6 +5,8 @@ import Data.Char (isSpace)
 import System.Directory
 import Text.Pandoc
 import Data.Text.Encoding
+import Text.Blaze
+import Text.Blaze.Renderer.String
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Text as T
@@ -79,6 +81,8 @@ doMarkdown :: String -> String
 doMarkdown
     = writeHtmlString defaultWriterOptions
     . readMarkdown defaultParserState
+    . renderHtml
+    . string
     . normalize
 
 normalize :: String -> String
