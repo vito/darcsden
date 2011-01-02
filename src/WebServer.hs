@@ -56,6 +56,8 @@ main = do
 
             createDB "repositories"
             createDB "users"
+            createDB "issues"
+            createDB "comments"
 
             liftIO (putStrLn "creating repository design documents...")
             forM_ repoDesigns $ \js ->
@@ -64,6 +66,14 @@ main = do
             liftIO (putStrLn "creating user design documents...")
             forM_ userDesigns $ \js ->
                 newDoc (db "users") js
+
+            liftIO (putStrLn "creating issue design documents...")
+            forM_ issueDesigns $ \js ->
+                newDoc (db "issues") js
+
+            liftIO (putStrLn "creating comment design documents...")
+            forM_ commentDesigns $ \js ->
+                newDoc (db "comments") js
 
             liftIO (putStrLn "All set!")
 
@@ -151,6 +161,33 @@ main = do
                     ])
                 , ("by_name", jsobj
                     [ ("map", jsstr "function(doc) {\n  if (doc.name)\n    emit(doc.name, doc);\n}")
+                    ])
+                ])
+            ]
+        ]
+
+    issueDesigns =
+        [ jsobj
+            [ ("_id", jsstr "_design/issues")
+            , ("language", jsstr "javascript")
+            , ("views", jsobj
+                [ ("by_repository_and_url", jsobj
+                    [ ("map", jsstr "function(doc) {\n  emit([doc.repository, doc.url], doc);\n}")
+                    ])
+                , ("by_repository", jsobj
+                    [ ("map", jsstr "function(doc) {\n  if (!doc.is_closed)\n    emit(doc.repository, doc);\n}")
+                    ])
+                ])
+            ]
+        ]
+
+    commentDesigns =
+        [ jsobj
+            [ ("_id", jsstr "_design/comments")
+            , ("language", jsstr "javascript")
+            , ("views", jsobj
+                [ ("by_issue", jsobj
+                    [ ("map", jsstr "function(doc) {\n  emit(doc.issue, doc);\n}")
                     ])
                 ])
             ]
