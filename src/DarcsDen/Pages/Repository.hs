@@ -380,7 +380,7 @@ issue u r i cs s = repoBase u r
                                 </div>
                                 <div class="buttons">
                                     <input type="submit" name="submit" id="submit-comment" value="comment" />
-                                    <input type="submit" name="submit" id="submit-close" value="and close" />
+                                    <input type="submit" name="submit" id="submit-close" value=(if iIsClosed i then "and reopen" else "and close") />
                                 </div>
 
                                 <input type="hidden" name="tags" id="tags" />

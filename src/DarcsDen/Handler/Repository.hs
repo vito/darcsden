@@ -488,6 +488,7 @@ repoComment u r s@(Session { sUser = Just un }) = validate
                 then updateIssue i
                     { iSummary = summary
                     , iTags = ts
+                    , iIsClosed = closed
                     }
                 else return (Just i)
 
