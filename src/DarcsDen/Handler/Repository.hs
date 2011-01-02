@@ -497,6 +497,7 @@ repoComment _ r s@(Session { sUser = Just un }) = validate
                     { iSummary = summary
                     , iTags = ts
                     , iIsClosed = closed
+                    , iUpdated = now
                     }
                 else return (Just i)
 
