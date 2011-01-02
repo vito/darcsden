@@ -348,7 +348,7 @@ issue u r i cs s = repoBase u r
 
         <%
             case sUser s of
-                Just n | rOwner r == n || iOwner i == n ->
+                Just _ ->
                     <div class="issue-revise">
                         <div class="issue-tags">
                             <label for="assign">assign to:</label>
@@ -387,14 +387,6 @@ issue u r i cs s = repoBase u r
                             </fieldset>
                         </form>
                     </div>
-
-                Just _ ->
-                    <form class="issue-comment" action=addComment method="post">
-                        <fieldset>
-                            <% field (textarea 12 "comment" "") "comment" "" %>
-                            <% submit "comment" %>
-                        </fieldset>
-                    </form>
 
                 Nothing ->
                     <span class="please-login">

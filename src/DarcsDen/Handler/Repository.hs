@@ -448,8 +448,6 @@ repoComment u r s@(Session { sUser = Just un }) = validate
                     "and reopen" -> False
                     _ -> iIsClosed i
 
-            canChange = un `elem` (rOwner r:rMembers r)
-
             issueChanged = or
                 [ iSummary i /= summary
                 , not (null (diffTags (iTags i) ts))
@@ -467,9 +465,9 @@ repoComment u r s@(Session { sUser = Just un }) = validate
                 , if iTags i /= ts then diffTags (iTags i) ts else []
                 ]
 
-        if (not canChange || not issueChanged) && null c
+        if not issueChanged && null c
             then do
-                warn "no changes and no comment" s
+                warn "no changes and no comment; do something!" s
                 redirectTo (issueURL r i)
             else do
 
@@ -486,7 +484,7 @@ repoComment u r s@(Session { sUser = Just un }) = validate
             }
 
         mni <-
-            if canChange && issueChanged
+            if issueChanged
                 then updateIssue i
                     { iSummary = summary
                     , iTags = ts
