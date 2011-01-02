@@ -70,6 +70,7 @@ instance JSON Repository where
         , ("fork_of", showJSON (rForkOf r))
         , ("members", showJSON (rMembers r))
         , ("is_private", showJSON (rIsPrivate r))
+        , ("issue_count", showJSON (rIssueCount r))
         ] ++ id' ++ rev'
       where
         id' =

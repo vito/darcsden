@@ -60,7 +60,8 @@ instance JSON Issue where
             }
 
     showJSON i = JSObject . toJSObject $
-        [ ("summary", showJSON (iSummary i))
+        [ ("number", showJSON (iNumber i))
+        , ("summary", showJSON (iSummary i))
         , ("owner", showJSON (iOwner i))
         , ("description", showJSON (iDescription i))
         , ("tags", showJSON (iTags i))
