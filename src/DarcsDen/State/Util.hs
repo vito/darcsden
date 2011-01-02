@@ -39,3 +39,12 @@ userDir un = userRoot ++ "/" ++ saneName un
 
 repoDir :: String -> String -> FilePath
 repoDir un rn = userDir un ++ "/" ++ saneName rn
+
+getAttr :: JSON a => JSValue -> String -> Result a
+getAttr (JSObject o) n =
+    maybe
+        (fail ("object missing `" ++ n ++ "': " ++ show o))
+        readJSON
+        (lookup n (fromJSObject o))
+getAttr js n =
+    fail ("not an object (needed `" ++ n ++ "' attribute): " ++ show js)
