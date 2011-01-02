@@ -3,7 +3,7 @@ module DarcsDen.State.User where
 import Control.Monad.Trans
 import Control.Monad (replicateM)
 import Data.Digest.Pure.SHA (sha512, bytestringDigest)
-import Data.Time (UTCTime, formatTime, readTime)
+import Data.Time (UTCTime, formatTime)
 import Data.Word (Word8)
 import Database.CouchDB
 import System.Directory (createDirectoryIfMissing)
@@ -32,49 +32,29 @@ data User =
     deriving (Eq, Show)
 
 instance JSON User where
-    readJSON (JSObject js) = do
-        id' <- getID
-        rev' <- getRev
-        name <- getName
-        password <- getPassword
-        salt' <- getSalt
-        fullName <- getFullName
-        website <- getWebsite
-        email <- getEmail
-        keys <- getKeys
-        joined <- getJoined
-        return (User (Just id') (Just rev') name password salt' fullName website email keys joined)
-      where
-        as = fromJSObject js
-        getID = maybe
-            (fail $ "user missing `_id': " ++ show js)
-            readJSON
-            (lookup "_id" as)
-        getRev = maybe
-            (fail $ "user missing `_rev': " ++ show js)
-            (fmap rev . readJSON)
-            (lookup "_rev" as)
-        getName = maybe
-            (fail $ "user missing `name': " ++ show js)
-            readJSON
-            (lookup "name" as)
-        getPassword = maybe
-            (fail $ "user missing `password': " ++ show js)
-            readJSON
-            (lookup "password" as)
-        getSalt = maybe
-            (fail $ "user missing `salt': " ++ show js)
-            readJSON
-            (lookup "salt" as)
-        getFullName = maybe (Ok "") readJSON (lookup "full_name" as)
-        getWebsite = maybe (Ok "") readJSON (lookup "website" as)
-        getEmail = maybe (Ok "") readJSON (lookup "email" as)
-        getKeys = maybe (Ok []) readJSON (lookup "keys" as)
-        getJoined = maybe
-            (fail $ "user missing `joined': " ++ show js)
-            (fmap (readTime defaultTimeLocale "%F %T") . readJSON)
-            (lookup "joined" as)
-    readJSON o = fail $ "unable to read User: " ++ show o
+    readJSON o = do
+        id' <- getID o
+        rev' <- getRev o
+        name <- getAttr o "name"
+        password <- getAttr o "password"
+        salt' <- getAttr o "salt"
+        fullName <- getAttr o "full_name"
+        website <- getAttr o "website"
+        email <- getAttr o "email"
+        keys <- getAttr o "keys"
+        joined <- getTime o "joined"
+        return User
+            { uID = Just id'
+            , uRev = Just rev'
+            , uName = name
+            , uPassword = password
+            , uSalt = salt'
+            , uFullName = fullName
+            , uWebsite = website
+            , uEmail = email
+            , uKeys = keys
+            , uJoined = joined
+            }
 
     showJSON u = JSObject . toJSObject $
         [ ("name", showJSON (uName u))

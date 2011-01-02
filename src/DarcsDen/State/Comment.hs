@@ -1,7 +1,7 @@
 module DarcsDen.State.Comment where
 
 import Control.Monad.Trans
-import Data.Time (UTCTime, formatTime, readTime)
+import Data.Time (UTCTime, formatTime)
 import Database.CouchDB
 import System.Locale (defaultTimeLocale)
 import Text.JSON
@@ -71,13 +71,13 @@ data Comment =
 
 instance JSON Comment where
     readJSON o = do
-        id' <- getAttr o "_id"
-        rev' <- fmap rev (getAttr o "_rev")
+        id' <- getID o
+        rev' <- getRev o
         body <- getAttr o "body"
         changes <- getAttr o "changes"
         author <- getAttr o "author"
-        created <- fmap (readTime defaultTimeLocale "%F %T") (getAttr o "created")
-        updated <- fmap (readTime defaultTimeLocale "%F %T") (getAttr o "updated")
+        created <- getTime o "created"
+        updated <- getTime o "updated"
         issue <- getAttr o "issue"
         return Comment
             { cID = Just id'

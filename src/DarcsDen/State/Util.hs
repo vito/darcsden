@@ -1,6 +1,8 @@
 module DarcsDen.State.Util where
 
 import Control.Monad.Trans
+import Data.Time (UTCTime, readTime)
+import System.Locale (defaultTimeLocale)
 import Database.CouchDB
 import Database.Redis.Monad.State (RedisM, runWithRedis)
 import Text.JSON
@@ -48,3 +50,18 @@ getAttr (JSObject o) n =
         (lookup n (fromJSObject o))
 getAttr js n =
     fail ("not an object (needed `" ++ n ++ "' attribute): " ++ show js)
+
+getAttrOr :: JSON a => JSValue -> String -> a -> Result a
+getAttrOr (JSObject o) n d =
+    maybe (return d) readJSON (lookup n (fromJSObject o))
+getAttrOr js n _ =
+    fail ("not an object (needed `" ++ n ++ "' attribute): " ++ show js)
+
+getTime :: JSValue -> String -> Result UTCTime
+getTime o n = fmap (readTime defaultTimeLocale "%F %T") (getAttr o n)
+
+getID :: JSValue -> Result Doc
+getID o = getAttr o "_id"
+
+getRev :: JSValue -> Result Rev
+getRev o = fmap rev (getAttr o "_rev")

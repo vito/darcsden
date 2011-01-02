@@ -7,7 +7,7 @@ import Darcs.Flags (DarcsFlag(All, FixFilePath, Quiet))
 import Darcs.RepoPath (getCurrentDirectory)
 import Darcs.Utils (withCurrentDirectory)
 import Data.Maybe (catMaybes)
-import Data.Time (UTCTime, formatTime, readTime)
+import Data.Time (UTCTime, formatTime)
 import Database.CouchDB
 import System.Directory hiding (getCurrentDirectory)
 import System.Locale (defaultTimeLocale)
@@ -34,17 +34,17 @@ data Repository =
     deriving (Eq, Show)
 
 instance JSON Repository where
-    readJSON (JSObject js) = do
-        id' <- getID
-        rev' <- getRev
-        name <- getName
-        owner <- getOwner
-        description <- getDescription
-        website <- getWebsite
-        created <- getCreated
-        forkOf <- getForkOf
-        members <- getMembers
-        isPrivate <- getIsPrivate
+    readJSON o = do
+        id' <- getID o
+        rev' <- getRev o
+        name <- getAttr o "name"
+        owner <- getAttr o "owner"
+        description <- getAttr o "description"
+        website <- getAttr o "website"
+        created <- getTime o "created"
+        forkOf <- getAttr o "fork_of"
+        members <- getAttr o "members"
+        isPrivate <- getAttr o "is_private"
         return Repository
             { rID = Just id'
             , rRev = Just rev'
@@ -57,34 +57,6 @@ instance JSON Repository where
             , rMembers = members
             , rIsPrivate = isPrivate
             }
-      where
-        as = fromJSObject js
-        getID = maybe
-            (fail $ "repository missing `_id': " ++ show js)
-            readJSON
-            (lookup "_id" as)
-        getRev = maybe
-            (fail $ "repository missing `_rev': " ++ show js)
-            (fmap rev . readJSON)
-            (lookup "_rev" as)
-        getName = maybe
-            (fail $ "repository missing `name': " ++ show js)
-            readJSON
-            (lookup "name" as)
-        getOwner = maybe
-            (fail $ "repository missing `owner': " ++ show js)
-            readJSON
-            (lookup "owner" as)
-        getDescription = maybe (Ok "") readJSON (lookup "description" as)
-        getWebsite = maybe (Ok "") readJSON (lookup "website" as)
-        getCreated = maybe
-            (fail $ "repository missing `created': " ++ show js)
-            (fmap (readTime defaultTimeLocale "%F %T") . readJSON)
-            (lookup "created" as)
-        getForkOf = maybe (Ok Nothing) readJSON (lookup "fork_of" as)
-        getMembers = maybe (Ok []) readJSON (lookup "members" as)
-        getIsPrivate = maybe (Ok False) readJSON (lookup "is_private" as)
-    readJSON o = fail $ "unable to read Repository: " ++ show o
 
     showJSON r = JSObject . toJSObject $
         [ ("name", showJSON (rName r))

@@ -4,7 +4,7 @@ import Control.Monad.Trans
 import Data.Char (isAlphaNum, toLower)
 import Data.List (intercalate)
 import Data.List.Split (wordsBy)
-import Data.Time (UTCTime, formatTime, readTime)
+import Data.Time (UTCTime, formatTime)
 import Database.CouchDB
 import System.Locale (defaultTimeLocale)
 import Text.JSON
@@ -30,18 +30,18 @@ data Issue =
     deriving (Eq, Show)
 
 instance JSON Issue where
-    readJSON (JSObject js) = do
-        id' <- getID
-        rev' <- getRev
-        summary <- getSummary
-        owner <- getOwner
-        description <- getDescription
-        tags <- getTags
-        url <- getURL
-        created <- getCreated
-        updated <- getUpdated
-        closed <- getClosed
-        repository <- getRepo
+    readJSON o = do
+        id' <- getID o
+        rev' <- getRev o
+        summary <- getAttr o "summary"
+        owner <- getAttr o "owner"
+        description <- getAttr o "description"
+        tags <- getAttr o "tags"
+        url <- getAttr o "url"
+        created <- getTime o "created"
+        updated <- getTime o "updated"
+        closed <- getAttr o "is_closed"
+        repository <- getAttr o "repository"
         return Issue
             { iID = Just id'
             , iRev = Just rev'
@@ -55,47 +55,6 @@ instance JSON Issue where
             , iIsClosed = closed
             , iRepository = repository
             }
-      where
-        as = fromJSObject js
-        getID = maybe
-            (fail $ "issue missing `_id': " ++ show js)
-            readJSON
-            (lookup "_id" as)
-        getRev = maybe
-            (fail $ "issue missing `_rev': " ++ show js)
-            (fmap rev . readJSON)
-            (lookup "_rev" as)
-        getSummary = maybe
-            (fail $ "issue missing `summary': " ++ show js)
-            readJSON
-            (lookup "summary" as)
-        getOwner = maybe
-            (fail $ "issue missing `owner': " ++ show js)
-            readJSON
-            (lookup "owner" as)
-        getDescription = maybe (Ok "") readJSON (lookup "description" as)
-        getTags = maybe (Ok []) readJSON (lookup "tags" as)
-        getURL = maybe
-            (fail $ "issue missing `url': " ++ show js)
-            readJSON
-            (lookup "url" as)
-        getCreated = maybe
-            (fail $ "issue missing `created': " ++ show js)
-            (fmap (readTime defaultTimeLocale "%F %T") . readJSON)
-            (lookup "created" as)
-        getUpdated = maybe
-            (fail $ "issue missing `updated': " ++ show js)
-            (fmap (readTime defaultTimeLocale "%F %T") . readJSON)
-            (lookup "updated" as)
-        getClosed = maybe
-            (fail $ "issue missing `is_closed': " ++ show js)
-            readJSON
-            (lookup "is_closed" as)
-        getRepo = maybe
-            (fail $ "issue missing `repository': " ++ show js)
-            (fmap doc . readJSON)
-            (lookup "repository" as)
-    readJSON o = fail $ "unable to read Issue: " ++ show o
 
     showJSON i = JSObject . toJSObject $
         [ ("summary", showJSON (iSummary i))
