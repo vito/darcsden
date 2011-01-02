@@ -127,26 +127,26 @@ channelRequest wr (Execute cmd) =
     --     bar/foo/     a repository "foo" owned by user "bar";
     --                  current user must be a member
     saneRepo :: FilePath -> (Repository -> Channel ()) -> Channel ()
-    saneRepo p a = saneUser $ \u@(User { uID = Just uid }) -> do
+    saneRepo p a = saneUser $ \(User { uName = un }) -> do
         case takeWhile (not . null) . map saneName . splitDirectories $ p of
             [ownerName, repoName] -> do
                 mrepo <- getOwnerRepository (ownerName, repoName)
                 case mrepo of
-                    Just r | uid `elem` rMembers r -> a r
+                    Just r | un `elem` rMembers r -> a r
                     _ -> errorWith "invalid repository"
             [repoName] ->
-                getOwnerRepository (uName u, repoName)
+                getOwnerRepository (un, repoName)
                     >>= maybe (errorWith "invalid repository") a
             _ -> errorWith "invalid target directory"
 
     safePath :: FilePath -> (FilePath -> Channel ()) -> Channel ()
-    safePath p a = saneUser $ \u@(User { uID = Just uid }) -> do
-        cp <- liftIO (canonicalizePath ("/srv/darcs/" ++ uName u ++ "/" ++ p))
+    safePath p a = saneUser $ \(User { uName = un }) -> do
+        cp <- liftIO (canonicalizePath ("/srv/darcs/" ++ un ++ "/" ++ p))
         case takeWhile (not . null) . splitDirectories $ cp of
             ("/":"srv":"darcs":ownerName:repoName:_) -> do
                 mrepo <- getOwnerRepository (ownerName, repoName)
                 case mrepo of
-                    Just r | ownerName == uName u || uid `elem` rMembers r ->
+                    Just r | un `elem` (ownerName:rMembers r)->
                         a cp
                     _ -> errorWith "invalid path"
 

@@ -115,8 +115,8 @@ validateRepo s p = do
             Just mn -> do
                 mm <- getUser mn
                 case mm of
-                    Just (User { uID = Just mid }) -> do
-                        ism <- isMember mid (owner, name)
+                    Just (User { uName = un }) -> do
+                        ism <- isMember un (owner, name)
                         if ism
                             then getOwnerRepository (owner, name)
                             else return Nothing

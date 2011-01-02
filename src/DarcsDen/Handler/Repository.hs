@@ -112,13 +112,10 @@ browseRepo u r s = do
 
     member <-
         case sUser s of
-            Just un -> do
-                mu <- getUser un
-                case mu of
-                    Just (User { uID = Just uid }) ->
-                        return (uid `elem` rMembers r)
-                    _ -> return False
-            Nothing -> return False
+            Just un ->
+                return (un `elem` rMembers r)
+            Nothing ->
+                return False
 
     f <- filePath
     fs <- liftIO $ getFiles dr f
@@ -244,7 +241,7 @@ editRepo u r s = validate
         return $ Just (rOwner r) == sUser s
     ]
     (\(OK _) -> do
-        ms <- mapM getUserByID (rMembers r)
+        ms <- mapM getUser (rMembers r)
 
         let members = map fromJust . filter (/= Nothing) $ ms
 
@@ -299,13 +296,13 @@ doEditRepo _ r s = validate
     addMembers r' (m:ms) = do
         user <- getUser m
         case user of
-             Just u@(User { uID = Just uid }) -> do
-                 done <- addMember r' uid
+             Just (User { uName = un }) -> do
+                 done <- addMember r' un
                  case done of
                      Just r'' ->
                          addMembers r'' ms
                      Nothing -> do
-                         warn ("There was an error adding member " ++ uName u ++ ".") s
+                         warn ("There was an error adding member " ++ un ++ ".") s
                          return r'
              _ -> do
                  warn ("Could not add member " ++ m ++ "; user does not exist.") s
@@ -317,7 +314,7 @@ doEditRepo _ r s = validate
         maybe (removeMembers r' ms) (\_ -> do
             removed <- removeMember r m
             flip maybe (flip removeMembers ms) (do
-                user <- getUserByID m
+                user <- getUser m
                 case user of
                      Just u' -> do
                          warn ("There was an error removing member " ++ uName u' ++ ".") s

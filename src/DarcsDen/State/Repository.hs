@@ -28,7 +28,7 @@ data Repository =
         , rWebsite :: String
         , rCreated :: UTCTime
         , rForkOf :: Maybe Doc
-        , rMembers :: [Doc]
+        , rMembers :: [String]
         , rIsPrivate :: Bool
         }
     deriving (Eq, Show)
@@ -256,16 +256,16 @@ renameRepository n r = do
         Just _ -> moveRepository (rOwner r, n) r >> return update
         _ -> return Nothing
 
-removeMember :: MonadIO m => Repository -> Doc -> m (Maybe Repository)
+removeMember :: MonadIO m => Repository -> String -> m (Maybe Repository)
 removeMember r m =
     updateRepository (r { rMembers = filter (/= m) (rMembers r) })
 
-addMember :: MonadIO m => Repository -> Doc -> m (Maybe Repository)
+addMember :: MonadIO m => Repository -> String -> m (Maybe Repository)
 addMember r m =
     updateRepository (r { rMembers = filter (/= m) (rMembers r) ++ [m] })
 
-isMember :: MonadIO m => Doc -> (String, String) -> m Bool
-isMember uid key = do
+isMember :: MonadIO m => String -> (String, String) -> m Bool
+isMember un key = do
     repos <- liftIO $ fmap (map snd) (runDB query)
     return (key `elem` repos)
   where
@@ -273,4 +273,4 @@ isMember uid key = do
         (db "repositories")
         (doc "private")
         (doc "by_member")
-        [("key", showJSON uid)]
+        [("key", showJSON un)]
