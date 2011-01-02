@@ -678,10 +678,8 @@ table.highlighttable .code .highlight {
 .issue-tags form {
     padding: 0;
     border: 0;
-}
-.issue-tags form {
     float: none;
-    margin-top: 2em;
+    margin-top: 1.25em;
 }
 .issue-tags input {
     float: none !important;
