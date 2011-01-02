@@ -356,7 +356,7 @@ table.highlighttable .code .highlight {
     padding: 0 .5em;
 }
 
-code,
+.code,
 .markdown {
 	overflow: auto;
 	-webkit-box-shadow: #ddd 0 0 1em;
@@ -631,7 +631,6 @@ code,
 }
 .issue-comments .user-info {
     background: #f5f5f5;
-    /*color: #fff;*/
     padding: .5em;
     margin: -1em -1em 1em -1em;
     font-weight: bold;
