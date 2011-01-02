@@ -405,7 +405,7 @@ issue u r i cs s = repoBase u r
                 case mo of
                     Just o ->
                         <div class="user-info">
-                            <a href=(userURL o)><img src=(gravatar o 16) /></a>
+                            <a href=(userURL o)><img src=(gravatar o 24) /></a>
                             <a href=(userURL o) class="name"><% if not (null (uFullName u)) then uFullName u else uName u %></a>
                         </div>
                     Nothing ->
