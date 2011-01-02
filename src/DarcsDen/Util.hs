@@ -79,3 +79,10 @@ doMarkdown :: String -> String
 doMarkdown
     = writeHtmlString defaultWriterOptions
     . readMarkdown defaultParserState
+    . normalize
+
+normalize :: String -> String
+normalize "" = ""
+normalize ('\r':'\n':cs) = '\n' : normalize cs
+normalize ('\r':cs) = '\n' : normalize cs
+normalize (c:cs) = c : normalize cs
