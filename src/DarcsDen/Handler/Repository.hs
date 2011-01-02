@@ -374,7 +374,7 @@ repoMerge _ r s = validate
 
 repoIssues :: User -> Repository -> Page
 repoIssues u r s = do
-    issues <- getIssues r
+    issues <- fmap (sortBy (comparing iUpdated)) $ getIssues r
     doPage (Page.issues u r issues) s
 
 repoIssue :: User -> Repository -> Page
@@ -385,7 +385,7 @@ repoIssue u r s = validate
         mi <- getIssue (fromJust (rID r)) (is ! "url")
         case mi of
             Just i -> do
-                cs <- getComments i
+                cs <- fmap (sortBy (comparing cUpdated)) $ getComments i
                 doPage (Page.issue u r i cs) s
             Nothing -> notFound)
     (\(Invalid f) -> do
