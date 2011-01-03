@@ -33,11 +33,11 @@ main = do
             $ onlyElems xml
 
         closing :: [Int]
-        closing = catMaybes (map (fmap (read . (!! 1)) . closeMatch) names)
+        closing = catMaybes (map closeMatch names)
 
     mr <- getRepository (user, name)
     case mr of
-        Just (Repository { rID = Just rid }) -> do
+        Just (Repository { rID = Just rid }) ->
             forM_ closing $ \num -> do
                 mi <- getIssueByNumber rid num
                 case mi of
@@ -50,4 +50,11 @@ main = do
 
         _ -> error ("unknown repository: " ++ user ++ "/" ++ name)
   where
-    closeMatch s = match (compile "closes #([0-9]+)" [caseless]) s []
+    closeMatch s =
+        case match (compile regex [caseless]) s [] of
+            Just [_, _, n] -> Just (read n)
+            Just [_, _, "", n] -> Just (read n)
+            Just [_, _, "", "", n] -> Just (read n)
+            _ -> Nothing
+
+    regex = "(closes #([0-9]+)|resolves #([0-9]+)|fixes #([0-9]+))"
