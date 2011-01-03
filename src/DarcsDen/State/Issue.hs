@@ -108,6 +108,16 @@ getIssue repo url =
         (doc "by_repository_and_url")
         [repo, doc url]
 
+getIssueByNumber :: MonadIO m => Doc -> Int -> m (Maybe Issue)
+getIssueByNumber repo num =
+    liftIO (runDB query)
+  where
+    query = getDocByView
+        (db "issues")
+        (doc "issues")
+        (doc "by_repository_and_number")
+        [repo, doc (show num)]
+
 getIssues :: MonadIO m => Repository -> m [Issue]
 getIssues (Repository { rID = Just repo }) =
     liftIO $ fmap (map snd) (runDB query)

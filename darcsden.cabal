@@ -48,6 +48,7 @@ executable darcsden
     , old-locale
     , old-time
     , pandoc
+    , pcre-light
     , pureMD5
     , process
     , random
@@ -61,13 +62,23 @@ executable darcsden
     , text
     , time
     , xhtml
+    , xml
     }
-
 
 executable darcsden-ssh
   hs-source-dirs:   src
 
   main-is:          SSHServer.hs
+
+  if impl(ghc >= 6.12)
+    ghc-options:   -Wall -threaded -fno-warn-unused-do-bind
+  else
+    ghc-options:   -Wall -threaded
+
+executable darcsden-post-hook
+  hs-source-dirs:   src
+
+  main-is:          PostHook.hs
 
   if impl(ghc >= 6.12)
     ghc-options:   -Wall -threaded -fno-warn-unused-do-bind
