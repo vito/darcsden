@@ -375,7 +375,7 @@ repoMerge _ r s = validate
 
 repoIssues :: User -> Repository -> Page
 repoIssues u r s = do
-    issues <- fmap (sortBy (comparing iUpdated)) $ getIssues r
+    issues <- fmap (sortBy (flip $ comparing iUpdated)) $ getIssues r
     doPage (Page.issues u r issues) s
 
 repoIssue :: User -> Repository -> Page
