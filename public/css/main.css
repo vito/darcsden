@@ -356,7 +356,7 @@ table.highlighttable .code .highlight {
     padding: 0 .5em;
 }
 
-.code,
+div.code,
 .markdown {
 	overflow: auto;
 	-webkit-box-shadow: #ddd 0 0 1em;
