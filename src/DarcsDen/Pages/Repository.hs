@@ -390,11 +390,20 @@ issue u r i cs s = repoBase u r
                         <form class="issue-comment" action=add method="post">
                             <fieldset>
                                 <div class="field">
-                                    <textarea name="summary" id="summary" rows="2"><% iSummary i %></textarea>
-                                </div>
-                                <div class="field">
                                     <textarea name="comment" id="comment" rows="12"></textarea>
                                 </div>
+
+                                <h3>revise issue</h3>
+                                <div class="revise-fields">
+                                    <div class="field">
+                                        <textarea name="summary" id="summary" rows="2"><% iSummary i %></textarea>
+                                    </div>
+
+                                    <div class="field">
+                                        <textarea name="description" id="description" rows="12"><% iDescription i %></textarea>
+                                    </div>
+                                </div>
+
                                 <div class="buttons">
                                     <input type="submit" name="submit" id="submit-comment" value="comment" />
                                     <input type="submit" name="submit" id="submit-close" value=(if iIsClosed i then "and reopen" else "and close") />
@@ -447,6 +456,8 @@ issue u r i cs s = repoBase u r
         <li>removed tag <strong><% t %></strong></li>
     renderChange (Summary n) =
         <li>summary changed to <strong>"<% n %>"</strong></li>
+    renderChange (Description _) =
+        <li>description updated</li>
     renderChange (Closed True) =
         <li>status set to <strong>closed</strong></li>
     renderChange (Closed False) =

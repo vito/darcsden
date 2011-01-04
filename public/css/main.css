@@ -745,6 +745,10 @@ form.issue-body textarea,
 form.issue-body label {
     float: none;
 }
+form.issue-comment h3 {
+    font-size: 1.4em;
+    font-weight: bold;
+}
 form.issue-comment input[type="text"],
 form.issue-body input[type="text"] {
     width: 20em;

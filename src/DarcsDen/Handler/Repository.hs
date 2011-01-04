@@ -447,6 +447,7 @@ repoComment _ r s@(Session { sUser = Just un }) = validate
         Just i <- getIssue (fromJust (rID r)) (is ! "url")
         submit <- input "submit" ""
         summary <- input "summary" ""
+        description <- input "description" ""
         c <- input "comment" ""
         ts <- fmap (map strip . wordsBy (== ',')) $ input "tags" ""
 
@@ -458,6 +459,7 @@ repoComment _ r s@(Session { sUser = Just un }) = validate
 
             issueChanged = or
                 [ iSummary i /= summary
+                , iDescription i /= description
                 , not (null (diffTags (iTags i) ts))
                 , iIsClosed i /= closed
                 ]
@@ -469,6 +471,7 @@ repoComment _ r s@(Session { sUser = Just un }) = validate
 
             changes = concat
                 [ if iSummary i /= summary then [Summary summary] else []
+                , if iDescription i /= description then [Description description] else []
                 , if iIsClosed i /= closed then [Closed closed] else []
                 , if iTags i /= ts then diffTags (iTags i) ts else []
                 ]
@@ -495,6 +498,7 @@ repoComment _ r s@(Session { sUser = Just un }) = validate
             if issueChanged
                 then updateIssue i
                     { iSummary = summary
+                    , iDescription = description
                     , iTags = ts
                     , iIsClosed = closed
                     , iUpdated = now

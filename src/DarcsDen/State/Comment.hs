@@ -14,6 +14,7 @@ data IssueChange
     = AddTag String
     | RemoveTag String
     | Summary String
+    | Description String
     | Closed Bool
     deriving (Eq, Show)
 
@@ -33,6 +34,10 @@ instance JSON IssueChange where
                 s <- getAttr js "value"
                 return (Summary s)
 
+            "description" -> do
+                d <- getAttr js "value"
+                return (Description d)
+
             "closed" -> do
                 b <- getAttr js "state"
                 return (Closed b)
@@ -50,6 +55,10 @@ instance JSON IssueChange where
     showJSON (Summary s) = JSObject . toJSObject $
         [ ("type", showJSON "summary")
         , ("value", showJSON s)
+        ]
+    showJSON (Description d) = JSObject . toJSObject $
+        [ ("type", showJSON "description")
+        , ("value", showJSON d)
         ]
     showJSON (Closed c) = JSObject . toJSObject $
         [ ("type", showJSON "closed")

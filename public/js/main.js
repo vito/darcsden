@@ -52,6 +52,29 @@ $(function(){
         $("#add-tag #tag-name").val("");
         return false;
     });
+
+    $("form.issue-comment .revise-fields").hide();
+
+    $("form.issue-comment h3").click(function(){
+        $(this).html("&larr; close");
+        $("form.issue-comment .revise-fields").slideToggle("fast", function(){
+            if ($(this).css("display") == "none")
+                $("form.issue-comment h3").html("revise issue &rarr;");
+        });
+    }).hover(function(){
+        $(this).css("background", "#222");
+    }, function(){
+        $(this).css("background", "#151515");
+    }).css({
+        "background": "#151515",
+        "padding": "0 .9em",
+        "font-size": "1.2em",
+        "color": "#fff",
+        "margin-bottom": "1em",
+        "-webkit-border-radius": "0.5em",
+        "cursor": "pointer",
+        "line-height": "2.5em"
+    }).html("revise issue &rarr;");
 });
 
 function addTag(tag) {
