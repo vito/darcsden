@@ -454,9 +454,9 @@ issue u r i cs s = repoBase u r
         <li>added tag <strong><% t %></strong></li>
     renderChange (RemoveTag t) =
         <li>removed tag <strong><% t %></strong></li>
-    renderChange (Summary n) =
-        <li>summary changed to <strong>"<% n %>"</strong></li>
-    renderChange (Description _) =
+    renderChange (Summary _ t) =
+        <li>summary changed to <strong>"<% t %>"</strong></li>
+    renderChange (Description _ _) =
         <li>description updated</li>
     renderChange (Closed True) =
         <li>status set to <strong>closed</strong></li>

@@ -13,15 +13,15 @@ import DarcsDen.State.Issue
 data IssueChange
     = AddTag String
     | RemoveTag String
-    | Summary String
-    | Description String
+    | Summary String String
+    | Description String String
     | Closed Bool
     deriving (Eq, Show)
 
 instance JSON IssueChange where
     readJSON js = do
-        t <- getAttr js "type"
-        case t of
+        ctype <- getAttr js "type"
+        case ctype of
             "add-tag" -> do
                 s <- getAttr js "name"
                 return (AddTag s)
@@ -31,18 +31,30 @@ instance JSON IssueChange where
                 return (RemoveTag s)
 
             "summary" -> do
-                s <- getAttr js "value"
-                return (Summary s)
+                f <- getAttrOr js "from" ""
+                t <- do
+                    t' <- getAttrOr js "to" ""
+                    if null t'
+                        then getAttr js "value"
+                        else return t'
+
+                return (Summary f t)
 
             "description" -> do
-                d <- getAttr js "value"
-                return (Description d)
+                f <- getAttrOr js "from" ""
+                t <- do
+                    t' <- getAttrOr js "to" ""
+                    if null t'
+                        then getAttr js "value"
+                        else return t'
+
+                return (Description f t)
 
             "closed" -> do
                 b <- getAttr js "state"
                 return (Closed b)
 
-            _ -> fail ("unknown type: " ++ t)
+            _ -> fail ("unknown type: " ++ ctype)
 
     showJSON (AddTag t) = JSObject . toJSObject $
         [ ("type", showJSON "add-tag")
@@ -52,13 +64,15 @@ instance JSON IssueChange where
         [ ("type", showJSON "remove-tag")
         , ("name", showJSON t)
         ]
-    showJSON (Summary s) = JSObject . toJSObject $
+    showJSON (Summary f t) = JSObject . toJSObject $
         [ ("type", showJSON "summary")
-        , ("value", showJSON s)
+        , ("from", showJSON f)
+        , ("to", showJSON t)
         ]
-    showJSON (Description d) = JSObject . toJSObject $
+    showJSON (Description f t) = JSObject . toJSObject $
         [ ("type", showJSON "description")
-        , ("value", showJSON d)
+        , ("from", showJSON f)
+        , ("to", showJSON t)
         ]
     showJSON (Closed c) = JSObject . toJSObject $
         [ ("type", showJSON "closed")

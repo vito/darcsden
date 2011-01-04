@@ -470,8 +470,12 @@ repoComment _ r s@(Session { sUser = Just un }) = validate
                 ]
 
             changes = concat
-                [ if iSummary i /= summary then [Summary summary] else []
-                , if iDescription i /= description then [Description description] else []
+                [ if iSummary i /= summary
+                    then [Summary (iSummary i) summary]
+                    else []
+                , if iDescription i /= description
+                    then [Description (iDescription i) description]
+                    else []
                 , if iIsClosed i /= closed then [Closed closed] else []
                 , if iTags i /= ts then diffTags (iTags i) ts else []
                 ]
