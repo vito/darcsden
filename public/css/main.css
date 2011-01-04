@@ -387,8 +387,10 @@ div.code,
 .markdown h3 {
 	font-size: 1.4em;
 }
-.markdown pre {
+.markdown code {
     font-size: 1.2em;
+}
+.markdown pre {
     background: #000;
     color: #fff;
     padding: .6em 1em;
