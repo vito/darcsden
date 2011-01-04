@@ -28,7 +28,10 @@ data Issue =
         , iIsClosed :: Bool
         , iRepository :: Doc
         }
-    deriving (Eq, Show)
+    deriving Show
+
+instance Eq Issue where
+    a == b = iID a == iID b
 
 instance JSON Issue where
     readJSON o = do
@@ -128,6 +131,17 @@ getIssues (Repository { rID = Just repo }) =
         (doc "by_repository")
         [("key", showJSON repo)]
 getIssues _ = error "getIssues: unsaved repository"
+
+getIssuesByTag :: MonadIO m => Repository -> String -> m [Issue]
+getIssuesByTag (Repository { rID = Just repo }) t =
+    liftIO $ fmap (map snd) (runDB query)
+  where
+    query = queryView
+        (db "issues")
+        (doc "issues")
+        (doc "by_repository_and_tag")
+        [("key", showJSON [showJSON repo, showJSON t])]
+getIssuesByTag _ _ = error "getIssuesByTag: unsaved repository"
 
 addIssue :: MonadIO m => Issue -> m Issue
 addIssue i = do

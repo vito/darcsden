@@ -282,48 +282,81 @@ issues u r is s = repoBase u r
             if not (null is)
                then
                    <ul class="issues-list">
-                       <% map renderIssue is %>
+                       <% map (renderIssue r) is %>
                    </ul>
                else
                    <div class="no-issues">
                        <h1>no issues!</h1>
-                       <p class="blurb">there doesn't seem to be anything new.</p>
+                       <p class="blurb">there don't seem to be any issues for this project.</p>
+                   </div>
+        %>
+    </div>
+    s
+
+issuesByTags :: User -> Repository -> [Issue] -> [[String]] -> HSPage
+issuesByTags u r is ts s = repoBase u r
+    ("issues tagged with " ++ humanOr ts)
+    <span> -> issues</span>
+    <div class="repo-issues">
+        <a href=(repoURL r ++ "/new-issue") class="new-issue button">new issue</a>
+        <%
+            if not (null is)
+               then
+                   <ul class="issues-list">
+                        <h1>issues tagged with <% humanOr ts %></h1>
+                       <% map (renderIssue r) is %>
+                   </ul>
+               else
+                   <div class="no-issues">
+                       <h1>no issues tagged with <% humanOr ts %></h1>
+                       <p class="blurb">there don't seem to be any issues with <% if length ts == 1 then "that tag" else "those tags" %>.</p>
                    </div>
         %>
     </div>
     s
   where
-    renderIssue i =
-        <li class="issue">
-            <div class="header">
-                <span class="number" href=(issueURL r i)>#<% show $ iNumber i %></span>
+    humanAnd [] = ""
+    humanAnd [t] = t
+    humanAnd [a, b] = a ++ " and " ++ b
+    humanAnd (x:ys) = x ++ ", " ++ humanAnd ys
 
-                <h2>
-                    <a href=(issueURL r i)>
-                        <% iSummary i %>
-                    </a>
-                </h2>
-            </div>
-            <div class="meta">
-                <% if not (null (iTags i))
-                    then
-                        <%
-                            <ul class="tags">
-                                <% map (\t -> <li><a href=(tagURL r t)><% t %></a></li>) (iTags i) %>
-                            </ul>
-                        %>
-                    else <% "" %>
-                %>
+    humanOr [] = ""
+    humanOr [t] = humanAnd t
+    humanOr [a, b] = humanAnd a ++ " or " ++ humanAnd b
+    humanOr (x:ys) = humanAnd x ++ ", " ++ humanOr ys
 
-                reported by <a href=("/" ++ iOwner i)><% iOwner i %></a>
-                <% cdata " " %>
-                <span class="relatize date"><% formatTime defaultTimeLocale "%c" (iCreated i) %></span>
-                <% if not (iCreated i == iUpdated i)
-                    then <% <span class="updated-date">, updated <span class="relatize date"><% formatTime defaultTimeLocale "%c" (iUpdated i) %></span></span> %>
-                    else <% "" %>
-                %>
-            </div>
-        </li>
+renderIssue :: Repository -> Issue -> HSP XML
+renderIssue r i =
+    <li class="issue">
+        <div class="header">
+            <span class="number" href=(issueURL r i)>#<% show $ iNumber i %></span>
+
+            <h2>
+                <a href=(issueURL r i)>
+                    <% iSummary i %>
+                </a>
+            </h2>
+        </div>
+        <div class="meta">
+            <% if not (null (iTags i))
+                then
+                    <%
+                        <ul class="tags">
+                            <% map (\t -> <li><a href=(tagURL r t)><% t %></a></li>) (iTags i) %>
+                        </ul>
+                    %>
+                else <% "" %>
+            %>
+
+            reported by <a href=("/" ++ iOwner i)><% iOwner i %></a>
+            <% cdata " " %>
+            <span class="relatize date"><% formatTime defaultTimeLocale "%c" (iCreated i) %></span>
+            <% if not (iCreated i == iUpdated i)
+                then <% <span class="updated-date">, updated <span class="relatize date"><% formatTime defaultTimeLocale "%c" (iUpdated i) %></span></span> %>
+                else <% "" %>
+            %>
+        </div>
+    </li>
 
 issue :: User -> Repository -> Issue -> [Comment] -> HSPage
 issue u r i cs s = repoBase u r

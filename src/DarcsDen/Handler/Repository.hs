@@ -4,7 +4,7 @@ module DarcsDen.Handler.Repository where
 import Control.Monad (when)
 import Control.Monad.Trans
 import Data.Char (toLower)
-import Data.List (groupBy, inits, isPrefixOf, partition, sortBy)
+import Data.List (groupBy, inits, isPrefixOf, nub, partition, sortBy)
 import Data.List.Split (wordsBy)
 import Data.Map ((!))
 import Data.Maybe (fromJust, isJust, isNothing)
@@ -377,6 +377,35 @@ repoIssues :: User -> Repository -> Page
 repoIssues u r s = do
     issues <- fmap (sortBy (flip $ comparing iUpdated)) $ getIssues r
     doPage (Page.issues u r issues) s
+
+repoIssuesTag :: User -> Repository -> Page
+repoIssuesTag u r s = validate
+    [ nonEmpty "tag"
+    ]
+    (\(OK is) -> do
+        let tags = map (wordsBy (== '^')) $ wordsBy (== '~') (is ! "tag")
+
+        issues <- orFind tags
+
+        doPage
+            (Page.issuesByTags u r
+                (sortBy (flip $ comparing iUpdated) issues)
+                tags)
+            s)
+    (\(Invalid f) -> do
+        notify Warning s f
+        redirectTo (repoURL r ++ "/issues"))
+  where
+    andFind :: [String] -> Snap [Issue]
+    andFind (ft:ts) = do
+        issues <- getIssuesByTag r ft
+        return (foldr (\t i -> filter ((t `elem`) . iTags) i) issues ts)
+    andFind _ = error "andFind: no tags"
+
+    orFind :: [[String]] -> Snap [Issue]
+    orFind as = do
+        issues <- mapM andFind as
+        return (nub (concat issues))
 
 repoIssue :: User -> Repository -> Page
 repoIssue u r s = validate
