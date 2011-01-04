@@ -89,5 +89,5 @@ main = do
             (Just a, Just n) -> Just (a, strContent n)
             _ -> Nothing
       where
-        ma = findAttr (QName "attr" Nothing Nothing) e
+        ma = findAttr (QName "author" Nothing Nothing) e
         mn = findChild (QName "name" Nothing Nothing) e
