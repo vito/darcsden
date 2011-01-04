@@ -45,7 +45,7 @@ main = do
         Just (Repository { rID = Just rid }) ->
             forM_ closing $ \(e, name, num) -> do
                 ma <- getUserByEmail (emailFrom e)
-                mi <- getIssueByNumber rid num
+                mi <- getIssue rid num
                 case mi of
                     Just i -> do
                         updateIssue i { iIsClosed = True }

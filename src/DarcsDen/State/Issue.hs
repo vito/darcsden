@@ -1,9 +1,6 @@
 module DarcsDen.State.Issue where
 
 import Control.Monad.Trans
-import Data.Char (isAlphaNum, toLower)
-import Data.List (intercalate)
-import Data.List.Split (wordsBy)
 import Data.Time (UTCTime, formatTime)
 import Database.CouchDB
 import System.Locale (defaultTimeLocale)
@@ -22,7 +19,6 @@ data Issue =
         , iOwner :: String
         , iDescription :: String
         , iTags :: [String]
-        , iURL :: String
         , iCreated :: UTCTime
         , iUpdated :: UTCTime
         , iIsClosed :: Bool
@@ -42,7 +38,6 @@ instance JSON Issue where
         owner <- getAttr o "owner"
         description <- getAttr o "description"
         tags <- getAttr o "tags"
-        url <- getAttr o "url"
         created <- getTime o "created"
         updated <- getTime o "updated"
         closed <- getAttr o "is_closed"
@@ -55,7 +50,6 @@ instance JSON Issue where
             , iOwner = owner
             , iDescription = description
             , iTags = tags
-            , iURL = url
             , iCreated = created
             , iUpdated = updated
             , iIsClosed = closed
@@ -68,7 +62,6 @@ instance JSON Issue where
         , ("owner", showJSON (iOwner i))
         , ("description", showJSON (iDescription i))
         , ("tags", showJSON (iTags i))
-        , ("url", showJSON (iURL i))
         , ("created", showJSON (formatTime defaultTimeLocale "%F %T" (iCreated i)))
         , ("updated", showJSON (formatTime defaultTimeLocale "%F %T" (iUpdated i)))
         , ("is_closed", showJSON (iIsClosed i))
@@ -86,13 +79,7 @@ instance JSON Issue where
 
 issueURL :: Repository -> Issue -> String
 issueURL r i =
-    "/" ++ rOwner r ++ "/" ++ rName r ++ "/issue/" ++ iURL i
-
-issueURLFor :: String -> String
-issueURLFor
-    = intercalate "-"
-    . wordsBy (== '-')
-    . map (\c -> if isAlphaNum c then toLower c else '-')
+    "/" ++ rOwner r ++ "/" ++ rName r ++ "/issue/" ++ show (iNumber i)
 
 getIssueByID :: MonadIO m => Doc -> m (Maybe Issue)
 getIssueByID key = do
@@ -101,18 +88,8 @@ getIssueByID key = do
         Just (_, _, i) -> return (Just i)
         Nothing -> return Nothing
 
-getIssue :: MonadIO m => Doc -> String -> m (Maybe Issue)
-getIssue repo url =
-    liftIO (runDB query)
-  where
-    query = getDocByView
-        (db "issues")
-        (doc "issues")
-        (doc "by_repository_and_url")
-        [repo, doc url]
-
-getIssueByNumber :: MonadIO m => Doc -> Int -> m (Maybe Issue)
-getIssueByNumber repo num =
+getIssue :: MonadIO m => Doc -> Int -> m (Maybe Issue)
+getIssue repo num =
     liftIO (runDB query)
   where
     query = getDocByView

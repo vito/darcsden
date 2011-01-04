@@ -409,10 +409,10 @@ repoIssuesTag u r s = validate
 
 repoIssue :: User -> Repository -> Page
 repoIssue u r s = validate
-    [ nonEmpty "url"
+    [ numeric "number"
     ]
     (\(OK is) -> do
-        mi <- getIssue (fromJust (rID r)) (is ! "url")
+        mi <- getIssue (fromJust (rID r)) (read $ is ! "number")
         case mi of
             Just i -> do
                 cs <- fmap (sortBy (comparing cUpdated)) $ getComments i
@@ -448,7 +448,6 @@ doNewIssue _ r s@(Session { sUser = Just un }) = validate
             , iOwner = un
             , iDescription = is ! "description"
             , iTags = map strip $ wordsBy (== ',') (is ! "tags")
-            , iURL = issueURLFor (is ! "summary")
             , iCreated = now
             , iUpdated = now
             , iIsClosed = False
@@ -469,11 +468,11 @@ repoComment _ _ s@(Session { sUser = Nothing }) = do
     warn "You must be logged in to comment on an issue." s
     redirectTo "/"
 repoComment _ r s@(Session { sUser = Just un }) = validate
-    [ iff (nonEmpty "url") $ \(OK is) -> io "issue does not exist" $ 
-        fmap isJust (getIssue (fromJust (rID r)) (is ! "url"))
+    [ iff (numeric "number") $ \(OK is) -> io "issue does not exist" $ 
+        fmap isJust (getIssue (fromJust (rID r)) (read $ is ! "number"))
     ]
     (\(OK is) -> do
-        Just i <- getIssue (fromJust (rID r)) (is ! "url")
+        Just i <- getIssue (fromJust (rID r)) (read $ is ! "url")
         submit <- input "submit" ""
         summary <- input "summary" ""
         description <- input "description" ""

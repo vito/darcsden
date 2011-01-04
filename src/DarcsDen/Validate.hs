@@ -1,6 +1,7 @@
 module DarcsDen.Validate where
 
 import Control.Monad.Trans
+import Data.Char (isNumber)
 import Data.Either (lefts)
 import Snap.Types
 import qualified Data.Map as M
@@ -115,6 +116,9 @@ nonEmpty a = Predicate a (/= "") "not be empty"
 
 isEmpty :: String -> Valid
 isEmpty a = Predicate a (== "") "be empty"
+
+numeric :: String -> Valid
+numeric a = nonEmpty a `And` Predicate a (all isNumber) "be numeric"
 
 equal :: String -> String -> Valid
 equal a b = PredicateOp a b (==) "be the same"

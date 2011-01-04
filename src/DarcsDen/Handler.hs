@@ -74,8 +74,8 @@ routes s =
         , (":user/:repo/patch/:id", repoPatch)
         , (":user/:repo/issues", repoIssues)
         , (":user/:repo/issues/tag/:tag", repoIssuesTag)
-        , (":user/:repo/issue/:url", repoIssue)
-        , (":user/:repo/issue/:url/comment", repoComment)
+        , (":user/:repo/issue/:number", repoIssue)
+        , (":user/:repo/issue/:number/comment", repoComment)
         , (":user/:repo/new-issue", \u r s' ->
             method GET (newIssue u r s') <|>
             method POST (doNewIssue u r s'))

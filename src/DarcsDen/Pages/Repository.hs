@@ -455,7 +455,7 @@ issue u r i cs s = repoBase u r
     </div>
     s
   where
-    add = repoURL r ++ "/issue/" ++ iURL i ++ "/comment"
+    add = issueURL r i ++ "/comment"
 
     renderComment c =
         <li class="comment markdown">
