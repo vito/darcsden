@@ -29,6 +29,7 @@ main = do
             $ splitDirectories here
 
         xml = parseXML ps
+
         names
             = catMaybes
             . map nameAndAuthor
