@@ -95,8 +95,6 @@ emailFrom :: String -> String
 emailFrom = reverse . takeWhile (/= '<') . tail . reverse
 
 authorFrom :: String -> String
-authorFrom a
-    | last name == ' ' = init name
-    | otherwise = name
+authorFrom a = strip name
   where
     name = takeWhile (/= '<') a
