@@ -360,7 +360,7 @@ renderIssue r i =
 
 issue :: User -> Repository -> Issue -> [Comment] -> HSPage
 issue u r i cs s = repoBase u r
-    (iSummary i)
+    ("#" ++ show (iNumber i) ++ ": " ++ iSummary i)
     <span> -> issue</span>
     <div class="issue">
         <h1>
