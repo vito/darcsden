@@ -116,7 +116,7 @@ getIssueByNumber repo num =
         (db "issues")
         (doc "issues")
         (doc "by_repository_and_number")
-        [repo, doc (show num)]
+        [showJSON repo, showJSON num]
 
 getIssues :: MonadIO m => Repository -> m [Issue]
 getIssues (Repository { rID = Just repo }) =
