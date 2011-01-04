@@ -1,7 +1,7 @@
 module DarcsDen.Util where
 
 import Control.Monad (unless, when)
-import Data.Char (isSpace)
+import Data.Char (isAlphaNum, isSpace)
 import System.Directory
 import Text.Pandoc
 import Data.Text.Encoding
@@ -79,7 +79,8 @@ strip = strip' . strip'
 
 doMarkdown :: String -> String
 doMarkdown
-    = writeHtmlString defaultWriterOptions
+    = fixEscapes
+    . writeHtmlString defaultWriterOptions
     . readMarkdown defaultParserState
     . renderHtml
     . string
@@ -90,6 +91,16 @@ normalize "" = ""
 normalize ('\r':'\n':cs) = '\n' : normalize cs
 normalize ('\r':cs) = '\n' : normalize cs
 normalize (c:cs) = c : normalize cs
+
+fixEscapes :: String -> String
+fixEscapes "" = ""
+fixEscapes ('&':'a':'m':'p':';':ss)
+    | and [not (null ele), not (null rest), head rest == ';', all isAlphaNum ele] =
+    '&' : ele ++ fixEscapes rest
+  where
+    (ele, rest) = span (/= ';') ss
+fixEscapes (s:ss) =
+    s : fixEscapes ss
 
 emailFrom :: String -> String
 emailFrom = reverse . takeWhile (/= '<') . tail . reverse
