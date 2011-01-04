@@ -105,12 +105,6 @@ toLog (i, ds) =
 findUsers :: [PatchLog] -> IO [PatchLog]
 findUsers = findUsers' []
   where
-    emailFrom = reverse . takeWhile (/= '<') . tail . reverse
-    authorFrom a = let name = takeWhile (/= '<') a
-                   in if last name == ' '
-                         then init name
-                         else name
-
     findUsers' :: [(String, Maybe String)] -> [PatchLog] -> IO [PatchLog]
     findUsers' _ [] = return []
     findUsers' checked (p:ps) =

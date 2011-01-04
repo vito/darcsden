@@ -90,3 +90,13 @@ normalize "" = ""
 normalize ('\r':'\n':cs) = '\n' : normalize cs
 normalize ('\r':cs) = '\n' : normalize cs
 normalize (c:cs) = c : normalize cs
+
+emailFrom :: String -> String
+emailFrom = reverse . takeWhile (/= '<') . tail . reverse
+
+authorFrom :: String -> String
+authorFrom a
+    | last name == ' ' = init name
+    | otherwise = name
+  where
+    name = takeWhile (/= '<') a
