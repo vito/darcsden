@@ -472,7 +472,7 @@ repoComment _ r s@(Session { sUser = Just un }) = validate
         fmap isJust (getIssue (fromJust (rID r)) (read $ is ! "number"))
     ]
     (\(OK is) -> do
-        Just i <- getIssue (fromJust (rID r)) (read $ is ! "numeric")
+        Just i <- getIssue (fromJust (rID r)) (read $ is ! "number")
         submit <- input "submit" ""
         summary <- input "summary" ""
         description <- input "description" ""
