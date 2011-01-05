@@ -376,7 +376,7 @@ issue u r i cs s = repoBase u r
                     Just o ->
                         <div class="user-info">
                             <a href=(userURL o)><img src=(gravatar o 64) /></a>
-                            <a href=(userURL o)><% if not (null (uFullName u)) then uFullName u else uName u %></a>
+                            <a href=(userURL o)><% if not (null (uFullName o)) then uFullName o else uName o %></a>
                         </div>
                     Nothing ->
                         <div class="user-info unknown">unknown</div>
