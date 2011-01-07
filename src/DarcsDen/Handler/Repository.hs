@@ -91,7 +91,7 @@ explore s = do
     let p = read page :: Int
         paginated rs =
             paginate 50 p $
-                sortBy (flip $ comparing (map toLower . rName . fst)) rs
+                sortBy (comparing (map toLower . rName . fst)) rs
 
     rs <- fmap groupForks getRepositories
 
