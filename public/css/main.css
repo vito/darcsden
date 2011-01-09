@@ -138,11 +138,26 @@ form .cancel-buttons a.cancel {
 	line-height: 1.4em;
 	font-family: monospace;
 }
-.footer .tg {
-	float: right;
-}
 .footer a:hover {
 	color: #000;
+}
+.footer .donate {
+    float: right;
+}
+.footer .donate a {
+    background: #111;
+    color: #fff;
+    padding: .3em .5em;
+    text-decoration: none;
+    -moz-border-radius: .5em;
+    -webkit-border-radius: .5em;
+}
+.footer .donate a:hover {
+    background: #444;
+    color: #fff;
+}
+.footer .donate a:active {
+    background: #000;
 }
 
 .blurb {

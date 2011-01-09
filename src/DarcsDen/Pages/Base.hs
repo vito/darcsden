@@ -48,8 +48,8 @@ base title crumb content sess =
 
             <div class="clear"></div>
             <div class="footer">
-                <a class="tg" href="http://toogeneric.com/">too generic</a>
-                <p>darcsden <% cdata "&copy;" %> alex suraci 2010</p>
+                <p class="donate"><a href="https://www.wepay.com/donate/68789">feeling generous?</a></p>
+                <p><% cdata "&copy;" %> <a href="http://toogeneric.com/">too generic</a> 2010<% cdata "&mdash;" %>2011</p>
                 <p>follow me on <a href="http://twitter.com/alexsuraci">twitter</a></p>
             </div>
         </body>
