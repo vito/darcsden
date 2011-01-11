@@ -103,6 +103,8 @@ channelRequest wr (Execute cmd) =
                         Just _ -> errorWith "repository already exists"
         ["scp", "-f", "--", path] ->
             safePath path scp
+        ["scp", "-f", path] ->
+            safePath path scp
         _ -> failWith ("invalid exec request: " ++ show cmd)
   where
     failWith :: String -> Channel ()
