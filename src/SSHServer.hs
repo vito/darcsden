@@ -101,6 +101,10 @@ channelRequest wr (Execute cmd) =
                                 }
                             finishWith "repository created"
                         Just _ -> errorWith "repository already exists"
+        [oblit, repoName] | "oblit" `isPrefixOf` oblit ->
+            if null repoName || not (isSane repoName)
+                then errorWith "invalid repository name"
+                else saneRepo repoName obliterate
         ["scp", "-f", "--", path] ->
             safePath path scp
         ["scp", "-f", path] ->
@@ -160,6 +164,13 @@ channelRequest wr (Execute cmd) =
     saneUser a = do
         mu <- gets csUser >>= getUser
         maybe (errorWith "invalid user") a mu
+
+    obliterate r = execute . unwords $
+        [ "darcs"
+        , "obliterate"
+        , "--repodir"
+        , repoDir (rOwner r) (rName r)
+        ]
 
     darcsTransferMode r = execute . unwords $
         [ "darcs"
