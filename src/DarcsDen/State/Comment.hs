@@ -32,22 +32,12 @@ instance JSON IssueChange where
 
             "summary" -> do
                 f <- getAttrOr js "from" ""
-                t <- do
-                    t' <- getAttrOr js "to" ""
-                    if null t'
-                        then getAttr js "value"
-                        else return t'
-
+                t <- getOneOf js "to" "value"
                 return (Summary f t)
 
             "description" -> do
                 f <- getAttrOr js "from" ""
-                t <- do
-                    t' <- getAttrOr js "to" ""
-                    if null t'
-                        then getAttr js "value"
-                        else return t'
-
+                t <- getOneOf js "to" "value"
                 return (Description f t)
 
             "closed" -> do

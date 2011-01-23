@@ -57,6 +57,12 @@ getAttrOr (JSObject o) n d =
 getAttrOr js n _ =
     fail ("not an object (needed `" ++ n ++ "' attribute): " ++ show js)
 
+getOneOf :: JSON a => JSValue -> String -> String -> Result a
+getOneOf (JSObject o) a b =
+    maybe (getAttr (JSObject o) b) readJSON (lookup a (fromJSObject o))
+getOneOf js n _ =
+    fail ("not an object (needed `" ++ n ++ "' attribute): " ++ show js)
+
 getTime :: JSValue -> String -> Result UTCTime
 getTime o n = fmap (readTime defaultTimeLocale "%F %T") (getAttr o n)
 
