@@ -60,22 +60,25 @@ doInitialize s@(Session { sUser = Just n }) = validate
         desc <- input "description" ""
         site <- input "website" ""
         private <- getParam "private"
-        new <- newRepository Repository
-            { rID = Nothing
-            , rRev = Nothing
-            , rName = r ! "name"
-            , rOwner = n
-            , rDescription = desc
-            , rWebsite = site
-            , rCreated = now
-            , rForkOf = Nothing
-            , rMembers = []
-            , rIsPrivate = isJust private
-            , rIssueCount = 0
-            }
+
+        let repo = Repository
+                { rID = Nothing
+                , rRev = Nothing
+                , rName = r ! "name"
+                , rOwner = n
+                , rDescription = desc
+                , rWebsite = site
+                , rCreated = now
+                , rForkOf = Nothing
+                , rMembers = []
+                , rIsPrivate = isJust private
+                , rIssueCount = 0
+                }
 
         url <- input "bootstrap" ""
-        when (length url > 0) (bootstrapRepository new url)
+        if length url > 0
+            then bootstrapRepository repo url
+            else newRepository repo
 
         success "Repository created." s
         redirectTo ("/" ++ n ++ "/" ++ (r ! "name")))
@@ -468,7 +471,7 @@ repoComment _ _ s@(Session { sUser = Nothing }) = do
     warn "You must be logged in to comment on an issue." s
     redirectTo "/"
 repoComment _ r s@(Session { sUser = Just un }) = validate
-    [ iff (numeric "number") $ \(OK is) -> io "issue does not exist" $ 
+    [ iff (numeric "number") $ \(OK is) -> io "issue does not exist" $
         fmap isJust (getIssue (fromJust (rID r)) (read $ is ! "number"))
     ]
     (\(OK is) -> do

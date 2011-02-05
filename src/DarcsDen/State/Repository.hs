@@ -3,8 +3,7 @@ module DarcsDen.State.Repository where
 import Control.Monad (forM_)
 import Control.Monad.Trans
 import Darcs.Commands (commandCommand)
-import Darcs.Flags (DarcsFlag(All, FixFilePath, Quiet))
-import Darcs.RepoPath (getCurrentDirectory)
+import Darcs.Flags (DarcsFlag(Quiet))
 import Darcs.Utils (withCurrentDirectory)
 import Data.Maybe (catMaybes)
 import Data.Time (UTCTime, formatTime)
@@ -13,7 +12,7 @@ import System.Directory hiding (getCurrentDirectory)
 import System.Locale (defaultTimeLocale)
 import Text.JSON
 import qualified Darcs.Repository as R
-import qualified Darcs.Commands.Pull as DC
+import qualified Darcs.Commands.Get as DC
 
 import DarcsDen.State.Util
 
@@ -198,28 +197,26 @@ destroyRepository r = do
             return True
         else return False
 
-bootstrapRepository :: MonadIO m => Repository -> String -> m ()
-bootstrapRepository r orig = liftIO $ do
-    cwd <- getCurrentDirectory
-    withCurrentDirectory dest $ do
-        here <- getCurrentDirectory
-        get [All, Quiet, FixFilePath here cwd] [orig]
+bootstrapRepository :: MonadIO m => Repository -> String -> m Repository
+bootstrapRepository r orig =  do
+    new <- addRepository r
+    liftIO $ get [Quiet] [orig, dest]
+    return new
   where
-    get = commandCommand DC.pull
+    get = commandCommand DC.get
     dest = repoDir (rOwner r) (rName r)
 
 forkRepository :: MonadIO m => String -> String -> Repository -> m Repository
-forkRepository un rn r = do
-    new <- newRepository
-        r { rID = Nothing
-          , rRev = Nothing
-          , rOwner = un
-          , rName = rn
-          , rForkOf = rID r
-          }
-    bootstrapRepository new orig
-    return new
-  where orig = repoDir (rOwner r) (rName r)
+forkRepository un rn r = bootstrapRepository fork orig
+  where
+    orig = repoDir (rOwner r) (rName r)
+    fork = r
+      { rID = Nothing
+      , rRev = Nothing
+      , rOwner = un
+      , rName = rn
+      , rForkOf = rID r
+      }
 
 moveRepository :: MonadIO m => (String, String) -> Repository -> m ()
 moveRepository (o, n) r =
