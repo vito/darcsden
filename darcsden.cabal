@@ -32,7 +32,7 @@ executable darcsden
   build-depends:
     { base >= 4 && < 5
     , base64-string
-    , blaze-html
+    , blaze-html >= 0.4.0.0 && < 0.5
     , bytestring
     , CouchDB
     , containers
@@ -42,9 +42,9 @@ executable darcsden
     , harp
     , hashed-storage
     , highlighter
-    , hsp
+    , hsp >= 0.6 && < 0.7
     , json
-    , mtl
+    , mtl >= 2 && < 2.1
     , old-locale
     , old-time
     , pandoc
@@ -54,9 +54,9 @@ executable darcsden
     , random
     , redis
     , SHA
-    , ssh >= 0.2.5
-    , snap-core >= 0.3
-    , snap-server >= 0.3
+    , ssh >= 0.2.6
+    , snap-core >= 0.4
+    , snap-server >= 0.4
     , system-uuid
     , split
     , text
