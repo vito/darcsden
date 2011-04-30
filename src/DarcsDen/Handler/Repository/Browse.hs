@@ -36,7 +36,7 @@ pathToFile :: [String] -> String
 pathToFile [] = ""
 pathToFile f = '/' : intercalate "/" f
 
-getFiles :: P.RepoPatch p => R.Repository p r u t -> [String] -> IO (Maybe [RepoItem])
+getFiles :: P.RepoPatch p => R.Repository p -> [String] -> IO (Maybe [RepoItem])
 getFiles r f = do
     tree <- repoTree r f
     return $ fmap (\t -> sort . map (item t . fst) . onelevel $ t) tree
@@ -48,7 +48,7 @@ getFiles r f = do
         , iName = fromAnchored a
         }
 
-getBlob :: P.RepoPatch p => R.Repository p r u t -> [String] -> IO (Maybe LBS.ByteString)
+getBlob :: P.RepoPatch p => R.Repository p -> [String] -> IO (Maybe LBS.ByteString)
 getBlob dr@(RI.Repo p _ _ _) f = withCurrentDirectory p $ do
     tree <- repoTree dr []
     maybe (return Nothing) (\t ->
@@ -59,7 +59,7 @@ getBlob dr@(RI.Repo p _ _ _) f = withCurrentDirectory p $ do
 isTooLarge :: LBS.ByteString -> Bool
 isTooLarge = (> (1024 * 1024)) . LBS.length
 
-repoTree :: P.RepoPatch p => R.Repository p r u t -> [String] -> IO (Maybe (T.Tree IO))
+repoTree :: P.RepoPatch p => R.Repository p -> [String] -> IO (Maybe (T.Tree IO))
 repoTree r@(RI.Repo p _ _ _) f = do
     root <- withCurrentDirectory p (R.readRecorded r >>= T.expand)
     return $
@@ -67,7 +67,7 @@ repoTree r@(RI.Repo p _ _ _) f = do
             then Just root
             else T.findTree root (toAnchored f)
 
-getReadme :: P.RepoPatch p => R.Repository p r u t -> [String] -> IO (Maybe String)
+getReadme :: P.RepoPatch p => R.Repository p -> [String] -> IO (Maybe String)
 getReadme dr f = do
     tree <- repoTree dr f
     case findReadmes tree of

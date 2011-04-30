@@ -2,10 +2,10 @@ module DarcsDen.Handler.Repository.Forks where
 
 import Darcs.CommandsAux (checkPaths)
 import Darcs.Flags (DarcsFlag(SkipConflicts))
+import Darcs.Hopefully (hopefully, info)
 import Darcs.Patch.Depends (findUncommon)
 import Darcs.Patch.Info (makeFilename)
-import Darcs.Patch.Named (getdeps)
-import Darcs.Patch.PatchInfoAnd (hopefully, info)
+import Darcs.Patch.Core (getdeps)
 import Darcs.Patch.Permutations
 import Darcs.Repository
     ( ($-)

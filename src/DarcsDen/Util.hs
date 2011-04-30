@@ -83,7 +83,7 @@ doMarkdown
     . writeHtmlString defaultWriterOptions
     . readMarkdown defaultParserState
     . renderHtml
-    . string
+    . toHtml
     . normalize
 
 normalize :: String -> String

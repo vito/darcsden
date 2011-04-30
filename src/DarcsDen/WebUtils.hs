@@ -85,7 +85,7 @@ repoServe b = do
     mr <- getParam "repo"
     case (mo, mr) of
         (Just owner, Just repo) ->
-            fileServe (repoDir (fromBS owner) (fromBS repo) </> b)
+            serveDirectory (repoDir (fromBS owner) (fromBS repo) </> b)
         _ ->
             notFound
 

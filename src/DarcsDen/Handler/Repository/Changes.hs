@@ -1,9 +1,9 @@
 {-# LANGUAGE GADTs, RankNTypes #-}
 module DarcsDen.Handler.Repository.Changes where
 
+import Darcs.Hopefully (PatchInfoAnd, info)
 import Darcs.Patch.Info (PatchInfo(..), piDate, makeFilename)
 import Darcs.Patch.FileName (fn2fp)
-import Darcs.Patch.PatchInfoAnd (PatchInfoAnd, info)
 import Darcs.Patch.Patchy (Commute(..))
 import Darcs.Patch.Permutations (commuteWhatWeCanFL)
 import Darcs.Patch.Prim (Prim(..), DirPatchType(..), FilePatchType(..))
@@ -145,18 +145,18 @@ toChanges (p, changes) =
         | n == n' = False
     notFile _ _ = True
 
-primToChange :: Prim x y -> PatchChange
+primToChange :: Prim -> PatchChange
 primToChange (Move f t) = Moved (drop 2 $ fn2fp f) (drop 2 $ fn2fp t)
 primToChange (DP f t) = DirChange (drop 2 $ fn2fp f) (fromDP t)
 primToChange (FP f t) = FileChange (drop 2 $ fn2fp f) (fromFP t)
 primToChange (ChangePref n f t) = PrefChange n f t
 primToChange a = error ("primToChange not supported for " ++ show a)
 
-fromDP :: DirPatchType x y -> DirChange
+fromDP :: DirPatchType -> DirChange
 fromDP RmDir = DirRemoved
 fromDP AddDir = DirAdded
 
-fromFP :: FilePatchType x y -> FileChange
+fromFP :: FilePatchType -> FileChange
 fromFP RmFile = FileRemoved
 fromFP AddFile = FileAdded
 fromFP (Hunk l rs as) = FileHunk l (unlinesBS rs) (unlinesBS as)
@@ -190,7 +190,7 @@ getPatch dir patch = R.withRepositoryDirectory [] dir $ \dr -> do
     [l] <- findUsers [pPatch cs]
     return cs { pPatch = l }
 
-fromPS :: P.RepoPatch p => (forall w z. P.Named p w z -> b) -> R.PatchSet p x y -> [b]
+fromPS :: P.RepoPatch p => (P.Named p -> b) -> R.PatchSet p -> [b]
 fromPS f = WO.mapRL f . WO.reverseFL . R.patchSetToPatches
 
 summarize :: [PatchChange] -> [Summary]
@@ -208,11 +208,11 @@ isModification :: PatchChange -> Bool
 isModification (FileChange _ (FileHunk _ _ _)) = True
 isModification _ = False
 
-findAllDeps :: Commute p => RL (PatchInfoAnd p) wX wY -> [(PatchInfo, [PatchInfo])]
+findAllDeps :: Commute p => RL (PatchInfoAnd p) -> [(PatchInfo, [PatchInfo])]
 findAllDeps NilRL = []
 findAllDeps (p :<: ps) = (info p, findDeps ps NilFL p) : findAllDeps ps
 
-findDeps :: Commute p => RL (PatchInfoAnd p) wX wY -> FL (PatchInfoAnd p) wY wZ -> PatchInfoAnd p wZ wT -> [PatchInfo]
+findDeps :: Commute p => RL (PatchInfoAnd p) -> FL (PatchInfoAnd p) -> PatchInfoAnd p -> [PatchInfo]
 findDeps NilRL _ _ = []
 findDeps (p :<: ps) deps me =
     case commuteWhatWeCanFL (p :> deps) of

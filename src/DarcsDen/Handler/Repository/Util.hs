@@ -1,7 +1,7 @@
 module DarcsDen.Handler.Repository.Util where
 
 import Darcs.Repository.Internal (IdentifyRepo(..))
-import Darcs.Patch.V1 (Patch)
+import Darcs.Patch.Core (Patch)
 import Text.Highlighter
 import Text.Highlighter.Formatters.Html
 import Text.Blaze.Renderer.Utf8
@@ -11,7 +11,7 @@ import qualified Data.ByteString as BS
 import DarcsDen.Util (strictLBS)
 
 
-getRepo :: String -> IO (Either String (R.Repository Patch r u t))
+getRepo :: String -> IO (Either String (R.Repository Patch))
 getRepo p = do
     ir <- R.maybeIdentifyRepository [] p
     case ir of

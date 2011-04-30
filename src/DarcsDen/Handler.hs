@@ -33,7 +33,7 @@ index s@(Session { sUser = Just n }) = do
 handler :: Snap ()
 handler =
     route
-        [ ("public", fileServe "public")
+        [ ("public", serveDirectory "public")
         , (":user/:repo/_darcs", repoServe "_darcs")
         , (":user/:repo/raw", repoServe "")
         ] <|>
