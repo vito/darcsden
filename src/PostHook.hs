@@ -50,7 +50,7 @@ go ps = do
         closing :: [(String, String, Int)]
         closing = catMaybes (map closeMatch names)
 
-    mr <- getRepository (owner, repo)
+    mr <- getOwnerRepository (owner, repo)
     case mr of
         Just (Repository { rID = Just rid }) ->
             forM_ closing $ \(e, name, num) -> do
