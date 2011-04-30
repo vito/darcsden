@@ -17,10 +17,20 @@ import DarcsDen.State.User
 import DarcsDen.Util
 
 
+maybeEnv :: String -> IO (Maybe String)
+maybeEnv n = fmap (lookup n) getEnvironment
+
 main :: IO ()
 main = do
+    mps <- maybeEnv "DARCS_PATCHES_XML"
+
+    case mps of
+        Nothing -> putStrLn "no darcs patch info available"
+        Just ps -> go ps
+
+go :: String -> IO ()
+go ps = do
     here <- getCurrentDirectory
-    ps <- getEnv "DARCS_PATCHES_XML"
 
     let [owner, repo]
             = reverse
