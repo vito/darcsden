@@ -261,7 +261,7 @@ fork u r n = repoBase u r
     "fork"
     <span> -> fork</span>
     <div class="repo-fork">
-        <h1>you already have a repository named "<% n %>"</h1>
+        <h1>you already have a repository named "<a href=(userURL u ++ "/" ++ n)><% n %></a>"</h1>
         <p class="blurb">please create an alternative name:</p>
 
         <form action=(repoURL r ++ "/fork-as") method="post">
