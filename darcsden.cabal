@@ -55,8 +55,8 @@ executable darcsden
     , redis
     , SHA
     , ssh >= 0.2.6
-    , snap-core >= 0.4
-    , snap-server >= 0.4
+    , snap-core >= 0.4 && < 0.4.1
+    , snap-server >= 0.4 && < 0.4.1
     , system-uuid
     , split
     , text
