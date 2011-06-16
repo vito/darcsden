@@ -2,19 +2,15 @@ module DarcsDen.State.Repository where
 
 import Control.Monad (forM_)
 import Control.Monad.Trans
-import Darcs.Commands (commandCommand)
-import Darcs.Flags (DarcsFlag(Quiet))
-import Darcs.Utils (withCurrentDirectory)
 import Data.Maybe (catMaybes)
 import Data.Time (UTCTime, formatTime)
 import Database.CouchDB
-import System.Directory hiding (getCurrentDirectory)
+import System.Directory
 import System.Locale (defaultTimeLocale)
 import Text.JSON
-import qualified Darcs.Repository as R
-import qualified Darcs.Commands.Get as DC
 
 import DarcsDen.State.Util
+import qualified DarcsDen.Darcs as Darcs
 
 
 data Repository =
@@ -178,11 +174,7 @@ deleteRepository r =
 newRepository :: MonadIO m => Repository -> m Repository
 newRepository r = do
     new <- addRepository r
-
-    liftIO $ do
-        createDirectoryIfMissing True repo
-        withCurrentDirectory repo (R.createRepository [])
-
+    Darcs.init repo
     return new
   where repo = repoDir (rOwner r) (rName r)
 
@@ -200,10 +192,9 @@ destroyRepository r = do
 bootstrapRepository :: MonadIO m => Repository -> String -> m Repository
 bootstrapRepository r orig =  do
     new <- addRepository r
-    liftIO $ get [Quiet] [orig, dest]
+    Darcs.getTo orig dest
     return new
   where
-    get = commandCommand DC.get
     dest = repoDir (rOwner r) (rName r)
 
 forkRepository :: MonadIO m => String -> String -> Repository -> m Repository
