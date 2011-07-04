@@ -131,7 +131,7 @@ toChanges (p, changes) =
   where
     simplify a [] = reverse a
     simplify a (c@(FileChange n t):cs)
-        | t `elem` [FileAdded, FileRemoved, FileBinary] =
+        | t == FileBinary =
             simplify (c:filter (notFile n) a) (filter (notFile n) cs)
     simplify a (c@(FileChange _ (FileReplace _ _)):cs) =
         simplify (c:a) cs
