@@ -272,12 +272,18 @@ fork u r n = repoBase u r
         </form>
     </div>
 
-issues :: User -> Repository -> [Issue] -> HSPage
-issues u r is s = repoBase u r
-    "issues"
-    <span> -> issues</span>
+issues :: User -> Repository -> String -> [Issue] -> HSPage
+issues u r t is s = repoBase u r
+    t
+    <span> -> <% t %></span>
     <div class="repo-issues">
         <a href=(repoURL r ++ "/new-issue") class="new-issue button">new issue</a>
+        <% if t /= "closed issues"
+              then
+                  <a href=(repoURL r ++ "/issues/closed") class="closed-issues button">closed issues</a>
+              else
+                  <a href=(repoURL r ++ "/issues") class="open-issues button">open issues</a>
+        %>
         <%
             if not (null is)
                then

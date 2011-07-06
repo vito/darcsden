@@ -73,6 +73,7 @@ routes s =
         , (":user/:repo/merge", repoMerge)
         , (":user/:repo/patch/:id", repoPatch)
         , (":user/:repo/issues", repoIssues)
+        , (":user/:repo/issues/closed", repoIssuesClosed)
         , (":user/:repo/issues/tag/:tag", repoIssuesTag)
         , (":user/:repo/issue/:number", repoIssue)
         , (":user/:repo/issue/:number/comment", repoComment)

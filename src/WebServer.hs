@@ -177,6 +177,9 @@ main = do
                 , ("by_repository", jsobj
                     [ ("map", jsstr "function(doc) {\n  if (!doc.is_closed)\n    emit(doc.repository, doc);\n}")
                     ])
+                , ("by_repository_closed", jsobj
+                    [ ("map", jsstr "function(doc) {\n  if (doc.is_closed)\n    emit(doc.repository, doc);\n}")
+                    ])
                 ])
             ]
         ]

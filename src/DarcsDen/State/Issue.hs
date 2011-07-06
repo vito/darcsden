@@ -109,6 +109,18 @@ getIssues (Repository { rID = Just repo }) =
         [("key", showJSON repo)]
 getIssues _ = error "getIssues: unsaved repository"
 
+getIssuesClosed :: MonadIO m => Repository -> m [Issue]
+getIssuesClosed (Repository { rID = Just repo }) =
+    liftIO $ fmap (map snd) (runDB query)
+  where
+    query = queryView
+        (db "issues")
+        (doc "issues")
+        (doc "by_repository_closed")
+        [("key", showJSON repo)]
+getIssuesClosed _ = error "getIssuesClosed: unsaved repository"
+
+
 getIssuesByTag :: MonadIO m => Repository -> String -> m [Issue]
 getIssuesByTag (Repository { rID = Just repo }) t =
     liftIO $ fmap (map snd) (runDB query)
