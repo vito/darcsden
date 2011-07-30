@@ -2,6 +2,9 @@ module DarcsDen.State.Repository where
 
 import Control.Monad (forM_)
 import Control.Monad.Trans
+import Data.Char
+import Data.Ord
+import Data.List
 import Data.Maybe (catMaybes)
 import Data.Time (UTCTime, formatTime)
 import Database.CouchDB
@@ -131,7 +134,9 @@ getOwnerRepositories = getRepositoriesByOwner (doc "private")
 
 getRepositoriesByOwner :: MonadIO m => Doc -> String -> m [Repository]
 getRepositoriesByOwner design on =
-    liftIO $ fmap (map snd) (runDB query)
+    liftIO $
+     fmap (sortBy (comparing (map toLower . rName)) . map snd)
+     (runDB query)
   where
     query = queryView
         (db "repositories")
