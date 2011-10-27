@@ -27,11 +27,14 @@ getDocByView db' design view key = do
          [] -> return Nothing
          ((_, val):_) -> return (Just val)
 
+-- . is allowed in repo names except at the beginning,
+-- for this to be safe / and \ must remain disallowed.
 charIsSane :: Char -> Bool
-charIsSane = flip elem (['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ "-_")
+charIsSane = flip elem (['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ "-_.")
 
 isSane :: String -> Bool
-isSane = all charIsSane
+isSane ('.':_) = False
+isSane s       = all charIsSane s
 
 saneName :: String -> String
 saneName = filter charIsSane
