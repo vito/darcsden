@@ -455,7 +455,7 @@ issue u r i cs s = repoBase u r
 
                 Nothing ->
                     <span class="please-login">
-                        please <a href="/log-in">log in</a> to comment
+                        please <a href="/login">log in</a> to comment
                     </span>
         %>
     </div>
