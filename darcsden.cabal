@@ -1,5 +1,5 @@
 name:            darcsden
-version:         0.4
+version:         0.5
 synopsis:        darcs project hosting and collaboration
 description:
     A web and SSH server for hosting darcs projects and collaborating with
