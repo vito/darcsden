@@ -190,8 +190,9 @@ channelRequest wr (Execute cmd) =
     scp path = execute . unwords $ ["scp", "-f", "--", path]
 
     execute = spawnProcess . runInteractiveCommand
-channelRequest wr (Environment "LANG" _) =
-    when wr channelSuccess
+channelRequest wr (Environment var _)
+    | var == "LANG" || "LC_" `isPrefixOf` var =
+        when wr channelSuccess
 channelRequest wr r = do
     channelError $ "this server only accepts exec requests\r\ngot: " ++ show r
     when wr channelFail
